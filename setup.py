@@ -24,6 +24,7 @@ setup(
         "halo-hypy",
         "sqlalchemy",
         "sqlalchemy-json",
+        "pyyaml",
         "https://github.com/aiogram/aiogram/archive/refs/heads/dev-3.x.zip",
     ],
     entry_points={
