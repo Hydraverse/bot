@@ -26,8 +26,4 @@ class Addr(Base):
     date_access = Column(DateTime, server_default=func.now(), nullable=False, index=True)
     config = Column(NestedMutableJson, nullable=False, index=True)
     data = Column(NestedMutableJson, nullable=False, index=True)
-    users = relationship("User", secondary=UserAddr, back_populates="users")
-
-    @staticmethod
-    def from_user(user):
-        return future_select(lambda: Addr).where(lambda: user in Addr.users)
+    users = relationship("User", secondary=UserAddr, back_populates="addrs")

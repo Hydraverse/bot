@@ -28,6 +28,6 @@ class DB:
     def default():
         return DB(f"sqlite:///{DB.PATH}", echo=log.level() <= log.INFO)
 
+    def user_from_tgid(self, tgid) -> User:
+        return self.session.execute(User.from_tgid(tgid)).scalar_one()
 
-    def user_by_tgid(self):
-        return future_select()

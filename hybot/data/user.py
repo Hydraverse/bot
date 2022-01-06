@@ -43,6 +43,3 @@ class User(Base):
     def from_tgid(tgid):
         return future_select(lambda: User).where(lambda: User.tgid == tgid)
 
-    @staticmethod
-    def from_addr(addr):
-        return future_select(lambda: User).where(lambda: addr in User.addrs)
