@@ -2,6 +2,9 @@
 /tmp/
 /.env/
 /local/
+/build/
+/dist/
+/*.egg-info/
 .pytest_cache
 __pycache__
 *.log
