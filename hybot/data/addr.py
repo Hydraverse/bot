@@ -2,12 +2,11 @@ from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import func
 from sqlalchemy import String
+from sqlalchemy import Integer
 from sqlalchemy_json import NestedMutableJson
 from sqlalchemy.orm import relationship
-from sqlalchemy.future import select as future_select
 
 from .base import Base
-from .user_addr import UserAddr
 
 __all__ = "Addr",
 
@@ -20,10 +19,11 @@ class Addr(Base):
     # triggering an expired load
     __mapper_args__ = {"eager_defaults": True}
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(Integer, unique=True, primary_key=True, autoincrement=True, index=True)
+    address = Column(String, nullable=False, unique=True, index=True)
+    users = relationship("User", secondary="user_addr", back_populates="addrs", passive_deletes=True)
     date_create = Column(DateTime, server_default=func.now(), nullable=False, index=True)
     date_change = Column(DateTime, server_default=func.now(), server_onupdate=func.now(), nullable=False, index=True)
     date_access = Column(DateTime, server_default=func.now(), nullable=False, index=True)
-    config = Column(NestedMutableJson, nullable=False, index=True)
-    data = Column(NestedMutableJson, nullable=False, index=True)
-    users = relationship("User", secondary=UserAddr, back_populates="addrs")
+    conf = Column(NestedMutableJson, nullable=False, index=True, default={})
+    data = Column(NestedMutableJson, nullable=False, index=False, default={})

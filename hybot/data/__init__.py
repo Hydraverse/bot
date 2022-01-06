@@ -12,7 +12,11 @@ from .addr import __all__ as __all__addr__
 from .addr import *
 
 # noinspection PyProtectedMember
+from .user_addr import __all__ as __all__user_addr__
+from .user_addr import *
+
+# noinspection PyProtectedMember
 from .db import __all__ as __all__db__
 from .db import *
 
-__all__ = __all__base__ + __all__user__ + __all__addr__ + __all__db__
+__all__ = __all__base__ + __all__user__ + __all__addr__ + __all__user_addr__ + __all__db__
