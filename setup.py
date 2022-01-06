@@ -22,6 +22,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         "halo-hypy",
+        "sqlalchemy",
+        "sqlalchemy-json",
         "https://github.com/aiogram/aiogram/archive/refs/heads/dev-3.x.zip",
     ],
     entry_points={
