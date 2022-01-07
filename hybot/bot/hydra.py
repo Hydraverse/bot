@@ -1,3 +1,6 @@
+"""Created by Halospace Foundation.
+Support: t.me/TheHydraverse
+"""
 from __future__ import annotations
 import aiogram.exceptions
 from aiogram import Bot, Dispatcher, types
@@ -9,13 +12,12 @@ import pytz
 
 from hydra.rpc import HydraRPC
 
-from .. import Hybot
 from ..data import *
 from ..conf import Config
 
 CONF = {
     "token": "(bot token from @BotFather)",
-    "donations": "(developer address to shill for donations)"
+    "donations": "HUo97u33iEdkEWBiLZEitAsGRXHUcmdfHQ"
 }
 
 
@@ -47,8 +49,8 @@ class HydraBot(Bot):
         super().__init__(token, parse_mode="HTML")
 
     @staticmethod
-    def main(app: Hybot):
-        return HydraBot(app.rpc).run()
+    def main(rpc: HydraRPC):
+        return HydraBot(rpc).run()
 
     def run(self):
         return HydraBot.__DP.run_polling(self)
@@ -61,12 +63,18 @@ class HydraBot(Bot):
         nick = u.info.get("nick", None) or msg.from_user.username
 
         response_nick_change = (
-            "Change your nickname with /nick [name]\n\n"
+            "Change your nickname with <b>/nick [name]</b>\n\n"
         )
 
         response_nick_is = (
-            f"Your nickname is {nick}.\n" +
+            f"Your nickname is <b>{nick}</b>.\n" +
             response_nick_change
+        )
+
+        response_tz = (
+            f"Your time zone is <b>{u.info.get('tz', 'UTC')}</b>.\n"
+            "Change your time zone with <b>/tz [zone]</b>\n"
+            "Find a timezone with <b>/tz find [search]</b>\n\n"
         )
 
         response_uid = (
@@ -76,13 +84,14 @@ class HydraBot(Bot):
         response_donate = (
             "Please consider supporting the developer of this project.\n"
             "Thank You!!\n\n"
-            f"{HydraBot._.conf.donations}")
+            f"<pre>{HydraBot._.conf.donations}</pre>\n" + __doc__)
 
         if getattr(u.info, "welcomed", False) is not True:
             await msg.answer(
                 f"Welcome, <b>{msg.from_user.full_name}!</b>\n\n" +
                 response_uid +
                 response_nick_is +
+                response_tz +
                 response_donate
             )
 
@@ -98,6 +107,7 @@ class HydraBot(Bot):
                 f"Hiya, <b>{u.info.nick}!</b>\n\n" +
                 response_uid +
                 response_nick_change +
+                response_tz +
                 response_donate
             )
 

@@ -6,6 +6,7 @@ from hydra.app import HydraApp
 from hydra.rpc import HydraRPC
 from hydra.test import Test
 
+from .bot.hydra import HydraBot
 from .conf import Config
 
 VERSION = "0.0.1"
@@ -45,8 +46,7 @@ class Hybot(HydraApp):
             exit(-2)
 
         if bot == "HydraBot":
-            from .bot.hydra import HydraBot
-            HydraBot.main(self)
+            HydraBot.main(self.rpc)
 
 
 @Test.register()
