@@ -19,9 +19,9 @@ class Config:
 
     @staticmethod
     def get(cls: type) -> AttrDict:
-        return Config.read(create=True).get(
+        return AttrDict(Config.read(create=True).get(
             cls.__name__, Config.DEFAULT.get(cls.__name__, None)
-        )
+        ))
 
     @staticmethod
     def set(cls: type, data: dict) -> None:
@@ -33,7 +33,7 @@ class Config:
     def defaults(data: dict = None):
 
         if data is None:
-            data = {}
+            data = AttrDict()
 
         def default(cls: type):
             Config.DEFAULT[cls.__name__] = data
