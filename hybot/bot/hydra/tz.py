@@ -8,11 +8,11 @@ from . import HydraBot
 
 # noinspection PyProtectedMember
 async def tz(msg: types.Message):
-    u = await HydraBot._.db.user_load_or_create(msg.from_user)
+    u = await HydraBot._.db.user_load_or_create(msg.from_user.id)
 
     try:
         tz_cur = u.info.get("tz", None)
-        tz_new = str(msg.text).replace("/tz", "").strip()
+        tz_new = str(msg.text).replace("/tz", "", 1).strip()
 
         if not tz_new:
             return await msg.answer(
@@ -51,7 +51,7 @@ async def tz(msg: types.Message):
 
         tz_new_loc = pytz.timezone(tz_new).localize(datetime.now(), is_dst=None).tzname()
 
-        await HydraBot._.db.user_info_update(msg.from_user, {
+        await HydraBot._.db.user_update_info(msg.from_user.id, {
             "tz": tz_new,
         })
 

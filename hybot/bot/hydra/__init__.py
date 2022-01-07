@@ -36,14 +36,18 @@ class HydraBot(Bot):
     def __init__(self, rpc: HydraRPC):
         self.rpc = rpc
         self.conf = Config.get(HydraBot)
-        self.db = DB.default()
+        self.db = DB.default(self.rpc)
 
         token = self.conf.get("token", None)
 
         if not token:
             raise ValueError("Invalid or no token found in config")
 
-        from . import hello as cmd_hello, nick as cmd_nick, tz as cmd_tz
+        from . import \
+            hello as cmd_hello,\
+            nick as cmd_nick,\
+            tz as cmd_tz,\
+            addr as cmd_addr
 
         @HydraBot.__DP.message(commands={"hello"})
         async def hello(msg: types.Message):
@@ -56,6 +60,10 @@ class HydraBot(Bot):
         @HydraBot.__DP.message(commands={"tz"})
         async def tz(msg: types.Message):
             return await cmd_tz.tz(msg)
+
+        @HydraBot.__DP.message(commands={"addr"})
+        async def addr(msg: types.Message):
+            return await cmd_addr.addr(msg)
 
         super().__init__(token, parse_mode="HTML")
 

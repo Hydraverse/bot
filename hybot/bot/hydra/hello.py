@@ -7,7 +7,7 @@ from . import HydraBot
 
 # noinspection PyProtectedMember
 async def hello(msg: types.Message):
-    u = await HydraBot._.db.user_load_or_create(msg.from_user)
+    u = await HydraBot._.db.user_load_or_create(msg.from_user.id)
 
     nick = u.info.get("nick", None) or msg.from_user.username
 
@@ -44,7 +44,7 @@ async def hello(msg: types.Message):
             response_donate
         )
 
-        await HydraBot._.db.user_info_update(msg.from_user, {
+        await HydraBot._.db.user_update_info(u.user_id, {
             "welcomed": True,
             "lang": msg.from_user.language_code,
             "tz": "UTC",
