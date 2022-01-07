@@ -22,8 +22,8 @@ class User(Base):
     tgid = Column(String, nullable=False, unique=True, index=True)
     name = Column(String, nullable=True)
 
-    date_create = Column(DateTime, server_default=func.now, nullable=False, index=True)
-    date_update = Column(DateTime, server_default=func.now, onupdate=datetime.now, nullable=False, index=True)
+    date_create = Column(DateTime, server_default=func.now(), nullable=False, index=True)
+    date_update = Column(DateTime, server_default=func.now(), onupdate=datetime.now, nullable=False, index=True)
 
     info = Column(NestedMutableJson, nullable=False, index=True, default={})
     data = Column(NestedMutableJson, nullable=False, index=False, default={})
