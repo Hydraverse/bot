@@ -1,12 +1,11 @@
 import os
-from typing import Optional
-
 import sqlalchemy.exc
-from attrdict import AttrDict
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 from aiogram.types.user import User as TelegramUser
+from attrdict import AttrDict
+import asyncio
 
 from . import *
 from hydra import log
@@ -32,15 +31,18 @@ class DB:
     def default():
         return DB(f"sqlite:///{DB.PATH}", echo=log.level() <= log.INFO)
 
-    def user_load_or_create(self, tg_user: TelegramUser) -> User:
+    async def user_load_or_create(self, tg_user: TelegramUser) -> AttrDict:
+        return await asyncio.get_event_loop().run_in_executor(None, self._user_load_or_create, tg_user)
+
+    def _user_load_or_create(self, tg_user: TelegramUser) -> AttrDict:
         self.Session()
 
         try:
             # noinspection PyProtectedMember
-            return self.Session.execute(User.from_tgid(tg_user.id)).scalar_one()
+            return AttrDict(self.Session.execute(User.from_tgid(tg_user.id)).scalar_one().asdict())
 
         except sqlalchemy.exc.NoResultFound:
-            self.Session.rollback()
+            # self.Session.rollback()
 
             user_ = User(
                 tgid=tg_user.id,
@@ -56,7 +58,7 @@ class DB:
                 self.Session.rollback()
                 raise
 
-            return user_
+            return AttrDict(user_.asdict())
 
         finally:
             self.Session.remove()

@@ -7,11 +7,12 @@ from sqlalchemy.orm import relationship
 from sqlalchemy_json import NestedMutableJson
 from sqlalchemy.future import select as future_select
 
-from .base import Base
+from .base import Base, dictattrs
 
 __all__ = "User",
 
 
+@dictattrs("user_id", "tgid", "date_create", "date_update", "info")
 class User(Base):
     __tablename__ = "user"
 

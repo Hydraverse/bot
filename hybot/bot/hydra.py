@@ -49,16 +49,10 @@ class HydraBot(Bot):
     def run(self):
         return HydraBot.__DP.run_polling(self)
 
-    def db_get_user(self, tg_user: TelegramUser):
-        return self.db.user_load_or_create(tg_user)
-
-    async def db_get_user_async(self, tg_user: TelegramUser):
-        return await asyncio.get_event_loop().run_in_executor(None, self.db_get_user, tg_user)
-
     @staticmethod
     @__DP.message(commands={"hello"})
     async def hello(msg: types.Message):
-        user_data = await HydraBot._.db_get_user_async(msg.from_user)
+        user_data = await HydraBot._.db.user_load_or_create(msg.from_user)
 
         await msg.answer(f"Hello, <b>{msg.from_user.full_name}!</b> Your HydraBot user id is #{user_data.user_id}")
 
