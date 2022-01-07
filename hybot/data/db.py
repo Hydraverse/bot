@@ -42,10 +42,7 @@ class DB:
             return AttrDict(self.Session.execute(User.from_tgid(tg_user.id)).scalar_one().asdict())
 
         except sqlalchemy.exc.NoResultFound:
-            user_ = User(
-                tgid=tg_user.id,
-                name=tg_user.first_name or tg_user.username
-            )
+            user_ = User(tgid=tg_user.id)
 
             # noinspection PyBroadException
             try:
