@@ -2,20 +2,22 @@ from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
+from sqlalchemy import String
 from sqlalchemy import func
 from sqlalchemy_json import NestedMutableJson
-from datetime import datetime
 
-from hybot.data.base import Base
+from hybot.data.base import Base, dictattrs
 
 __all__ = "UserAddr",
 
 
+@dictattrs("user_id", "addr_id", "date_create", "date_update", "info", "data")
 class UserAddr(Base):
     __tablename__ = "user_addr"
+    __mapper_args__ = {"eager_defaults": True}
 
     user_id = Column(Integer, ForeignKey("user.user_id", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
-    addr_id = Column(Integer, ForeignKey("addr.addr_id", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
+    addr_id = Column(String(34), ForeignKey("addr.addr_id", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
 
     date_create = Column(DateTime, default=func.now(), nullable=False, index=True)
     date_update = Column(DateTime, onupdate=func.now(), index=True)

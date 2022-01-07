@@ -1,25 +1,21 @@
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Integer
-from sqlalchemy import String
 from sqlalchemy import func
 from sqlalchemy.orm import relationship
 from sqlalchemy_json import NestedMutableJson
-from sqlalchemy.future import select as future_select
-from datetime import datetime
 
 from .base import Base, dictattrs
 
 __all__ = "User",
 
 
-@dictattrs("user_id", "tgid", "date_create", "date_update", "info")
+@dictattrs("user_id", "date_create", "date_update", "info", "data", "addrs", "tokns")
 class User(Base):
     __tablename__ = "user"
+    __mapper_args__ = {"eager_defaults": True}
 
-    user_id = Column(Integer, unique=True, primary_key=True, autoincrement=True, index=True, nullable=False)
-
-    tgid = Column(String, nullable=False, unique=True, index=True)
+    user_id = Column(Integer, nullable=False, primary_key=True, index=True)
 
     date_create = Column(DateTime, default=func.now(), nullable=False, index=True)
     date_update = Column(DateTime, onupdate=func.now(), index=True)
@@ -29,8 +25,3 @@ class User(Base):
 
     addrs = relationship("Addr", secondary="user_addr", back_populates="users", cascade="all, delete")
     tokns = relationship("Tokn", secondary="user_tokn", back_populates="users", cascade="all, delete")
-
-    @staticmethod
-    def from_tgid(tgid):
-        return future_select(lambda: User).where(lambda: User.tgid == tgid)
-
