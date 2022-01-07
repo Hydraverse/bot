@@ -23,8 +23,8 @@ class Addr(Base):
     addr_id = Column(Integer, unique=True, primary_key=True, autoincrement=True, index=True, nullable=False)
     address = Column(String, nullable=False, unique=True, index=True)
 
-    date_create = Column(DateTime, server_default=func.now(), nullable=False, index=True)
-    date_update = Column(DateTime, server_default=func.now(), server_onupdate=func.now(), nullable=False, index=True)
+    date_create = Column(DateTime, default=func.now(), nullable=False, index=True)
+    date_update = Column(DateTime, onupdate=func.now(), index=True)
 
     info = Column(NestedMutableJson, nullable=False, index=True, default={})
     data = Column(NestedMutableJson, nullable=False, index=False, default={})

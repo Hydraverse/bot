@@ -3,7 +3,6 @@ import sqlalchemy.exc
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.future import select as future_select
 from aiogram.types.user import User as TelegramUser
 from attrdict import AttrDict
 import asyncio
