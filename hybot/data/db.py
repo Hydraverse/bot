@@ -44,7 +44,7 @@ class DB:
         except sqlalchemy.exc.NoResultFound:
             user_ = User(
                 tgid=tg_user.id,
-                name=tg_user.username,
+                name=tg_user.first_name or tg_user.username
             )
 
             # noinspection PyBroadException
@@ -65,14 +65,14 @@ class DB:
         return await asyncio.get_event_loop().run_in_executor(None, self._user_info_update, tg_user, info)
 
     def _user_info_update(self, tg_user: TelegramUser, info: dict) -> None:
-        s = self.Session()
+        self.Session()
 
         try:
             u = self.Session.execute(User.from_tgid(tg_user.id)).scalar_one()
             u.info.update(info)
 
-            s.add(u)
-            s.commit()
+            self.Session.add(u)
+            self.Session.commit()
 
         except sqlalchemy.exc.SQLAlchemyError:
             self.Session.rollback()

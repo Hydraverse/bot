@@ -25,7 +25,7 @@ class Tokn(Base):
     address = Column(String, nullable=False, unique=True, index=True)
 
     date_create = Column(DateTime, server_default=func.now(), nullable=False, index=True)
-    date_update = Column(DateTime, server_default=func.now(), onupdate=datetime.now, nullable=False, index=True)
+    date_update = Column(DateTime, server_default=func.now(), server_onupdate=func.now(), nullable=False, index=True)
 
     info = Column(NestedMutableJson, nullable=False, index=True, default={})
     data = Column(NestedMutableJson, nullable=False, index=False, default={})

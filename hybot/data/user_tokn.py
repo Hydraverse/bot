@@ -18,7 +18,7 @@ class UserTokn(Base):
     tokn_id = Column(Integer, ForeignKey("tokn.tokn_id", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
 
     date_create = Column(DateTime, server_default=func.now(), nullable=False, index=True)
-    date_update = Column(DateTime, server_default=func.now(), onupdate=datetime.now, nullable=False, index=True)
+    date_update = Column(DateTime, server_default=func.now(), server_onupdate=func.now(), nullable=False, index=True)
 
     conf = Column(NestedMutableJson, nullable=False, index=True, default={})
     data = Column(NestedMutableJson, nullable=False, index=False, default={})
