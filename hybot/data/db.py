@@ -3,6 +3,7 @@ import sqlalchemy.exc
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.future import select as future_select
 from aiogram.types.user import User as TelegramUser
 from attrdict import AttrDict
 import asyncio
@@ -29,7 +30,7 @@ class DB:
 
     @staticmethod
     def default():
-        return DB(f"sqlite:///{DB.PATH}", echo=log.level() <= log.INFO)
+        return DB(f"sqlite:///{DB.PATH}")  # , echo=log.level() <= log.INFO)
 
     async def user_load_or_create(self, tg_user: TelegramUser) -> AttrDict:
         return await asyncio.get_event_loop().run_in_executor(None, self._user_load_or_create, tg_user)
@@ -38,12 +39,9 @@ class DB:
         self.Session()
 
         try:
-            # noinspection PyProtectedMember
             return AttrDict(self.Session.execute(User.from_tgid(tg_user.id)).scalar_one().asdict())
 
         except sqlalchemy.exc.NoResultFound:
-            # self.Session.rollback()
-
             user_ = User(
                 tgid=tg_user.id,
                 name=tg_user.username,
@@ -59,6 +57,26 @@ class DB:
                 raise
 
             return AttrDict(user_.asdict())
+
+        finally:
+            self.Session.remove()
+
+    async def user_info_update(self, tg_user: TelegramUser, info: dict) -> None:
+        return await asyncio.get_event_loop().run_in_executor(None, self._user_info_update, tg_user, info)
+
+    def _user_info_update(self, tg_user: TelegramUser, info: dict) -> None:
+        s = self.Session()
+
+        try:
+            u = self.Session.execute(User.from_tgid(tg_user.id)).scalar_one()
+            u.info.update(info)
+
+            s.add(u)
+            s.commit()
+
+        except sqlalchemy.exc.SQLAlchemyError:
+            self.Session.rollback()
+            raise
 
         finally:
             self.Session.remove()
