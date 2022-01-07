@@ -1,22 +1,10 @@
 
-# noinspection PyProtectedMember
-from .base import __all__ as __all__base__
 from .base import *
-
-# noinspection PyProtectedMember
-from .user import __all__ as __all__user__
 from .user import *
-
-# noinspection PyProtectedMember
-from .addr import __all__ as __all__addr__
 from .addr import *
-
-# noinspection PyProtectedMember
-from .user_addr import __all__ as __all__user_addr__
+from .tokn import *
 from .user_addr import *
-
-# noinspection PyProtectedMember
-from .db import __all__ as __all__db__
+from .user_tokn import *
 from .db import *
 
-__all__ = __all__base__ + __all__user__ + __all__addr__ + __all__user_addr__ + __all__db__
+del base, user, addr, tokn, user_addr, user_tokn, db
