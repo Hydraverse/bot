@@ -22,5 +22,3 @@ class UserAddr(Base):
 
     info = Column(NestedMutableJson, nullable=False, index=True, default={})
     data = Column(NestedMutableJson, nullable=False, index=False, default={})
-
-    tokns = relationship("Tokn", secondary="user_addr_tokn", back_populates="user_addrs", cascade="all, delete")

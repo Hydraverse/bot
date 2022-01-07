@@ -1,4 +1,4 @@
-from sqlalchemy import Column
+from sqlalchemy import Column, ForeignKey
 from sqlalchemy import DateTime
 from sqlalchemy import func
 from sqlalchemy import String
@@ -30,4 +30,4 @@ class Tokn(Base):
     data = Column(NestedMutableJson, nullable=False, index=False, default={})
 
     users = relationship("User", secondary="user_tokn", back_populates="tokns", passive_deletes=True)
-    user_addrs = relationship("UserAddr", secondary="user_addr_tokn", back_populates="tokns", passive_deletes=True)
+
