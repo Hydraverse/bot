@@ -20,7 +20,6 @@ class User(Base):
     user_id = Column(Integer, unique=True, primary_key=True, autoincrement=True, index=True, nullable=False)
 
     tgid = Column(String, nullable=False, unique=True, index=True)
-    name = Column(String, nullable=True)
 
     date_create = Column(DateTime, server_default=func.now(), nullable=False, index=True)
     date_update = Column(DateTime, server_default=func.now(), server_onupdate=func.now(), nullable=False, index=True)
