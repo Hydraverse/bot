@@ -13,7 +13,7 @@ from .base import Base, dictattrs
 __all__ = "User",
 
 
-@dictattrs("user_id", "tgid", "name", "date_create", "date_update", "info")
+@dictattrs("user_id", "tgid", "date_create", "date_update", "info")
 class User(Base):
     __tablename__ = "user"
 
