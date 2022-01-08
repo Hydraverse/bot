@@ -36,7 +36,7 @@ class DbPkidMixin:
 class DbDateMixin:
     __mapper_args__ = {"eager_defaults": True}
 
-    date_create = Column(DateTime, default=func.now(), nullable=False, index=True)
+    date_create = Column(DateTime, default=func.now(), nullable=False, index=False)
     date_update = Column(DateTime, onupdate=func.now(), index=True)
 
 

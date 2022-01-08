@@ -76,7 +76,7 @@ class HydraBot(Bot):
     @staticmethod
     @__DP.message(commands={"echo"})
     async def echo(msg: types.Message):
-        return await msg.reply(msg.text)
+        return await msg.answer(msg.text)
 
     def run(self):
         return HydraBot.__DP.run_polling(self)

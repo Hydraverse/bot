@@ -10,7 +10,7 @@ __all__ = "Addr",
 class Addr(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "addr"
 
-    addr_id = Column(String(34), nullable=False, unique=True, primary_key=False, index=True)
+    addr_id = Column(String(42), nullable=False, unique=True, primary_key=False, index=True)
 
     info = DbInfoColumn()
     data = DbDataColumn()
@@ -23,4 +23,4 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
     @staticmethod
     def _validate_address(db, address: str):
-        return db.rpc.validateaddress(address).isvalid
+        return db.rpc.validateaddress(address)
