@@ -43,6 +43,10 @@ async def tz(msg: types.Message):
 
             return await msg.answer(response)
 
+        for tz_name in pytz.all_timezones:
+            if tz_name.lower() == tz_new.lower():
+                tz_new = tz_name
+
         if tz_new == tz_cur:
             return await msg.answer(
                 f"Timezone is already <b>{tz_cur}</b>.\n"
@@ -51,7 +55,7 @@ async def tz(msg: types.Message):
 
         tz_new_loc = pytz.timezone(tz_new).localize(datetime.now(), is_dst=None).tzname()
 
-        await HydraBot._.db.user_update_info(msg.from_user.id, {
+        await HydraBot._.db.user_update_info(u.pkid, {
             "tz": tz_new,
         })
 

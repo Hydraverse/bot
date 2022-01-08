@@ -47,7 +47,8 @@ class HydraBot(Bot):
             hello as cmd_hello,\
             nick as cmd_nick,\
             tz as cmd_tz,\
-            addr as cmd_addr
+            addr as cmd_addr,\
+            delete as cmd_delete
 
         @HydraBot.__DP.message(commands={"hello"})
         async def hello(msg: types.Message):
@@ -62,14 +63,23 @@ class HydraBot(Bot):
             return await cmd_tz.tz(msg)
 
         @HydraBot.__DP.message(commands={"addr"})
-        async def addr(msg: types.Message):
+        async def addr_(msg: types.Message):
             return await cmd_addr.addr(msg)
+
+        @HydraBot.__DP.message(commands={"DELETE"})
+        async def delete(msg: types.Message):
+            return await cmd_delete.delete(msg)
 
         super().__init__(token, parse_mode="HTML")
 
     @staticmethod
     def main(rpc: HydraRPC):
         return HydraBot(rpc).run()
+
+    @staticmethod
+    @__DP.message(commands={"echo"})
+    async def echo(msg: types.Message):
+        return await msg.reply(msg.text)
 
     def run(self):
         return HydraBot.__DP.run_polling(self)

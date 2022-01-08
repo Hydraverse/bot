@@ -8,7 +8,7 @@ from . import HydraBot
 
 # noinspection PyProtectedMember
 async def addr(msg: types.Message):
-    u = await HydraBot._.db.user_load_or_create(msg.from_user.id)
+    u = await HydraBot._.db.user_load_or_create(msg.from_user.id, full=True)
 
     try:
         address = str(msg.text).replace("/addr", "", 1).strip()
@@ -36,7 +36,7 @@ async def addr(msg: types.Message):
 
             for user_addr in u.addrs:
                 if user_addr.addr_id == address:
-                    await HydraBot._.db.user_addr_remove(u.user_id, user_addr.addr_id)
+                    await HydraBot._.db.user_addr_remove(u.pkid, user_addr.pkid)
                     return await msg.answer("Address removed.\n")
 
             return await msg.answer("Address not removed: not found.\n")
@@ -48,10 +48,10 @@ async def addr(msg: types.Message):
                     "List: <b>/addr list</b>"
                 )
 
-        await HydraBot._.db.user_addr_load(u.user_id, address)
+        await HydraBot._.db.user_addr_add(u.pkid, address)
 
         return await msg.answer(f"Added <pre>{address}</pre>")
 
     except Exception as error:
-        await msg.answer(f"Sorry, something went wrong.\n\n<b>{error}</b>")
+        await msg.answer(f"Sorry, something went wrong.\n\n<b>{str(error)}</b>")
         raise

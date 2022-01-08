@@ -21,7 +21,7 @@ async def nick(msg: types.Message):
         return await msg.answer(f"That's your nickname already, silly {nick_cur}!")
 
     try:
-        await HydraBot._.db.user_update_info(u.user_id, {
+        await HydraBot._.db.user_update_info(u.pkid, {
             "nick": nick_new,
         })
     except aiogram.exceptions.AiogramError as error:

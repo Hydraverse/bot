@@ -27,7 +27,7 @@ async def hello(msg: types.Message):
     )
 
     response_uid = (
-        f"Your HydraBot user id is #{u.user_id}.\n\n"
+        f"Your HydraBot user id is #{u.pkid}.\n\n"
     )
 
     response_donate = (
@@ -44,7 +44,7 @@ async def hello(msg: types.Message):
             response_donate
         )
 
-        await HydraBot._.db.user_update_info(u.user_id, {
+        await HydraBot._.db.user_update_info(u.pkid, {
             "welcomed": True,
             "lang": msg.from_user.language_code,
             "tz": "UTC",
