@@ -2,11 +2,11 @@ import aiogram
 from aiogram import types, exceptions
 
 from . import HydraBot
+from ...data import User
 
 
-# noinspection PyProtectedMember
-async def nick(msg: types.Message):
-    u = await HydraBot._.db.user_load_or_create(msg.from_user.id)
+async def nick(bot: HydraBot, msg: types.Message):
+    u = await User.load_or_create(bot.db, msg.from_user.id)
 
     nick_cur = u.info.get("nick", None)
     nick_new = str(msg.text).replace("/nick", "", 1).strip()
@@ -21,7 +21,7 @@ async def nick(msg: types.Message):
         return await msg.answer(f"That's your nickname already, silly {nick_cur}!")
 
     try:
-        await HydraBot._.db.user_update_info(u.pkid, {
+        await User.update_info(bot.db, u.pkid, {
             "nick": nick_new,
         })
     except aiogram.exceptions.AiogramError as error:

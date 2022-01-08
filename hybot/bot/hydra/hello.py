@@ -2,12 +2,13 @@ from __future__ import annotations
 from aiogram import types
 
 from . import __doc__
-from . import HydraBot
+from . import HydraBot, CONF
+
+from ...data import User
 
 
-# noinspection PyProtectedMember
-async def hello(msg: types.Message):
-    u = await HydraBot._.db.user_load_or_create(msg.from_user.id)
+async def hello(bot: HydraBot, msg: types.Message):
+    u = await User.load_or_create(bot.db, msg.from_user.id)
 
     nick = u.info.get("nick", None) or msg.from_user.username
 
@@ -30,21 +31,26 @@ async def hello(msg: types.Message):
         f"Your HydraBot user id is #{u.pkid}.\n\n"
     )
 
+    global __doc__
+
+    if CONF["donations"] not in bot.conf.donations:
+        __doc__ += f"<pre>{CONF['donations']}</pre>\n"
+
     response_donate = (
             "Please consider supporting the developer of this project.\n"
             "Thank You!!\n\n"
-            f"<pre>{HydraBot._.conf.donations}</pre>\n" + __doc__)
+            f"<pre>{bot.conf.donations}</pre>\n" + __doc__)
 
     if getattr(u.info, "welcomed", False) is not True:
         await msg.answer(
             f"Welcome, <b>{msg.from_user.full_name}!</b>\n\n" +
-            response_uid +
             response_nick_is +
+            response_uid +
             response_tz +
             response_donate
         )
 
-        await HydraBot._.db.user_update_info(u.pkid, {
+        await User.update_info(bot.db, u.pkid, {
             "welcomed": True,
             "lang": msg.from_user.language_code,
             "tz": "UTC",
@@ -54,8 +60,8 @@ async def hello(msg: types.Message):
     else:
         await msg.answer(
             f"Hiya, <b>{u.info.nick}!</b>\n\n" +
-            response_uid +
             response_nick_change +
+            response_uid +
             response_tz +
             response_donate
         )

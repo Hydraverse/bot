@@ -2,13 +2,10 @@
 Support: t.me/TheHydraverse
 """
 from __future__ import annotations
-import aiogram.exceptions
 from aiogram import Bot, Dispatcher, types
-from aiogram.types.user import User as TelegramUser
 from attrdict import AttrDict
 
 from hydra.rpc import HydraRPC
-
 from hybot.data import *
 from hybot.conf import Config
 
@@ -52,23 +49,23 @@ class HydraBot(Bot):
 
         @HydraBot.__DP.message(commands={"hello"})
         async def hello(msg: types.Message):
-            return await cmd_hello.hello(msg)
+            return await cmd_hello.hello(self, msg)
 
         @HydraBot.__DP.message(commands={"nick"})
         async def nick(msg: types.Message):
-            return await cmd_nick.nick(msg)
+            return await cmd_nick.nick(self, msg)
 
         @HydraBot.__DP.message(commands={"tz"})
         async def tz(msg: types.Message):
-            return await cmd_tz.tz(msg)
+            return await cmd_tz.tz(self, msg)
 
         @HydraBot.__DP.message(commands={"addr"})
         async def addr_(msg: types.Message):
-            return await cmd_addr.addr(msg)
+            return await cmd_addr.addr(self, msg)
 
         @HydraBot.__DP.message(commands={"DELETE"})
         async def delete(msg: types.Message):
-            return await cmd_delete.delete(msg)
+            return await cmd_delete.delete(self, msg)
 
         super().__init__(token, parse_mode="HTML")
 
@@ -83,4 +80,3 @@ class HydraBot(Bot):
 
     def run(self):
         return HydraBot.__DP.run_polling(self)
-

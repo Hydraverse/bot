@@ -4,11 +4,11 @@ from fuzzywuzzy import fuzz
 import pytz
 
 from . import HydraBot
+from ...data import User
 
 
-# noinspection PyProtectedMember
-async def tz(msg: types.Message):
-    u = await HydraBot._.db.user_load_or_create(msg.from_user.id)
+async def tz(bot: HydraBot, msg: types.Message):
+    u = await User.load_or_create(bot.db, msg.from_user.id)
 
     try:
         tz_cur = u.info.get("tz", None)
@@ -34,8 +34,13 @@ async def tz(msg: types.Message):
             found = 0
 
             for tz_name in pytz.all_timezones:
-                if fuzz.token_sort_ratio(search, tz_name) > 66:
-                    response += f"{tz}\n"
+                if tz_name.lower() == search.lower():
+                    found = 1
+                    response = f"Exact match: {tz_name}\n"
+                    break
+
+                if fuzz.token_sort_ratio(search.lower(), tz_name.lower()) > 50:
+                    response += f"{tz_name}\n"
                     found += 1
 
             if found == 0:
@@ -55,7 +60,7 @@ async def tz(msg: types.Message):
 
         tz_new_loc = pytz.timezone(tz_new).localize(datetime.now(), is_dst=None).tzname()
 
-        await HydraBot._.db.user_update_info(u.pkid, {
+        await User.update_info(bot.db, u.pkid, {
             "tz": tz_new,
         })
 

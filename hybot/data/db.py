@@ -1,21 +1,32 @@
 import os
 import sqlalchemy.exc
 from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, Load, lazyload
+from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import NoResultFound
-from attrdict import AttrDict
 import asyncio
 
-from . import *
 from hydra.rpc import HydraRPC
 from hydra import log
+
+from .base import Base
 
 __all__ = "DB",
 
 
+class DbOperatorMixin:
+    @staticmethod
+    async def run_in_executor(fn, *args):
+        return await asyncio.get_event_loop().run_in_executor(None, fn, *args)
+
+    async def run_in_executor_session(self, fn, *args):
+        return await DB.run_in_executor(lambda: self._run_in_executor_session(fn, *args))
+
+    def _run_in_executor_session(self, fn, *args):
+        raise NotImplementedError
+
+
 # noinspection PyProtectedMember
-class DB:
+class DB(DbOperatorMixin):
     engine = None
     Session = None  # type: scoped_session
     rpc: HydraRPC = None
@@ -35,201 +46,13 @@ class DB:
     def default(rpc: HydraRPC):
         return DB(rpc, f"sqlite:///{DB.PATH}")  # , echo=log.level() <= log.INFO)
 
-    @staticmethod
-    async def run_in_executor(func, *args):
-        return await asyncio.get_event_loop().run_in_executor(None, func, *args)
-
-    async def run_in_executor_session(self, func, *args):
-        return await DB.run_in_executor(lambda: self.run_in_executor_session_(func, *args))
-
-    def run_in_executor_session_(self, func, *args):
+    def _run_in_executor_session(self, fn, *args):
         self.Session()
 
         try:
-            return func(*args)
+            return fn(*args)
         except sqlalchemy.exc.SQLAlchemyError:
             self.Session.rollback()
             raise
         finally:
             self.Session.remove()
-
-    # BEGIN - RPC/util
-    #
-
-    async def validate_address(self, address: str):
-        return await DB.run_in_executor(self.validate_address_, address)
-
-    def validate_address_(self, address: str):
-        return self.rpc.validateaddress(address).isvalid
-
-    # BEGIN - ETL
-    #
-
-    async def user_load_or_create(self, user_id: int, full: bool = False) -> AttrDict:
-        return await self.run_in_executor_session(self.user_load_or_create_, user_id, full)
-
-    def user_load_or_create_(self, user_id: int, full: bool) -> AttrDict:
-        try:
-            return AttrDict(
-                self.Session.query(
-                    User.pkid, User.user_id, User.info, User.data
-                ).filter(
-                    User.user_id == user_id
-                ).one()._asdict()
-                if not full else
-                self.Session.query(
-                    User
-                ).filter(
-                    User.user_id == user_id
-                ).one().asdict()
-            )
-
-        except sqlalchemy.exc.NoResultFound:
-            user_ = User(user_id=user_id)
-
-            self.Session.add(user_)
-            self.Session.commit()
-
-            return AttrDict(user_.asdict())
-
-    async def user_update_info(self, user_pk: int, info: dict, data: dict = None, over: bool = False) -> None:
-        if (info is None and data is None) or (over and (not info or not data)):
-            return
-        return await self.run_in_executor_session(self.user_update_info_, user_pk, info, data, over)
-
-    def user_update_info_(self, user_pk: int, info: dict, data: dict, over: bool) -> None:
-        u: User = self.Session.query(User).where(
-            User.pkid == user_pk
-        ).options(
-            lazyload(User.addrs),
-            lazyload(User.tokns)
-        ).one()
-
-        if over:
-            if info is not None:
-                u.info = info
-            if data is not None:
-                u.data = data
-        else:
-            if info is not None:
-                u.info.update(info)
-            if data is not None:
-                u.data.update(data)
-
-        self.Session.add(u)
-        self.Session.commit()
-
-    async def user_addr_add(self, user_pk: int, addr_id: str) -> None:
-        return await self.run_in_executor_session(self.user_addr_add_, user_pk, addr_id)
-
-    def user_addr_add_(self, user_pk: int, addr_id: str) -> None:
-        if not self.rpc.validateaddress(addr_id).isvalid:
-            raise ValueError(f"Invalid HYDRA address '{addr_id}'")
-
-        try:
-            addr_: Addr = self.Session.query(Addr).where(
-                Addr.addr_id == addr_id
-            ).options(
-                lazyload(Addr.users)
-            ).one()
-            
-        except NoResultFound:
-            addr_: Addr = Addr(addr_id=addr_id)
-            
-        u = self.Session.query(User).where(User.pkid == user_pk).options(
-            lazyload(User.addrs),
-            lazyload(User.tokns)
-        ).one()
-
-        u.addrs.append(addr_)
-        self.Session.add(u)
-        self.Session.commit()
-
-    async def user_addr_load(self, user_pk: int, addr_pk: int) -> AttrDict:
-        return await self.run_in_executor_session(self.user_addr_load_, user_pk, addr_pk)
-
-    def user_addr_load_(self, user_pk: int, addr_pk: int) -> AttrDict:
-        return AttrDict(self.Session.query(UserAddr).where(
-            UserAddr.user_pk == user_pk and
-            UserAddr.addr_pk == addr_pk
-        ).one().asdict())
-
-    async def user_addr_update(
-            self, user_pk: int, addr_pk: int,
-            info: dict, data: dict = None, over: bool = False) -> None:
-        if (info is None and data is None) or (over and (not info or not data)):
-            return
-
-        return await self.run_in_executor_session(self.user_addr_update_, user_pk, addr_pk, info, data, over)
-
-    def user_addr_update_(self, user_pk: int, addr_pk: int, info: dict, data: dict, over: bool) -> None:
-        ua: UserAddr = self.Session.query(UserAddr).where(
-            UserAddr.user_pk == user_pk and
-            UserAddr.addr_pk == addr_pk
-        ).one()
-
-        if over:
-            if info is not None:
-                ua.info = info
-            if data is not None:
-                ua.data = data
-        else:
-            if info is not None:
-                ua.info.update(info)
-            if data is not None:
-                ua.data.update(data)
-
-        self.Session.add(ua)
-        self.Session.commit()
-
-    async def user_addr_remove(self, user_pk: int, addr_pk: int) -> None:
-        return await self.run_in_executor_session(self.user_addr_remove_, user_pk, addr_pk)
-
-    def user_addr_remove_(self, user_pk: int, addr_pk: int) -> None:
-        u: User = self.Session.query(
-            User
-        ).where(
-            User.pkid == user_pk
-        ).options(
-            lazyload(User.tokns)
-        ).one()
-
-        for addr_ in u.addrs:
-            if addr_.pkid == addr_pk:
-                break
-        else:
-            return
-
-        self.__user_addr_remove_q(u, addr_)
-        self.Session.commit()
-
-    def __user_addr_remove_q(self, u: User, addr_rm: Addr = None) -> None:
-        for addr_ in u.addrs:
-            if addr_rm is not None and addr_ is not addr_rm:
-                continue
-
-            u.addrs.remove(addr_)
-
-            if not len(addr_.users):
-                log.info(f"DB: no users remain for {addr_.pkid}/{addr_.addr_id}")
-
-                if not len(addr_.info):
-                    log.info("DB: deleting addr with no users and empty info")
-                    self.Session.delete(addr_)
-                    continue
-
-        self.Session.add(u)
-
-    async def user_delete(self, user_id: int) -> None:
-        return await self.run_in_executor_session(self.user_delete_, user_id)
-
-    def user_delete_(self, user_id: int) -> None:
-        u: User = self.Session.query(User).where(
-            User.user_id == user_id
-        ).options(
-            lazyload(User.tokns)
-        ).one()
-
-        self.__user_addr_remove_q(u)
-        self.Session.delete(u)
-        self.Session.commit()

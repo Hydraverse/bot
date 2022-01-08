@@ -1,14 +1,11 @@
-from datetime import datetime
 from aiogram import types
-from fuzzywuzzy import fuzz
-import pytz
 
 from . import HydraBot
+from ...data import User, UserAddr
 
 
-# noinspection PyProtectedMember
-async def addr(msg: types.Message):
-    u = await HydraBot._.db.user_load_or_create(msg.from_user.id, full=True)
+async def addr(bot: HydraBot, msg: types.Message):
+    u = await User.load_or_create(bot.db, msg.from_user.id, full=True)
 
     try:
         address = str(msg.text).replace("/addr", "", 1).strip()
@@ -16,7 +13,7 @@ async def addr(msg: types.Message):
         if not address:
             return await msg.answer(
                 "Add: <b>/addr [HYDRA Address]</b>\n"
-                "Remove: <b>/addr del [HYDRA Address]</b>\n"
+                "Remove: <b>/addr [HYDRA Address] del</b>\n"
                 "List: <b>/addr list</b>"
             )
 
@@ -31,12 +28,12 @@ async def addr(msg: types.Message):
 
             return await msg.answer("\n".join(result))
 
-        if address.startswith("del "):
-            address = address.replace("del ", "", 1).strip()
+        if address.endswith(" del"):
+            address = address.replace(" del", "", 1).strip()
 
             for user_addr in u.addrs:
                 if user_addr.addr_id == address:
-                    await HydraBot._.db.user_addr_remove(u.pkid, user_addr.pkid)
+                    await UserAddr.remove(bot.db, u.pkid, user_addr.pkid)
                     return await msg.answer("Address removed.\n")
 
             return await msg.answer("Address not removed: not found.\n")
@@ -48,7 +45,7 @@ async def addr(msg: types.Message):
                     "List: <b>/addr list</b>"
                 )
 
-        await HydraBot._.db.user_addr_add(u.pkid, address)
+        await UserAddr.add(bot.db, u.pkid, address)
 
         return await msg.answer(f"Added <pre>{address}</pre>")
 

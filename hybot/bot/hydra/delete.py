@@ -1,10 +1,10 @@
 from aiogram import types
 
 from . import HydraBot
+from ...data import User
 
 
-# noinspection PyProtectedMember
-async def delete(msg: types.Message):
+async def delete(bot: HydraBot, msg: types.Message):
 
     delete_cmd = f"/DELETE {msg.from_user.id}"
 
@@ -13,7 +13,7 @@ async def delete(msg: types.Message):
             f"Permanently delete your account with <b>{delete_cmd}</b>"
         )
 
-    await HydraBot._.db.user_delete(msg.from_user.id)
+    await User.delete(bot.db, msg.from_user.id)
 
     await msg.answer(
         "All account and user data removed.\n\n"

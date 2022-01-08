@@ -2,7 +2,11 @@ from sqlalchemy import Column, DateTime, func, Integer
 from sqlalchemy.orm import declarative_base
 from sqlalchemy_json import NestedMutableJson
 
-__all__ = "Base", "dictattrs", "DbPkidMixin", "DbDateMixin", "DbInfoColumn", "DbDataColumn"
+__all__ = (
+    "Base", "dictattrs",
+    "DbPkidMixin", "DbDateMixin",
+    "DbInfoColumn", "DbDataColumn",
+)
 
 Base = declarative_base()
 
@@ -13,20 +17,16 @@ def dictattrs(*attrs):
             attr: getattr(self, attr)
             for attr in attrs
         }
-        # adict = {}
-        #
-        # for attr in attrs:
-        #     v = getattr(self, attr, ...)
-        #     if v is not ...:
-        #         adict[attr] = v
-        #
-        # return adict
 
     def _cls(cls):
         cls.asdict = _asdict
         return cls
 
     return _cls
+
+
+DbInfoColumn = lambda: Column(NestedMutableJson, nullable=False, index=True, default={})
+DbDataColumn = lambda: Column(NestedMutableJson, nullable=False, index=False, default={})
 
 
 class DbPkidMixin:
@@ -39,9 +39,6 @@ class DbDateMixin:
     date_create = Column(DateTime, default=func.now(), nullable=False, index=True)
     date_update = Column(DateTime, onupdate=func.now(), index=True)
 
-
-DbInfoColumn = lambda: Column(NestedMutableJson, nullable=False, index=True, default={})
-DbDataColumn = lambda: Column(NestedMutableJson, nullable=False, index=False, default={})
 
 
 

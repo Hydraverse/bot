@@ -16,3 +16,11 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     data = DbDataColumn()
 
     users = relationship("User", secondary="user_addr", back_populates="addrs", passive_deletes=True)
+
+    @staticmethod
+    async def validate_address(db, address: str):
+        return await type(db).run_in_executor(Addr._validate_address, db, address)
+
+    @staticmethod
+    def _validate_address(db, address: str):
+        return db.rpc.validateaddress(address).isvalid
