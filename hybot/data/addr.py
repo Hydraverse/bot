@@ -6,8 +6,8 @@ from .base import *
 __all__ = "Addr",
 
 
-@dictattrs("id", "date_create", "date_update", "addr_id", "info", "data", "users")
-class Addr(DbIdMixin, DbDateMixin, Base):
+@dictattrs("pkid", "date_create", "date_update", "addr_id", "info", "data", "users")
+class Addr(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "addr"
 
     addr_id = Column(String(34), nullable=False, unique=True, primary_key=False, index=True)

@@ -6,8 +6,8 @@ from .base import *
 __all__ = "User",
 
 
-@dictattrs("id", "date_create", "date_update", "user_id", "info", "data", "addrs", "tokns")
-class User(DbIdMixin, DbDateMixin, Base):
+@dictattrs("pkid", "date_create", "date_update", "user_id", "info", "data", "addrs", "tokns")
+class User(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "user"
 
     user_id = Column(Integer, nullable=False, unique=True, primary_key=False, index=True)

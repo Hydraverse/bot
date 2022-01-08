@@ -1,8 +1,9 @@
 import os
 import sqlalchemy.exc
 from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session
+from sqlalchemy.orm import scoped_session, Load, lazyload
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import NoResultFound
 from attrdict import AttrDict
 import asyncio
 
@@ -13,9 +14,10 @@ from hydra import log
 __all__ = "DB",
 
 
+# noinspection PyProtectedMember
 class DB:
     engine = None
-    Session = None
+    Session = None  # type: scoped_session
     rpc: HydraRPC = None
 
     FILE_DIR = "local"
@@ -51,7 +53,7 @@ class DB:
         finally:
             self.Session.remove()
 
-    # BEGIN - ETL
+    # BEGIN - RPC/util
     #
 
     async def validate_address(self, address: str):
@@ -60,37 +62,47 @@ class DB:
     def validate_address_(self, address: str):
         return self.rpc.validateaddress(address).isvalid
 
-    async def user_load_or_create(self, user_id: int) -> AttrDict:
-        return await self.run_in_executor_session(self.user_load_or_create_, user_id)
+    # BEGIN - ETL
+    #
 
-    def user_load_or_create_(self, user_id: int) -> AttrDict:
+    async def user_load_or_create(self, user_id: int, full: bool = False) -> AttrDict:
+        return await self.run_in_executor_session(self.user_load_or_create_, user_id, full)
+
+    def user_load_or_create_(self, user_id: int, full: bool) -> AttrDict:
         try:
-            return AttrDict(self.Session.query(User).where(
-                User.user_id == user_id
-            ).one().asdict())
+            return AttrDict(
+                self.Session.query(
+                    User.pkid, User.user_id, User.info, User.data
+                ).filter(
+                    User.user_id == user_id
+                ).one()._asdict()
+                if not full else
+                self.Session.query(
+                    User
+                ).filter(
+                    User.user_id == user_id
+                ).one().asdict()
+            )
 
         except sqlalchemy.exc.NoResultFound:
             user_ = User(user_id=user_id)
 
-            # noinspection PyBroadException
-            try:
-                self.Session.add(user_)
-                self.Session.commit()
-
-            except BaseException:
-                self.Session.rollback()
-                raise
+            self.Session.add(user_)
+            self.Session.commit()
 
             return AttrDict(user_.asdict())
 
-    async def user_update_info(self, user_id: int, info: dict, data: dict = None, over: bool = False) -> None:
+    async def user_update_info(self, user_pk: int, info: dict, data: dict = None, over: bool = False) -> None:
         if (info is None and data is None) or (over and (not info or not data)):
             return
-        return await self.run_in_executor_session(self.user_update_info_, user_id, info, data, over)
+        return await self.run_in_executor_session(self.user_update_info_, user_pk, info, data, over)
 
-    def user_update_info_(self, user_id: int, info: dict, data: dict, over: bool) -> None:
+    def user_update_info_(self, user_pk: int, info: dict, data: dict, over: bool) -> None:
         u: User = self.Session.query(User).where(
-            User.user_id == user_id
+            User.pkid == user_pk
+        ).options(
+            lazyload(User.addrs),
+            lazyload(User.tokns)
         ).one()
 
         if over:
@@ -107,51 +119,53 @@ class DB:
         self.Session.add(u)
         self.Session.commit()
 
-    async def user_addr_load(self, user_id: int, addr_id: str) -> AttrDict:
-        return await self.run_in_executor_session(self.user_addr_load_, user_id, addr_id)
+    async def user_addr_add(self, user_pk: int, addr_id: str) -> None:
+        return await self.run_in_executor_session(self.user_addr_add_, user_pk, addr_id)
 
-    def user_addr_load_(self, user_id: int, addr_id: str) -> AttrDict:
+    def user_addr_add_(self, user_pk: int, addr_id: str) -> None:
         if not self.rpc.validateaddress(addr_id).isvalid:
             raise ValueError(f"Invalid HYDRA address '{addr_id}'")
 
         try:
-            return AttrDict(self.Session.query(UserAddr).where(
-                UserAddr.user_id == user_id and
-                UserAddr.addr_id == addr_id
-            ).one().asdict())
-
-        except sqlalchemy.exc.NoResultFound:
-            user_: User = self.Session.query(User).where(
-                User.user_id == user_id
+            addr_: Addr = self.Session.query(Addr).where(
+                Addr.addr_id == addr_id
+            ).options(
+                lazyload(Addr.users)
             ).one()
+            
+        except NoResultFound:
+            addr_: Addr = Addr(addr_id=addr_id)
+            
+        u = self.Session.query(User).where(User.pkid == user_pk).options(
+            lazyload(User.addrs),
+            lazyload(User.tokns)
+        ).one()
 
-            try:
-                addr_: Addr = self.Session.query(Addr).where(
-                    Addr.addr_id == addr_id
-                ).one()
-            except sqlalchemy.exc.NoResultFound:
-                addr_: Addr = Addr(addr_id=addr_id)
+        u.addrs.append(addr_)
+        self.Session.add(u)
+        self.Session.commit()
 
-            user_.addrs.append(addr_)
+    async def user_addr_load(self, user_pk: int, addr_pk: int) -> AttrDict:
+        return await self.run_in_executor_session(self.user_addr_load_, user_pk, addr_pk)
 
-            self.Session.add(user_)
-            self.Session.commit()
-
-            return AttrDict(user_.asdict())
+    def user_addr_load_(self, user_pk: int, addr_pk: int) -> AttrDict:
+        return AttrDict(self.Session.query(UserAddr).where(
+            UserAddr.user_pk == user_pk and
+            UserAddr.addr_pk == addr_pk
+        ).one().asdict())
 
     async def user_addr_update(
-            self, user_id: int, addr_id: str,
-            info: dict, data: dict = None, over: bool = False
-    ) -> None:
+            self, user_pk: int, addr_pk: int,
+            info: dict, data: dict = None, over: bool = False) -> None:
         if (info is None and data is None) or (over and (not info or not data)):
             return
 
-        return await self.run_in_executor_session(self.user_addr_update_, user_id, addr_id, info, data, over)
+        return await self.run_in_executor_session(self.user_addr_update_, user_pk, addr_pk, info, data, over)
 
-    def user_addr_update_(self, user_id: int, addr_id: str, info: dict, data: dict, over: bool) -> None:
+    def user_addr_update_(self, user_pk: int, addr_pk: int, info: dict, data: dict, over: bool) -> None:
         ua: UserAddr = self.Session.query(UserAddr).where(
-            UserAddr.user_id == user_id and
-            UserAddr.addr_id == addr_id
+            UserAddr.user_pk == user_pk and
+            UserAddr.addr_pk == addr_pk
         ).one()
 
         if over:
@@ -168,14 +182,54 @@ class DB:
         self.Session.add(ua)
         self.Session.commit()
 
-    async def user_addr_remove(self, user_id: int, addr_id: str) -> None:
-        return await self.run_in_executor_session(self.user_addr_remove_, user_id, addr_id)
+    async def user_addr_remove(self, user_pk: int, addr_pk: int) -> None:
+        return await self.run_in_executor_session(self.user_addr_remove_, user_pk, addr_pk)
 
-    def user_addr_remove_(self, user_id: int, addr_id: str) -> None:
-        self.Session.query(UserAddr).where(
-            UserAddr.user_id == user_id and
-            UserAddr.addr_id == addr_id
-        ).delete()
+    def user_addr_remove_(self, user_pk: int, addr_pk: int) -> None:
+        u: User = self.Session.query(
+            User
+        ).where(
+            User.pkid == user_pk
+        ).options(
+            lazyload(User.tokns)
+        ).one()
 
+        for addr_ in u.addrs:
+            if addr_.pkid == addr_pk:
+                break
+        else:
+            return
+
+        self.__user_addr_remove_q(u, addr_)
         self.Session.commit()
 
+    def __user_addr_remove_q(self, u: User, addr_rm: Addr = None) -> None:
+        for addr_ in u.addrs:
+            if addr_rm is not None and addr_ is not addr_rm:
+                continue
+
+            u.addrs.remove(addr_)
+
+            if not len(addr_.users):
+                log.info(f"DB: no users remain for {addr_.pkid}/{addr_.addr_id}")
+
+                if not len(addr_.info):
+                    log.info("DB: deleting addr with no users and empty info")
+                    self.Session.delete(addr_)
+                    continue
+
+        self.Session.add(u)
+
+    async def user_delete(self, user_id: int) -> None:
+        return await self.run_in_executor_session(self.user_delete_, user_id)
+
+    def user_delete_(self, user_id: int) -> None:
+        u: User = self.Session.query(User).where(
+            User.user_id == user_id
+        ).options(
+            lazyload(User.tokns)
+        ).one()
+
+        self.__user_addr_remove_q(u)
+        self.Session.delete(u)
+        self.Session.commit()

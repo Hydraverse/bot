@@ -6,8 +6,8 @@ from .base import *
 __all__ = "Tokn",
 
 
-@dictattrs("id", "date_create", "date_update", "tokn_id", "info", "data", "users")
-class Tokn(DbIdMixin, DbDateMixin, Base):
+@dictattrs("pkid", "date_create", "date_update", "tokn_id", "info", "data", "users")
+class Tokn(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "tokn"
 
     tokn_id = Column(String(40), nullable=False, unique=True, primary_key=False, index=True)

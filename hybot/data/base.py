@@ -2,7 +2,7 @@ from sqlalchemy import Column, DateTime, func, Integer
 from sqlalchemy.orm import declarative_base
 from sqlalchemy_json import NestedMutableJson
 
-__all__ = "Base", "dictattrs", "DbIdMixin", "DbDateMixin", "DbInfoColumn", "DbDataColumn"
+__all__ = "Base", "dictattrs", "DbPkidMixin", "DbDateMixin", "DbInfoColumn", "DbDataColumn"
 
 Base = declarative_base()
 
@@ -13,6 +13,14 @@ def dictattrs(*attrs):
             attr: getattr(self, attr)
             for attr in attrs
         }
+        # adict = {}
+        #
+        # for attr in attrs:
+        #     v = getattr(self, attr, ...)
+        #     if v is not ...:
+        #         adict[attr] = v
+        #
+        # return adict
 
     def _cls(cls):
         cls.asdict = _asdict
@@ -21,8 +29,8 @@ def dictattrs(*attrs):
     return _cls
 
 
-class DbIdMixin:
-    id = Column(Integer, nullable=False, unique=True, primary_key=True, autoincrement=True, index=True)
+class DbPkidMixin:
+    pkid = Column(Integer, nullable=False, unique=True, primary_key=True, autoincrement=True, index=True)
 
 
 class DbDateMixin:
