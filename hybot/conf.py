@@ -18,10 +18,24 @@ class Config:
     DEFAULT = AttrDict()
 
     @staticmethod
-    def get(cls: type) -> AttrDict:
-        return AttrDict(Config.read(create=True).get(
-            cls.__name__, Config.DEFAULT.get(cls.__name__, None)
+    def get(cls: type, defaults=False, save_defaults=False) -> AttrDict:
+        conf = AttrDict(Config.read(create=True).get(
+            cls.__name__, Config.DEFAULT[cls.__name__]
         ))
+
+        if defaults:
+            defaults = Config.DEFAULT[cls.__name__]
+            updated = False
+
+            for k, v in defaults.items():
+                if k not in conf:
+                    updated = True
+                    conf[k] = v
+
+            if updated and save_defaults:
+                Config.set(cls, conf)
+
+        return conf
 
     @staticmethod
     def set(cls: type, data: dict) -> None:
@@ -30,16 +44,12 @@ class Config:
         Config.write(curr_data)
 
     @staticmethod
-    def defaults(data: dict = None):
-
-        if data is None:
-            data = AttrDict()
-
-        def default(cls: type):
-            Config.DEFAULT[cls.__name__] = data
-            return cls
-
-        return default
+    def defaults(cls):
+        """Decorator to include cls.CONF in global default.
+        """
+        cls.CONF = AttrDict(cls.CONF)
+        Config.DEFAULT[cls.__name__] = cls.CONF
+        return cls
 
     @staticmethod
     def exists() -> bool:
@@ -56,7 +66,16 @@ class Config:
             return Config.DEFAULT
 
         with open(Config.APP_CONF, "r") as conf:
-            return AttrDict(yaml.safe_load(conf))
+            data = yaml.safe_load(conf)
+
+            if data is None:
+                if create:
+                    data = Config.DEFAULT
+                    Config.write(data)
+                else:
+                    return AttrDict()
+
+            return AttrDict(data)
 
     @staticmethod
     def write(data: dict, create: bool = True) -> None:
@@ -68,5 +87,10 @@ class Config:
             os.makedirs(Config.APP_BASE, exist_ok=True)
 
         with open(Config.APP_CONF, "w") as conf:
-            yaml.dump(dict(data), conf)
+            yaml.dump(
+                stream=conf,
+                data={
+                    k: dict(v) for k, v in data.items()
+                }
+            )
 
