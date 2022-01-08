@@ -41,7 +41,7 @@ class UserAddr(DbDateMixin, Base):
 
         u = db.Session.query(User).where(User.pkid == user_pk).options(
             lazyload(User.addrs),
-            lazyload(User.tokns)
+            lazyload(User.smacs)
         ).one()
 
         u.addrs.append(addr_)
@@ -100,7 +100,7 @@ class UserAddr(DbDateMixin, Base):
         ).where(
             User.pkid == user_pk
         ).options(
-            lazyload(User.tokns)
+            lazyload(User.smacs)
         ).one()
 
         for addr_ in u.addrs:

@@ -8,7 +8,7 @@ from .base import *
 __all__ = "User",
 
 
-@dictattrs("pkid", "date_create", "date_update", "user_id", "info", "data", "addrs", "tokns")
+@dictattrs("pkid", "date_create", "date_update", "user_id", "info", "data", "addrs", "smacs")
 class User(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "user"
 
@@ -18,7 +18,7 @@ class User(DbPkidMixin, DbDateMixin, Base):
     data = DbDataColumn()
 
     addrs = relationship("Addr", secondary="user_addr", back_populates="users", cascade="all, delete")
-    tokns = relationship("Tokn", secondary="user_tokn", back_populates="users", cascade="all, delete")
+    smacs = relationship("Smac", secondary="user_smac", back_populates="users", cascade="all, delete")
 
     @staticmethod
     async def load_or_create(db, user_id: int, full: bool = False) -> AttrDict:
@@ -62,7 +62,7 @@ class User(DbPkidMixin, DbDateMixin, Base):
             User.pkid == user_pk
         ).options(
             lazyload(User.addrs),
-            lazyload(User.tokns)
+            lazyload(User.smacs)
         ).one()
 
         if over:
@@ -88,7 +88,7 @@ class User(DbPkidMixin, DbDateMixin, Base):
         u: User = db.Session.query(User).where(
             User.user_id == user_id
         ).options(
-            lazyload(User.tokns)
+            lazyload(User.smacs)
         ).one()
 
         from . import UserAddr
