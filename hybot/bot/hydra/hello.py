@@ -2,7 +2,7 @@ from __future__ import annotations
 from aiogram import types
 
 from . import __doc__
-from . import HydraBot, CONF
+from . import HydraBot
 
 from ...data import User
 
@@ -33,8 +33,8 @@ async def hello(bot: HydraBot, msg: types.Message):
 
     global __doc__
 
-    if CONF["donations"] not in bot.conf.donations:
-        __doc__ += f"<pre>{CONF['donations']}</pre>\n"
+    if HydraBot.CONF.donations not in bot.conf.donations:
+        __doc__ += f"<pre>{HydraBot.CONF.donations}</pre>\n"
 
     response_donate = (
             "Please consider supporting the developer of this project.\n"

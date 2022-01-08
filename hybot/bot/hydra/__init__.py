@@ -9,13 +9,8 @@ from hydra.rpc import HydraRPC
 from hybot.data import *
 from hybot.conf import Config
 
-CONF = {
-    "token": "(bot token from @BotFather)",
-    "donations": "HUo97u33iEdkEWBiLZEitAsGRXHUcmdfHQ"
-}
 
-
-@Config.defaults(CONF)
+@Config.defaults
 class HydraBot(Bot):
     _: HydraBot = None
     __DP = Dispatcher()
@@ -23,6 +18,12 @@ class HydraBot(Bot):
     rpc: HydraRPC = None
     conf: AttrDict = None
     db: DB = None
+
+    CONF = {
+        "token": "(bot token from @BotFather)",
+        "admin": -1,
+        "donations": "HUo97u33iEdkEWBiLZEitAsGRXHUcmdfHQ",
+    }
 
     def __new__(cls, *args, **kwargs):
         if cls._ is None:
@@ -32,10 +33,10 @@ class HydraBot(Bot):
 
     def __init__(self, rpc: HydraRPC):
         self.rpc = rpc
-        self.conf = Config.get(HydraBot)
+        self.conf = Config.get(HydraBot, defaults=True)
         self.db = DB.default(self.rpc)
 
-        token = self.conf.get("token", None)
+        token = self.conf.token
 
         if not token:
             raise ValueError("Invalid or no token found in config")

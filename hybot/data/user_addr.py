@@ -26,8 +26,11 @@ class UserAddr(DbDateMixin, Base):
 
     @staticmethod
     def _add(db, user_pk: int, addr_id: str) -> None:
+
+        valid = db.rpc.validateaddress(addr_id)
+
         if not db.rpc.validateaddress(addr_id).isvalid:
-            raise ValueError(f"Invalid HYDRA address '{addr_id}'")
+            raise ValueError(f"Invalid HYDRA or contract address '{addr_id}'")
 
         try:
             addr_: Addr = db.Session.query(Addr).where(

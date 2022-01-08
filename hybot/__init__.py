@@ -11,14 +11,14 @@ from .conf import Config
 
 VERSION = "0.0.1"
 
-CONF = {
-    "bot": "HydraBot"
-}
 
-
-@Config.defaults(CONF)
+@Config.defaults
 @HydraApp.register(name="hybot", desc="Halospace Hydra Bot", version=VERSION)
 class Hybot(HydraApp):
+
+    CONF = {
+        "bot": "HydraBot"
+    }
 
     @staticmethod
     def parser(parser: ArgumentParser):
