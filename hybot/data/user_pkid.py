@@ -1,13 +1,7 @@
-from typing import Tuple
-
-from attrdict import AttrDict
-from hydra import log
 from sqlalchemy import Column, ForeignKey, Integer, String
-from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm import lazyload
-import random
 
 from hybot.data.base import *
+from hybot.util import namegen
 
 __all__ = "UserPkid",
 
@@ -20,7 +14,7 @@ class UserPkid(DbPkidMixin, Base):
 
     @staticmethod
     def make_name():
-        return str(random.random())  # TODO: (Placeholder)
+        return " ".join(namegen.make_name())
 
 
 class DbUserPkidMixin:

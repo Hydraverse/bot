@@ -4,10 +4,10 @@ Acamar
 Achrady
 Adarak
 Adelphous
-Adigeon Prime
+Adigeon
 Agaron
 Aia
-Ajilon Prime
+Ajilon
 Akritiri
 Alastria
 Aldea
@@ -26,7 +26,7 @@ Altair
 Altamid
 Altec
 Alture
-Amleth Prime
+Amleth
 Andevian
 Andor
 Andoria
@@ -36,7 +36,7 @@ Angosia
 Antede
 Antica
 Antos
-Arakis Prime
+Arakis
 Archanis
 Archer
 Arcturus
@@ -55,7 +55,7 @@ Arreta
 Arvada
 Aschelan
 Atalia
-Atbar Prime
+Atbar
 Athos
 Atifs
 Atrea
@@ -63,7 +63,7 @@ audet
 Avenal
 Avery
 Axanar
-Azati Prime
+Azati
 B'Saari
 Ba'ku
 Babel
@@ -72,7 +72,7 @@ Bajoran Lunar
 Balancar
 Balosnee
 Banea
-Barisa Prime
+Barisa
 Barkon
 Barolia
 Barradas
@@ -123,7 +123,7 @@ Bynaus
 Caere
 Cairn
 Calder
-Caldik Prime
+Caldik
 Caldos
 Caleb
 Callinon
@@ -136,7 +136,7 @@ Capella
 Cardassia
 Carema
 Carraya
-Casperia Prime
+Casperia
 Castal
 Castor
 Catualla
@@ -168,7 +168,7 @@ Danula
 Daran
 Davlos
 Dayos
-Decos Prime
+Decos
 Dedestris
 Deinonychus
 Dekendi
@@ -218,27 +218,26 @@ Elba
 Emila
 Eminiar
 Enara
-Enara Prime
 Ennan
 Entelior
 Epsilon Canaris
 Epsilon Hydra
 Epsilon
 Epsilon Nel
-Erabus Prime
+Erabus
 Erilon
 Errikang
 Evadne
 Excalbia
 Exo
 Fahleena
-Farius Prime
-Felton Prime
+Farius
+Felton
 Fendaus
 Fenris
 Ferenginar
-Fina Prime
-Finnea Prime
+Fina
+Finnea
 Folnar
 Forcas
 Forlat
@@ -250,7 +249,7 @@ Galdonterre
 Galen
 Gallos
 Galor
-Galorda Prime
+Galorda
 Galorndon Core
 Galvin
 Gamelan
@@ -265,7 +264,7 @@ Garadius
 Garon
 Gaspar
 Gault
-Gedi Prime
+Gedi
 Gema
 Gemaris
 Gemulon
@@ -274,11 +273,12 @@ Getheon
 Ghorusda
 Gideon
 Golana
-Golos Prime
+Golos
 Gonal
 Gothos
 H'atoria
 Ha'Dara
+Hadro
 Hakton
 Halii
 Halkan
@@ -297,19 +297,33 @@ Holna
 Hur'Q
 Hurada
 Hurkos
-Hyralan
+Hydrana
+Hygem
+Hyrd
+Hydra
+Hydrar
+Hydrish
+Hydrisa
+Hydris
+Bethys
+Gethys
+Amlethys
+Borethys
+Hail Hydra
+Hyi
+Hy
 Iadara
 Iconia
 Icor
 Ilari
 Ilidaria
-Inavar Prime
+Inavar
 Indri
-Inferna Prime
+Inferna
 Ingraham
 Invernia
 Itamish
-Ivor Prime
+Ivor
 Iyar
 Janus
 Japori
@@ -357,16 +371,15 @@ Kotati
 Kraus
 Kreetassa
 Krios
-Krios Prime
 Ktaria
 Ktarus
-Kurill Prime
+Kurill
 Kurl
-Kyana Prime
+Kyana
 Kylata
 La'voti
 Lambda
-Lamenda Prime
+Lamenda
 Landris
 Lappa
 Largo
@@ -383,7 +396,7 @@ Ligobis
 Ligon
 Ligos
 Lissepia
-Loracus Prime
+Loracus
 Loren
 Lorillia
 Loval
@@ -397,7 +410,7 @@ Malaya
 Malcor
 Malindi
 Malkus
-Malon Prime
+Malon
 Manark
 Manu
 Maranga
@@ -410,7 +423,6 @@ Marlonia
 Mars
 Marva
 Matalas
-Matalas Prime
 Mataline
 Mavala
 Mazar
@@ -471,10 +483,9 @@ New Vulcan
 Nibiru
 Nigala
 Nimbus
-Ninipia Prime
+Ninipia
 Nivoch
-No'nat
-Norcadia Prime
+Norcadia
 Norellus
 Norpin
 Nyria
@@ -495,12 +506,12 @@ Organia
 Orias
 Orion
 Ornara
-Oshionion Prime
+Oshionion
 Osinar
 Otar
 Pacifica
 Palgrenax
-Pandril
+Pandri
 Panora
 Parada
 Paragaan
@@ -513,7 +524,7 @@ Pentarus
 Pentath
 Penthara
 Penthath
-Pernaia Prime
+Pernaia
 Persephone
 Phanos
 Platonius
@@ -526,7 +537,7 @@ Prakal
 Praxis
 Preenos
 Prema
-Psi 2000
+Psi
 Pullock
 Pyris
 Pythro
@@ -535,13 +546,13 @@ Qu'vat
 Quadra Sigma
 Qualor
 Quarra
-Quatal Prime
+Quatal
 Quazulu
 Quinor
 Raatooras
 Rahm-Izad
 Rakal
-Rakella Prime
+Rakella
 Rakhar
 Rakosa
 Ramatis
@@ -563,7 +574,7 @@ Risa
 Rivos
 Rochanie
 Romulus
-Ronara Prime
+Ronara
 Rondac
 Rousseau
 Ruah
@@ -571,8 +582,8 @@ Rubicun
 Rujian
 Rura Penthe
 Rutia
-Sakura Prime
-Salinia Prime
+Sakura
+Salinia
 Saltok
 Salva
 Sarona
@@ -584,7 +595,7 @@ Scalos
 Secarus
 Selay
 Selek
-Selnia Prime
+Selnia
 Sentinel Minor
 Septimus
 Seros
@@ -615,12 +626,12 @@ Tagra
 Tagus
 Takar
 Takara
-Talagos Prime
+Talagos
 Talax
 Talos
 Tamaal
 Tamaros
-Tandar Prime
+Tandar
 Tantalus
 Tanuga
 Tarakis
@@ -635,21 +646,20 @@ Tarsus
 Tartaras
 Tau Alpha
 Tau Ceti
-Tau Ceti Prime
 Tau Cygna
 Taurus
 Tavela Minor
-Teerza Prime
+Teerza
 Telfas prime
 Tellar
-Telsius Prime
+Telsius
 Teluridian
 Terlina
-Terosa Prime
+Terosa
 Terra Nova
 Tesnia
 Tessen
-Tessik Prime
+Tessik
 Tethys
 Thalos
 Thanatos
@@ -665,7 +675,7 @@ Titus
 Tkon
 Tohvun
 Torad
-Toranius Prime
+Toranius
 Torga
 Torman
 Torna
@@ -679,7 +689,7 @@ Triacus
 Trialas
 Triannon
 Trill
-Trillius Prime
+Trillius
 Trinay
 Triskelion
 Troyius
@@ -687,7 +697,7 @@ Turakus
 Turkana
 Tycho
 Typerias
-Tyrannius Prime
+Tyrannius
 Tyree
 Tyrellia
 Tyrus
@@ -710,7 +720,7 @@ Vega
 Vega Reticuli
 Velara
 Velos
-Veloz Prime
+Veloz
 Vendikar
 Ventani
 Ventax
@@ -721,7 +731,7 @@ Veridian
 Vico
 Vilmor
 Vissia
-Volchok Prime
+Volchok
 Volon
 Vulcan
 Xanthras
@@ -729,9 +739,8 @@ Xantoras
 Xarantine
 Xerxes
 Xindus
-Yadalla Prime
+Yadalla
 Yadera
-Yadera Prime
 Yerad
 Yridia
 Zadar

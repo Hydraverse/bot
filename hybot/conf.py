@@ -8,7 +8,7 @@ from hydra import log
 class Config:
     ENV_BASE = "HYBOT_HOME"
     APP_NAME = "hybot"
-    APP_FILE = "conf.yaml"
+    APP_FILE = "conf.yml"
     DIR_APPS = ".local"
 
     DIR_BASE = os.path.abspath(os.getenv(ENV_BASE, os.getenv("HOME", os.getcwd())))
