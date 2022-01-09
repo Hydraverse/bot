@@ -21,9 +21,12 @@ def make_name():
 
 
 if __name__ == "__main__":
-    try:
-        while 1:
-            print(" ".join(make_name()))
-    except KeyboardInterrupt:
-        print(file=sys.stderr)
-        pass
+    if "-c" in sys.argv[1:]:
+        try:
+            while 1:
+                print(" ".join(make_name()))
+        except KeyboardInterrupt:
+            print(file=sys.stderr)
+            pass
+    else:
+        print(" ".join(make_name()))
