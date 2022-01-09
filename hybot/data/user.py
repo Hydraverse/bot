@@ -8,17 +8,19 @@ from .base import *
 __all__ = "User",
 
 
-@dictattrs("pkid", "date_create", "date_update", "user_id", "info", "data", "addrs", "smacs")
+@dictattrs("pkid", "user_id", "date_create", "date_update", "info", "data", "addrs")
 class User(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "user"
 
     user_id = Column(Integer, nullable=False, unique=True, primary_key=False, index=True)
 
+    date_create = DbDateMixin.date_create()
+    date_update = DbDateMixin.date_update()
+
     info = DbInfoColumn()
     data = DbDataColumn()
 
     addrs = relationship("Addr", secondary="user_addr", back_populates="users", cascade="all, delete")
-    smacs = relationship("Smac", secondary="user_smac", back_populates="users", cascade="all, delete")
 
     @staticmethod
     async def load_or_create(db, user_id: int, full: bool = False) -> AttrDict:
@@ -61,8 +63,7 @@ class User(DbPkidMixin, DbDateMixin, Base):
         u: User = db.Session.query(User).where(
             User.pkid == user_pk
         ).options(
-            lazyload(User.addrs),
-            lazyload(User.smacs)
+            lazyload(User.addrs)
         ).one()
 
         if over:
@@ -87,8 +88,6 @@ class User(DbPkidMixin, DbDateMixin, Base):
     def _delete(db, user_id: int) -> None:
         u: User = db.Session.query(User).where(
             User.user_id == user_id
-        ).options(
-            lazyload(User.smacs)
         ).one()
 
         from . import UserAddr

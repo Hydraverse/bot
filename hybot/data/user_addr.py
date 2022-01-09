@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from attrdict import AttrDict
 from hydra import log
 from sqlalchemy import Column, ForeignKey, Integer
@@ -17,39 +19,46 @@ class UserAddr(DbDateMixin, Base):
     user_pk = Column(Integer, ForeignKey("user.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
 
+    date_create = DbDateMixin.date_create()
+    date_update = DbDateMixin.date_update()
+
     info = DbInfoColumn()
     data = DbDataColumn()
 
     @staticmethod
-    async def add(db, user_pk: int, addr_id: str) -> None:
-        return await db.run_in_executor_session(UserAddr._add, db, user_pk, addr_id)
+    async def add(db, user_pk: int, address: str) -> Tuple[int, Addr.Type, int, str]:
+        """Add address. Returns tuple (pkid, type, id_int, hydra_str)
+        """
+        return await db.run_in_executor_session(UserAddr._add, db, user_pk, address)
 
     @staticmethod
-    def _add(db, user_pk: int, addr_id: str) -> None:
+    def _add(db, user_pk: int, address: str) -> Tuple[int, Addr.Type, int, str]:
 
-        valid = db.rpc.validateaddress(addr_id)
-
-        if not db.rpc.validateaddress(addr_id).isvalid:
-            raise ValueError(f"Invalid HYDRA or contract address '{addr_id}'")
+        addr_tp, addr_hx, addr_hy = Addr._addr_normalize(db, address)
 
         try:
             addr_: Addr = db.Session.query(Addr).where(
-                Addr.addr_id == addr_id
+                Addr.addr_hx == addr_hx
             ).options(
                 lazyload(Addr.users)
             ).one()
 
         except NoResultFound:
-            addr_: Addr = Addr(addr_id=addr_id)
+            addr_: Addr = Addr(
+                addr_tp=addr_tp,
+                addr_hx=addr_hx,
+                addr_hy=addr_hy,
+            )
 
         u = db.Session.query(User).where(User.pkid == user_pk).options(
-            lazyload(User.addrs),
-            lazyload(User.smacs)
+            lazyload(User.addrs)
         ).one()
 
         u.addrs.append(addr_)
         db.Session.add(u)
         db.Session.commit()
+
+        return addr_.pkid, addr_tp, addr_hx, addr_hy
 
     @staticmethod
     async def load(db, user_pk: int, addr_pk: int) -> AttrDict:
@@ -98,12 +107,13 @@ class UserAddr(DbDateMixin, Base):
 
     @staticmethod
     def _remove(db, user_pk: int, addr_pk: int) -> None:
+        # TODO: Determine how to properly finter .addrs while still returning a single User row.
         u: User = db.Session.query(
             User
         ).where(
             User.pkid == user_pk
         ).options(
-            lazyload(User.smacs)
+            lazyload(User.addrs)  # TODO: Evaluate how this affects loop below
         ).one()
 
         for addr_ in u.addrs:
@@ -124,7 +134,7 @@ class UserAddr(DbDateMixin, Base):
             u.addrs.remove(addr_)
 
             if not len(addr_.users):
-                log.info(f"DB: no users remain for {addr_.pkid}/{addr_.addr_id}")
+                log.info(f"DB: no users remain for {addr_.pkid}/{addr_.addr_hy}")
 
                 if not len(addr_.info):
                     log.info("DB: deleting addr with no users and empty info")
