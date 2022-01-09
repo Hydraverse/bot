@@ -113,7 +113,7 @@ class UserAddr(DbDateMixin, Base):
 
     @staticmethod
     def _remove(db, user_pk: int, addr_pk: int) -> None:
-        # TODO: Determine how to properly finter .addrs while still returning a single User row.
+        # TODO: Determine how to properly filter .addrs while still returning a single User row.
         u: User = db.Session.query(
             User
         ).where(

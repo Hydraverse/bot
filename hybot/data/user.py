@@ -1,16 +1,21 @@
 from attrdict import AttrDict
+from hydra import log
 from sqlalchemy import Column, Integer
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound, IntegrityError
 from sqlalchemy.orm import relationship, lazyload
 
 from .base import *
+from .user_pkid import UserPkid, DbUserPkidMixin
 
-__all__ = "User",
+__all__ = "User", "UserPkid"
 
 
-@dictattrs("pkid", "user_id", "date_create", "date_update", "info", "data", "addrs")
-class User(DbPkidMixin, DbDateMixin, Base):
+@dictattrs("pkid", "name", "user_id", "date_create", "date_update", "info", "data", "addrs")
+class User(DbUserPkidMixin, DbDateMixin, Base):
     __tablename__ = "user"
+
+    pkid = DbUserPkidMixin.pkid()
+    name = DbUserPkidMixin.name()
 
     user_id = Column(Integer, nullable=False, unique=True, primary_key=False, index=True)
 
@@ -42,7 +47,22 @@ class User(DbPkidMixin, DbDateMixin, Base):
             )
 
         except NoResultFound:
-            user_ = User(user_id=user_id)
+            while True:
+                try:
+                    pkid = UserPkid()
+                    db.Session.add(pkid)
+                    db.Session.commit()
+                    break
+                except IntegrityError:
+                    db.Session.rollback()
+                    log.error("User unique PKID name clash! Trying again.")
+                    continue
+
+            user_ = User(
+                pkid=pkid.pkid,
+                name=pkid.name,
+                user_id=user_id,
+            )
 
             db.Session.add(user_)
             db.Session.commit()
@@ -79,7 +99,7 @@ class User(DbPkidMixin, DbDateMixin, Base):
 
     @staticmethod
     async def delete(db, user_id: int) -> None:
-        return await db.run_in_executor_session(User._delete, user_id)
+        return await db.run_in_executor_session(User._delete, db, user_id)
 
     @staticmethod
     def _delete(db, user_id: int) -> None:
