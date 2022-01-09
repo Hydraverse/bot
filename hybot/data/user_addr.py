@@ -19,22 +19,21 @@ class UserAddr(DbDateMixin, Base):
     user_pk = Column(Integer, ForeignKey("user.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
 
-    date_create = DbDateMixin.date_create()
-    date_update = DbDateMixin.date_update()
-
     info = DbInfoColumn()
     data = DbDataColumn()
 
     @staticmethod
-    async def add(db, user_pk: int, address: str) -> Tuple[int, Addr.Type, int, str]:
+    async def add(db, user_pk: int, address: str) -> Tuple[int, Addr.Type, str, str]:
         """Add address. Returns tuple (pkid, type, id_int, hydra_str)
         """
         return await db.run_in_executor_session(UserAddr._add, db, user_pk, address)
 
     @staticmethod
-    def _add(db, user_pk: int, address: str) -> Tuple[int, Addr.Type, int, str]:
+    def _add(db, user_pk: int, address: str) -> Tuple[int, Addr.Type, str, str]:
 
         addr_tp, addr_hx, addr_hy = Addr._addr_normalize(db, address)
+
+        addr_info = AttrDict()
 
         try:
             addr_: Addr = db.Session.query(Addr).where(
@@ -44,10 +43,17 @@ class UserAddr(DbDateMixin, Base):
             ).one()
 
         except NoResultFound:
+            if addr_tp == Addr.Type.S:
+                addr_tp, sc_info = Addr._validate_contract(db, addr_hx)
+
+                if len(sc_info):
+                    addr_info.sc = sc_info
+
             addr_: Addr = Addr(
                 addr_tp=addr_tp,
                 addr_hx=addr_hx,
                 addr_hy=addr_hy,
+                info=addr_info
             )
 
         u = db.Session.query(User).where(User.pkid == user_pk).options(

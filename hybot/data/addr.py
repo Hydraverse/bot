@@ -1,7 +1,10 @@
 from __future__ import annotations
 import enum
 from typing import Optional, Tuple
+import binascii
 
+from attrdict import AttrDict
+from hydra.rpc.hydra_rpc import HydraRPC, BaseRPC
 from sqlalchemy import Column, String, Enum, BigInteger
 from sqlalchemy.orm import relationship
 
@@ -32,9 +35,6 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     addr_tp = Column(Enum(Type, validate_strings=True), nullable=False, index=True)
     addr_hx = Column(String(40), nullable=False, unique=True, index=True)
     addr_hy = Column(String(34), nullable=False, unique=True, index=True)
-
-    date_create = DbDateMixin.date_create()
-    date_update = DbDateMixin.date_update()
 
     info = DbInfoColumn()
     data = DbDataColumn()
@@ -76,14 +76,56 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
         elif by_len == Addr.Type.S:
 
-            addr_hx = hex(int(address, 16))[2:]
-            addr_hy = db.rpc.fromhexaddress(addr_hx)  # ValueError on int() fail
-
-            # TODO: Determine if addr type is token
+            addr_hx = hex(int(address, 16))[2:].rjust(40, "0")  # ValueError on int() fail
+            addr_hy = db.rpc.fromhexaddress(addr_hx)
 
         else:
             raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (bad type)")
 
         return by_len, addr_hx, addr_hy
 
+    @staticmethod
+    async def validate_contract(db, addr_hx: str) -> Tuple[Addr.Type, AttrDict]:
+        return await type(db).run_in_executor(Addr._validate_contract, db, addr_hx)
 
+    @staticmethod
+    def _validate_contract(db, addr_hx: str) -> Tuple[Addr.Type, AttrDict]:
+
+        sci = AttrDict()
+        addr_tp = Addr.Type.S
+
+        try:
+            # Raises BaseRPC.Exception if address does not exist
+            r = db.rpc.callcontract(addr_hx, "06fdde03")  # name()
+        except BaseRPC.Exception:
+            # Safest assumption is that this is actually a HYDRA address
+            return Addr.Type.H, sci
+
+        if r.executionResult.excepted == "None":
+            sci.name = Addr.__sc_out_str(
+                r.executionResult.output[128:]
+            )
+
+        r = db.rpc.callcontract(addr_hx, "95d89b41")  # symbol()
+
+        if r.executionResult.excepted == "None":
+            sci.sym = Addr.__sc_out_str(
+                r.executionResult.output[128:]
+            )
+
+            r = db.rpc.callcontract(addr_hx, "313ce567")  # decimals()
+
+            if r.executionResult.excepted == "None":
+                sci.dec = int(r.executionResult.output, 16)
+
+                r = db.rpc.callcontract(addr_hx, "18160ddd")  # totalSupply()
+
+                if r.executionResult.excepted == "None":
+                    sci.tot = int(r.executionResult.output, 16)
+                    addr_tp = Addr.Type.T
+
+        return addr_tp, sci
+
+    @staticmethod
+    def __sc_out_str(val):
+        return binascii.unhexlify(val).replace(b"\x00", b"").decode("utf-8")

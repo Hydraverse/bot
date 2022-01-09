@@ -14,9 +14,6 @@ class User(DbPkidMixin, DbDateMixin, Base):
 
     user_id = Column(Integer, nullable=False, unique=True, primary_key=False, index=True)
 
-    date_create = DbDateMixin.date_create()
-    date_update = DbDateMixin.date_update()
-
     info = DbInfoColumn()
     data = DbDataColumn()
 
