@@ -13,7 +13,7 @@ from hybot.conf import Config
 @Config.defaults
 class HydraBot(Bot):
     _: HydraBot = None
-    __DP = Dispatcher()
+    dp = Dispatcher()
 
     rpc: HydraRPC = None
     conf: AttrDict = None
@@ -52,23 +52,23 @@ class HydraBot(Bot):
             addr as cmd_addr,\
             delete as cmd_delete
 
-        @HydraBot.__DP.message(commands={"hello"})
+        @HydraBot.dp.message(commands={"hello"})
         async def hello(msg: types.Message):
             return await cmd_hello.hello(self, msg)
 
-        @HydraBot.__DP.message(commands={"nick"})
+        @HydraBot.dp.message(commands={"nick"})
         async def nick(msg: types.Message):
             return await cmd_nick.nick(self, msg)
 
-        @HydraBot.__DP.message(commands={"tz"})
+        @HydraBot.dp.message(commands={"tz"})
         async def tz(msg: types.Message):
             return await cmd_tz.tz(self, msg)
 
-        @HydraBot.__DP.message(commands={"addr"})
+        @HydraBot.dp.message(commands={"addr"})
         async def addr_(msg: types.Message):
             return await cmd_addr.addr(self, msg)
 
-        @HydraBot.__DP.message(commands={"DELETE"})
+        @HydraBot.dp.message(commands={"DELETE"})
         async def delete(msg: types.Message):
             return await cmd_delete.delete(self, msg)
 
@@ -79,9 +79,11 @@ class HydraBot(Bot):
         return HydraBot(rpc).run()
 
     @staticmethod
-    @__DP.message(commands={"echo"})
+    @dp.message(commands={"echo"})
     async def echo(msg: types.Message):
         return await msg.answer(msg.text)
 
     def run(self):
-        return HydraBot.__DP.run_polling(self)
+        return HydraBot.dp.run_polling(self)
+
+

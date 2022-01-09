@@ -140,7 +140,7 @@ class UserAddr(DbDateMixin, Base):
             u.addrs.remove(addr_)
 
             if not len(addr_.users):
-                log.info(f"DB: no users remain for {addr_.pkid}/{addr_.addr_hy}")
+                log.info(f"DB: no users remain for #{addr_.pkid}")
 
                 if not len(addr_.info):
                     log.info("DB: deleting addr with no users and empty info")
