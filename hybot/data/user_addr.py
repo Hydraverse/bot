@@ -23,13 +23,13 @@ class UserAddr(DbDateMixin, Base):
     data = DbDataColumn()
 
     @staticmethod
-    async def add(db, user_pk: int, address: str) -> Tuple[int, Addr.Type, str, str]:
+    async def add(db, user_pk: int, address: str) -> Tuple[int, Addr.Type, str, str, AttrDict]:
         """Add address. Returns tuple (pkid, type, id_int, hydra_str)
         """
         return await db.run_in_executor_session(UserAddr._add, db, user_pk, address)
 
     @staticmethod
-    def _add(db, user_pk: int, address: str) -> Tuple[int, Addr.Type, str, str]:
+    def _add(db, user_pk: int, address: str) -> Tuple[int, Addr.Type, str, str, AttrDict]:
 
         addr_tp, addr_hx, addr_hy = Addr._addr_normalize(db, address)
 
@@ -64,7 +64,13 @@ class UserAddr(DbDateMixin, Base):
         db.Session.add(u)
         db.Session.commit()
 
-        return addr_.pkid, addr_tp, addr_hx, addr_hy
+        return (
+            addr_.pkid,
+            addr_.addr_tp,
+            addr_.addr_hx,
+            addr_.addr_hy,
+            AttrDict(addr_.info)
+        )
 
     @staticmethod
     async def load(db, user_pk: int, addr_pk: int) -> AttrDict:

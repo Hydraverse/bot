@@ -1,5 +1,5 @@
 """Created by Halospace Foundation.
-Support: t.me/TheHydraverse
+Support: @TheHydraverse
 """
 from __future__ import annotations
 from aiogram import Bot, Dispatcher, types
@@ -47,30 +47,25 @@ class HydraBot(Bot):
 
         from . import \
             hello as cmd_hello,\
-            nick as cmd_nick,\
             tz as cmd_tz,\
             addr as cmd_addr,\
             delete as cmd_delete
 
-        @HydraBot.dp.message(commands={"hello"})
+        @HydraBot.dp.message(commands={"hello", "start", "hi", "help"})
         async def hello(msg: types.Message):
-            return await cmd_hello.hello(self, msg)
+            return await self.command(msg, cmd_hello.hello)
 
-        @HydraBot.dp.message(commands={"nick"})
-        async def nick(msg: types.Message):
-            return await cmd_nick.nick(self, msg)
-
-        @HydraBot.dp.message(commands={"tz"})
+        @HydraBot.dp.message(commands={"tz", "timezone"})
         async def tz(msg: types.Message):
-            return await cmd_tz.tz(self, msg)
+            return await self.command(msg, cmd_tz.tz)
 
-        @HydraBot.dp.message(commands={"addr"})
+        @HydraBot.dp.message(commands={"addr", "a"})
         async def addr_(msg: types.Message):
-            return await cmd_addr.addr(self, msg)
+            return await self.command(msg, cmd_addr.addr)
 
         @HydraBot.dp.message(commands={"DELETE"})
         async def delete(msg: types.Message):
-            return await cmd_delete.delete(self, msg)
+            return await self.command(msg, cmd_delete.delete)
 
         super().__init__(token, parse_mode="HTML")
 
@@ -86,4 +81,11 @@ class HydraBot(Bot):
     def run(self):
         return HydraBot.dp.run_polling(self)
 
-
+    async def command(self, msg, fn, *args, **kwds):
+        # noinspection PyBroadException
+        try:
+            return await fn(self, msg, *args, **kwds)
+        except BaseException as error:
+            await msg.answer(
+                f"Sorry, something went wrong. <b><pre>{str(error)}</pre></b>"
+            )

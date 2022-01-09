@@ -1,3 +1,5 @@
+from typing import Optional
+
 from attrdict import AttrDict
 from hydra import log
 from sqlalchemy import Column, Integer
@@ -25,6 +27,22 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     addrs = relationship("Addr", secondary="user_addr", back_populates="users", cascade="all, delete")
 
     @staticmethod
+    async def get_pkid(db, user_id: int) -> Optional[int]:
+        return await db.run_in_executor_session(User._get_pkid, db, user_id)
+
+    @staticmethod
+    def _get_pkid(db, user_id: int) -> Optional[int]:
+        u = (
+            db.Session.query(
+                User.pkid
+            ).filter(
+                User.user_id == user_id
+            ).one_or_none()
+        )
+
+        return u.pkid if u is not None else None
+
+    @staticmethod
     async def load_or_create(db, user_id: int, full: bool = False) -> AttrDict:
         return await db.run_in_executor_session(User._load_or_create, db, user_id, full)
 
@@ -34,7 +52,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
             # noinspection PyProtectedMember
             return AttrDict(
                 db.Session.query(
-                    User.pkid, User.user_id, User.info, User.data
+                    User.pkid, User.name, User.user_id, User.info, User.data
                 ).filter(
                     User.user_id == user_id
                 ).one()._asdict()
@@ -48,8 +66,9 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
 
         except NoResultFound:
             while True:
+                pkid = UserPkid()
+
                 try:
-                    pkid = UserPkid()
                     db.Session.add(pkid)
                     db.Session.commit()
                     break

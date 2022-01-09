@@ -3,11 +3,10 @@ from aiogram import types
 
 from . import HydraBot
 from ...data import User, UserAddr, Addr
+from .user import HydraBotUser
 
 
 async def addr(bot: HydraBot, msg: types.Message):
-    u = await User.load_or_create(bot.db, msg.from_user.id, full=True)
-
     try:
         address = str(msg.text).replace("/addr", "", 1).strip()
 
@@ -17,6 +16,8 @@ async def addr(bot: HydraBot, msg: types.Message):
                 "Remove: <b>/addr [HYDRA or smart contract address] del</b>\n"
                 "List: <b>/addr list</b>"
             )
+
+        u = await HydraBotUser.load(bot.db, msg, full=True)
 
         if address == "list":
             if not len(u.addrs):
@@ -60,7 +61,7 @@ async def addr(bot: HydraBot, msg: types.Message):
             return await msg.answer("Address not removed: not found.\n")
 
         try:
-            addr_pk, addr_tp, addr_hx, addr_hy = await UserAddr.add(bot.db, u.pkid, address)
+            addr_pk, addr_tp, addr_hx, addr_hy, addr_info = await UserAddr.add(bot.db, u.pkid, address)
 
         except IntegrityError:
             return await msg.answer(
@@ -68,7 +69,13 @@ async def addr(bot: HydraBot, msg: types.Message):
                 "List: <b>/addr list</b>"
             )
 
-        tp_str = str(addr_tp.value).upper() if addr_tp == Addr.Type.H else str(addr_tp.value)
+        tp_str = (
+            str(addr_tp.value).upper() if addr_tp == Addr.Type.H else
+            (
+                f"{addr_info.sc.get('sym', addr_info.sc.get('name', 'unnamed'))} " +
+                str(addr_tp.value)
+            )
+        )
 
         addr_str = addr_hy if addr_tp == Addr.Type.H else addr_hx
 

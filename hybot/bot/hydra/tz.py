@@ -5,19 +5,20 @@ import pytz
 
 from . import HydraBot
 from ...data import User
+from .user import HydraBotUser
 
 
 async def tz(bot: HydraBot, msg: types.Message):
-    u = await User.load_or_create(bot.db, msg.from_user.id)
+    u = await HydraBotUser.load(bot.db, msg, full=False)
 
     try:
-        tz_cur = u.info.get("tz", None)
+        tz_cur = u.info.get("tz", "UTC")
         tz_new = str(msg.text).replace("/tz", "", 1).strip()
 
         if not tz_new:
             return await msg.answer(
-                f"Hiya, <b>{u.info.nick}</b>!\n\n"
-                f"Your current time zone is <b>{u.info.tz}</b>.\n\n"
+                f"Hiya, <b>{msg.from_user.username}</b>!\n\n"
+                f"Your current time zone is <b>{tz_cur}</b>.\n\n"
                 "Change your timezone with <b>/tz [Time Zone]</b>\n"
                 "Find a timezone with <b>/tz find [search]</b>"
             )
