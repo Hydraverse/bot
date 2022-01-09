@@ -25,6 +25,10 @@ class HydraBot(Bot):
         "donations": "HUo97u33iEdkEWBiLZEitAsGRXHUcmdfHQ",
     }
 
+    # noinspection PyUnusedLocal,PyMethodMayBeStatic
+    def bot(*self) -> HydraBot:
+        return HydraBot._
+
     def __new__(cls, *args, **kwargs):
         if cls._ is None:
             cls._ = super(HydraBot, cls).__new__(cls, *args, **kwargs)
