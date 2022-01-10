@@ -12,6 +12,9 @@ class UserPkid(DbPkidMixin, Base):
 
     name = Column(String, default=lambda: UserPkid.make_name(), nullable=False, unique=True, index=True)
 
+    info = DbInfoColumn()
+    data = DbDataColumn()
+
     @staticmethod
     def make_name():
         return " ".join(namegen.make_name())
