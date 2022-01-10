@@ -4,6 +4,7 @@ from typing import Optional, Tuple
 import binascii
 
 from attrdict import AttrDict
+from hydra import log
 from hydra.rpc.hydra_rpc import HydraRPC, BaseRPC
 from sqlalchemy import Column, String, Enum, BigInteger
 from sqlalchemy.orm import relationship
@@ -40,6 +41,12 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     data = DbDataColumn()
 
     users = relationship("User", secondary="user_addr", back_populates="addrs", passive_deletes=True)
+
+    def _ensure_imported(self, db):
+        if self.addr_tp == Addr.Type.H:
+            if self.addr_hy not in db.rpc.listlabels():
+                log.info(f"Importing address {self.addr_hy}")
+                db.rpc.importaddress(self.addr_hy, self.addr_hy)
 
     @staticmethod
     async def validate_address(db, address: str):

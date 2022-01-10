@@ -1,5 +1,6 @@
 import os
 import sqlalchemy.exc
+from hydra.rpc.base import BaseRPC
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
@@ -35,12 +36,24 @@ class DB(DbOperatorMixin):
     FILE_NAME = "hybot"
     PATH = os.path.abspath(os.path.join(os.getcwd(), f"{FILE_DIR}/{FILE_NAME}.sqlite3"))
 
+    WALLET = "hybot"
+
     def __init__(self, rpc: HydraRPC, url: str, *args, **kwds):
         log.debug(f"db: open url='{url}'")
         self.engine = create_engine(url, *args, **kwds)
         self.Session = scoped_session(sessionmaker(bind=self.engine))
         Base.metadata.create_all(self.engine)
         self.rpc = rpc
+        self.__init_wallet()
+
+    def __init_wallet(self):
+        if DB.WALLET not in self.rpc.listwallets():
+            try:
+                self.rpc.loadwallet(DB.WALLET)
+                log.info(f"Wallet '{DB.WALLET}' loaded.")
+            except BaseRPC.Exception:
+                log.warning(f"Creating wallet '{DB.WALLET}'.")
+                self.rpc.createwallet(DB.WALLET, disable_private_keys=True, blank=True)
 
     @staticmethod
     def default(rpc: HydraRPC):
@@ -56,3 +69,6 @@ class DB(DbOperatorMixin):
             raise
         finally:
             self.Session.remove()
+
+
+os.environ.setdefault("HY_RPC_WALLET", DB.WALLET)

@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List
 
 from attrdict import AttrDict
 from hydra import log
@@ -71,6 +71,14 @@ class UserAddr(DbDateMixin, Base):
             addr_.addr_hy,
             AttrDict(addr_.info)
         )
+
+    @staticmethod
+    async def load_all(db) -> List[AttrDict]:
+        return await db.run_in_executor_session(UserAddr._load_all, db)
+
+    @staticmethod
+    def _load_all(db) -> List[AttrDict]:
+        return list(map(lambda ua: ua.asdict(), db.Session.query(UserAddr)))
 
     @staticmethod
     async def load(db, user_pk: int, addr_pk: int) -> AttrDict:
@@ -154,3 +162,59 @@ class UserAddr(DbDateMixin, Base):
                     continue
 
         db.Session.add(u)
+
+    @staticmethod
+    async def update_txns(db, process_user_addr_txs_func=None) -> List:
+        return await db.run_in_executor_session(UserAddr._update_txns, db, process_user_addr_txs_func)
+
+    @staticmethod
+    def _update_txns(db, process_user_addr_txs_func) -> List:
+        """Scan all entries and update to the latest tx for each."""
+        # addr_pks = db.Session.query(UserAddr.addr_pk).distinct(UserAddr.addr_pk)
+        user_addrs = db.Session.query(UserAddr).all()
+        addr_pks = set(ua.addr_pk for ua in user_addrs)
+        user_pks = set()
+
+        for addr_pk in addr_pks:
+            addr_ = db.Session.query(Addr).where(Addr.pkid == addr_pk).one()
+
+            if addr_.addr_tp != Addr.Type.H:
+                continue
+
+            addr_._ensure_imported(db)
+
+            tx_data = addr_.data.setdefault("tx", {"prev": None, "cur": None})
+
+            tx_latest = db.rpc.listtransactions(addr_.addr_hy, count=1, skip=0, include_watchonly=True)
+
+            if tx_latest is not None and len(tx_latest):
+                tx_latest = tx_latest[0]
+
+                if tx_latest.txid not in tx_data:
+                    tx_data.clear()
+                    tx_data[tx_latest.txid] = tx_latest
+                    db.Session.add(addr_)
+
+                    for user_addr in filter(lambda ua: ua.addr_pk == addr_pk, user_addrs):
+                        ua_txs = user_addr.data.setdefault("tx", {})
+
+                        if tx_latest.txid not in ua_txs:
+                            # Remove cleared txes
+                            for txid in filter(lambda k: ua_txs[k] is None, ua_txs.keys()):
+                                del ua_txs[txid]
+
+                            user_pks.add(user_addr.user_pk)
+                            ua_txs[tx_latest.txid] = tx_latest
+                            db.Session.add(user_addr)
+
+                            if process_user_addr_txs_func is not None:
+                                for user_ in addr_.users:
+                                    if user_.pkid == user_addr.user_pk:
+                                        process_user_addr_txs_func(db, user_, ua_txs)
+
+                    db.Session.commit()
+
+        return list(user_pks)
+
+
+

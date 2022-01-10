@@ -2,6 +2,11 @@
 Support: @TheHydraverse
 """
 from __future__ import annotations
+
+import asyncio
+import threading
+import time
+
 from aiogram import Bot, Dispatcher, types
 from attrdict import AttrDict
 
@@ -78,8 +83,23 @@ class HydraBot(Bot):
     async def echo(msg: types.Message):
         return await msg.answer(msg.text)
 
+    async def __poll_update_addrs(self):
+        # user_addrs = await UserAddr.load_all(self.db)
+        # print(f"loaded {len(user_addrs)} user_addrs")
+        user_pks = await UserAddr.update_txns(self.db)
+        print(f"User PKs updated: {user_pks}")
+
+    async def __poll(self):
+        while 1:
+            await self.__poll_update_addrs()
+            await asyncio.sleep(30)
+
+    def __thread(self):
+        return asyncio.run(self.__poll())
+
     def run(self):
-        return HydraBot.dp.run_polling(self)
+        threading.Thread(target=self.__thread).start()
+        return self.dp.run_polling(self)
 
     async def command(self, msg, fn, *args, **kwds):
         # noinspection PyBroadException
