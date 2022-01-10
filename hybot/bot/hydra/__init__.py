@@ -9,10 +9,12 @@ import time
 
 from aiogram import Bot, Dispatcher, types
 from attrdict import AttrDict
+from hydra import log
 
 from hydra.rpc import HydraRPC
 from hybot.data import *
 from hybot.conf import Config
+from hybot.data.block import Block
 
 
 @Config.defaults
@@ -86,19 +88,23 @@ class HydraBot(Bot):
     async def __poll_update_addrs(self):
         # user_addrs = await UserAddr.load_all(self.db)
         # print(f"loaded {len(user_addrs)} user_addrs")
-        user_pks = await UserAddr.update_txns(self.db)
-        print(f"User PKs updated: {user_pks}")
+
+        # user_pks = await UserAddr.update_txns(self.db)
+        # print(f"User PKs updated: {user_pks}")
+
+        await Block.update(self.db)
 
     async def __poll(self):
         while 1:
             await self.__poll_update_addrs()
-            await asyncio.sleep(30)
+            await asyncio.sleep(10)
 
-    def __thread(self):
-        return asyncio.run(self.__poll())
+    @staticmethod
+    @dp.startup()
+    async def __on_startup():
+        asyncio.create_task(HydraBot.bot().__poll())
 
     def run(self):
-        threading.Thread(target=self.__thread).start()
         return self.dp.run_polling(self)
 
     async def command(self, msg, fn, *args, **kwds):
@@ -109,3 +115,6 @@ class HydraBot(Bot):
             await msg.answer(
                 f"Sorry, something went wrong. <b><pre>{str(error)}</pre></b>"
             )
+
+            if log.level() <= log.INFO:
+                raise
