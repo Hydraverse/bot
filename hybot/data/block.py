@@ -50,21 +50,23 @@ class Block(DbPkidMixin, DbDateMixin, Base):
             info = db.rpc.getblock(bhash, verbosity=2)
             vin_vouts = {}
 
-            if info.get("nTx", 0) > 0:
-                for tx in info.tx:
-                    vinouts = Block.__get_vins(db.rpc, tx)
+            for tx in info.tx:
+                vinouts = Block.__get_vins(db.rpc, tx)
 
-                    if len(vinouts):
-                        vin_vouts[tx.txid] = vinouts
+                if len(vinouts):
+                    vin_vouts[tx.txid] = vinouts
 
-                info.vin_vouts = vin_vouts
+            info.vin_vouts = vin_vouts
 
+            new_block = Block(height=height, hash=bhash, info=info)
+            UserBlock._update_from_block(db, new_block)
+
+            if len(new_block.users):
                 log.info(f"Adding block at height {height}")
-                new_block = Block(height=height, hash=bhash, info=info)
-                UserBlock._update_from_block(db, new_block)
                 db.Session.add(new_block)
-
-        db.Session.commit()
+                db.Session.commit()
+            else:
+                log.info(f"Skipping block at height {height}")
 
     @staticmethod
     def __get_vins(rpc, tx) -> dict:
@@ -84,3 +86,5 @@ class Block(DbPkidMixin, DbDateMixin, Base):
 
         return vins
 
+
+from .user_block import UserBlock

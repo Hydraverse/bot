@@ -19,7 +19,7 @@ class HydraBotUser:
         if pkid is None and create:
             await msg.answer(
                 f"Welcome, <b>{msg.from_user.full_name}!</b>\n\n"
-                "One moment while I dream up a new name for your account..."
+                "One moment while I set things up..."
             )
 
         return await User.load(db, msg.from_user.id, create=create, full=full)

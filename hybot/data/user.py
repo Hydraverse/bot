@@ -36,6 +36,9 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         order_by="desc(UserBlock.block_pk)"
     )
 
+    def __str__(self):
+        return f"{self.pkid} [{self.name}] {self.user_id}"
+
     def attrdict(self, full=False):
         user_dict = AttrDict(self.asdict())
 
