@@ -15,7 +15,7 @@ from .base import *
 __all__ = "Block",
 
 
-@dictattrs("pkid", "date_create", "date_update", "height", "hash", "info", "data", "users")
+@dictattrs("pkid", "date_create", "date_update", "height", "hash", "info", "data")
 class Block(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "block"
 

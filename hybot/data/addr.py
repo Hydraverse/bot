@@ -15,7 +15,7 @@ from .base import *
 __all__ = "Addr",
 
 
-@dictattrs("pkid", "addr_tp", "addr_hx", "addr_hy", "date_create", "date_update", "info", "data", "users")
+@dictattrs("pkid", "addr_tp", "addr_hx", "addr_hy", "date_create", "date_update", "info", "data")
 class Addr(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "addr"
 

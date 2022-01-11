@@ -26,7 +26,7 @@ async def addr(bot: HydraBot, msg: types.Message):
             result = []
 
             for addr_tp in (Addr.Type.H, Addr.Type.T, Addr.Type.S):
-                user_addrs = tuple(filter(lambda adr: adr.addr_tp is addr_tp, u.addrs))
+                user_addrs = tuple(filter(lambda adr: adr.addr.addr_tp is addr_tp, u.addrs))
 
                 if len(user_addrs):
                     tp_str = str(addr_tp.value).capitalize() if addr_tp is not Addr.Type.H else str(addr_tp.value)
@@ -42,7 +42,7 @@ async def addr(bot: HydraBot, msg: types.Message):
 
                     result.append(f"{tp_str} addresses:\n")
                     result += [
-                        f"<pre>{adr_str(adr)}</pre>"
+                        f"<pre>{adr_str(adr.addr)}</pre>"
                         for adr in user_addrs
                     ] + ["\n"]
 

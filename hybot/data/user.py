@@ -17,7 +17,7 @@ from .user_block import UserBlock
 __all__ = "User", "UserPkid", "UserAddr", "UserBlock"
 
 
-@dictattrs("pkid", "name", "user_id", "date_create", "date_update", "info", "data", "addrs", "blocks")
+@dictattrs("pkid", "name", "user_id", "date_create", "date_update", "info", "data")
 class User(DbUserPkidMixin, DbDateMixin, Base):
     __tablename__ = "user"
 
@@ -35,6 +35,15 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         UserBlock, back_populates="user", cascade="all, delete",
         order_by="desc(UserBlock.block_pk)"
     )
+
+    def attrdict(self, full=False):
+        user_dict = AttrDict(self.asdict())
+
+        if full:
+            user_dict.addrs = list(AttrDict(ua.asdict()) for ua in self.addrs)
+            user_dict.blocks = list(AttrDict(ub.asdict()) for ub in self.blocks)
+
+        return user_dict
 
     def _update_from_block_tx(self, db, addr, address, address_coinbase, block_info, inp_vouts, out_vouts):
         nq = self.data.setdefault("nq", [])
@@ -64,27 +73,14 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     @staticmethod
     def _load(db, user_id: int, create: bool, full: bool) -> Optional[AttrDict]:
 
-        u: dict = db.Session.query(
-            User.pkid, User.name, User.user_id, User.info, User.data
-        ).filter(
-            User.user_id == user_id
-        ).one_or_none()._asdict() if not full else db.Session.query(
+        u: User = db.Session.query(
             User
         ).filter(
             User.user_id == user_id
-        ).one_or_none().asdict()
+        ).one_or_none()
 
         if u is not None:
-            u = AttrDict(u)
-
-            if full:
-                u.addrs = list(AttrDict(ua.addr.asdict()) for ua in u.addrs)
-                u.blocks = list(AttrDict(ub.block.asdict()) for ub in u.blocks)
-            else:
-                del u.addrs
-                del u.blocks
-
-            return u
+            return u.attrdict(full=full)
 
         elif not create:
             return None
@@ -110,16 +106,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         db.Session.add(user_)
         db.Session.commit()
 
-        user_ = AttrDict(user_.asdict())
-
-        if full:
-            user_.addrs = list(AttrDict(ua.addr.asdict()) for ua in user_.addrs)
-            user_.blocks = list(AttrDict(ub.block.asdict()) for ub in user_.blocks)
-        else:
-            del user_.addrs
-            del user_.blocks
-
-        return user_
+        return user_.attrdict(full=full)
 
     @staticmethod
     async def update_info(db, user_pk: int, info: dict, data: dict = None, over: bool = False) -> None:
@@ -166,9 +153,12 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     def __delete(self, db):
         for user_addr in self.addrs:
             self.addrs.remove(user_addr)
-            if not len(user_addr.addr.info) and not len(user_addr.addr.users):
-                log.info(f"Deleting address with no users and empty info: {str(user_addr)}")
-                db.Session.delete(user_addr.addr)
+            if not len(user_addr.addr.users):
+                if not len(user_addr.addr.info):
+                    log.info(f"Deleting address with no users and empty info: {str(user_addr)}")
+                    db.Session.delete(user_addr.addr)
+                else:
+                    log.info(f"Keeping address with no users and non-empty info: {str(user_addr)}")
 
         db.Session.delete(self)
         db.Session.commit()
@@ -217,10 +207,14 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         rows_found = db.Session.execute(stmt).rowcount
 
         if rows_found > 0:
-            if not len(addr.info) and not len(addr.users):
-                log.info(f"Deleting address with no users and empty info: {str(addr)}")
-                db.Session.delete(addr)
+            if not len(addr.users):
+                if not len(addr.info):
+                    log.info(f"Deleting address with no users and empty info: {str(addr)}")
+                    db.Session.delete(addr)
+                else:
+                    log.info(f"Keeping address with no users and non-empty info: {str(addr)}")
 
             db.Session.commit()
             return AttrDict(addr.asdict())
+
 

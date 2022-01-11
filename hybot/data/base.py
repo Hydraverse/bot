@@ -12,14 +12,22 @@ Base = declarative_base()
 
 
 def dictattrs(*attrs):
-    def _asdict(self):
+    def _asdict(self, *attrs_):
+        def _attr_conv(s, attr):
+            attr = getattr(s, attr)
+            if hasattr(attr, "asdict"):
+                return attr.asdict()
+            if isinstance(attr, (list, tuple)):
+                return [_attr_conv(attr, a) for a in attr]
+            return attr
+
         return {
-            attr: getattr(self, attr)
-            for attr in attrs
+            attr: _attr_conv(self, attr)
+            for attr in attrs_
         }
 
     def _cls(cls):
-        cls.asdict = _asdict
+        cls.asdict = lambda slf: _asdict(slf, *attrs)
         return cls
 
     return _cls
