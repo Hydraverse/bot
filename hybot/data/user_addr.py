@@ -1,19 +1,23 @@
 from __future__ import annotations
-from sqlalchemy import Column, ForeignKey, Integer
+from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, Index, and_
 from sqlalchemy.orm import relationship
 
 
 from .base import *
+from .user_addr_tx import UserAddrTX, TX
 
 __all__ = "UserAddr",
 
 
-@dictattrs("user_pk", "addr_pk", "date_create", "date_update", "info", "data", "user", "addr")
-class UserAddr(DbDateMixin, Base):
+@dictattrs("pkid", "user_pk", "addr_pk", "date_create", "date_update", "info", "data", "user", "addr")
+class UserAddr(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "user_addr"
+    __table_args__ = (
+        UniqueConstraint("user_pk", "addr_pk", name="_user_addr_uc"),
+    )
 
-    user_pk = Column(Integer, ForeignKey("user.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
-    addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
+    user_pk = Column(Integer, ForeignKey("user.pkid", ondelete="CASCADE"), primary_key=False, index=True, nullable=False)
+    addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), primary_key=False, index=True, nullable=False)
 
     info = DbInfoColumn()
     data = DbDataColumn()
@@ -21,38 +25,65 @@ class UserAddr(DbDateMixin, Base):
     user = relationship("User", back_populates="user_addrs")
     addr = relationship("Addr", back_populates="user_addrs")
 
+    user_addr_txes = relationship(
+        UserAddrTX,
+        back_populates="user_addr",
+        cascade="all, delete",
+    )
+
     def _delete(self, db):
         self.user.user_addrs.remove(self)
+
+        for user_addr_tx in self.user_addr_txes:
+            self.user_addr_txes.remove(user_addr_tx)
+            user_addr_tx._removed(db, self)
+
         self.addr._delete(db)
 
-    @staticmethod
-    async def update(
-            db, user_pk: int, addr_pk: int,
-            info: dict, data: dict = None, over: bool = False) -> None:
-        if (info is None and data is None) or (over and (not info or not data)):
-            return
+    def _add_tx(self, db, tx: TX) -> UserAddrTX:
+        user_addr_tx = UserAddrTX(tx=tx, user_addr=self)
+        self.user_addr_txes.add(user_addr_tx)
+        db.Session.add(self)
+        return user_addr_tx
 
-        return await db.run_in_executor_session(UserAddr._update, db, user_pk, addr_pk, info, data, over)
-
-    @staticmethod
-    def _update(db, user_pk: int, addr_pk: int, info: dict, data: dict, over: bool) -> None:
-        ua: UserAddr = db.Session.query(UserAddr).where(
-            UserAddr.user_pk == user_pk and
-            UserAddr.addr_pk == addr_pk
+    def _del_tx(self, db, tx: TX):
+        user_addr_tx = db.Session.query(
+            UserAddrTX,
+        ).where(
+            and_(
+                UserAddrTX.tx_pk == tx.pkid,
+                UserAddrTX.user_addr_pk == self.pkid,
+            )
         ).one()
 
-        if over:
-            if info is not None:
-                ua.info = info
-            if data is not None:
-                ua.data = data
-        else:
-            if info is not None:
-                ua.info.update(info)
-            if data is not None:
-                ua.data.update(data)
+        self.user_addr_txes.remove(user_addr_tx)
+        user_addr_tx._removed(db, self)
+        db.Session.add(self)
 
-        db.Session.add(ua)
-        db.Session.commit()
+    @staticmethod
+    async def update_all(db) -> None:
+        return await db.run_in_executor_session(UserAddr._update_all, db)
+
+    @staticmethod
+    def _update_all(db) -> None:
+        """Update from the latest known block.
+        """
+        user_addrs = db.Session.query(
+            UserAddr,
+        ).all()
+
+        update_addrs = {
+            str(ua.addr): ua
+            for ua in user_addrs
+        }
+
+        if not update_addrs:
+            return
 
 
+
+    def _update(self, db, block_info):
+        pass
+
+
+Index(UserAddr.__tablename__ + "_idx", UserAddr.user_pk, UserAddr.addr_pk)
