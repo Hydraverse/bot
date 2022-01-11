@@ -2,7 +2,6 @@
 from .base import *
 from .user import *
 from .addr import *
-from .user_addr import *
 from .block import *
 from .db import *
 

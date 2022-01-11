@@ -9,7 +9,7 @@ from .user import HydraBotUser
 
 
 async def tz(bot: HydraBot, msg: types.Message):
-    u = await HydraBotUser.load(bot.db, msg, full=False)
+    u = await HydraBotUser.load(bot.db, msg, create=True, full=False)
 
     try:
         tz_cur = u.info.get("tz", "UTC")

@@ -1,18 +1,23 @@
+from __future__ import annotations
 from typing import Optional
 
 from attrdict import AttrDict
 from hydra import log
-from sqlalchemy import Column, Integer
+from sqlalchemy import Column, Integer, and_
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from sqlalchemy.orm import relationship, lazyload
 
 from .base import *
+from .addr import Addr
+from .block import Block
 from .user_pkid import UserPkid, DbUserPkidMixin
+from .user_addr import UserAddr
+from .user_block import UserBlock
 
-__all__ = "User", "UserPkid"
+__all__ = "User", "UserPkid", "UserAddr", "UserBlock"
 
 
-@dictattrs("pkid", "name", "user_id", "date_create", "date_update", "info", "data", "addrs")
+@dictattrs("pkid", "name", "user_id", "date_create", "date_update", "info", "data", "addrs", "blocks")
 class User(DbUserPkidMixin, DbDateMixin, Base):
     __tablename__ = "user"
 
@@ -24,7 +29,17 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     info = DbInfoColumn()
     data = DbDataColumn()
 
-    addrs = relationship("Addr", secondary="user_addr", back_populates="users", cascade="all, delete")
+    addrs = relationship(UserAddr, back_populates="user", cascade="all, delete")
+
+    blocks = relationship(
+        UserBlock, back_populates="user", cascade="all, delete",
+        order_by="desc(UserBlock.block_pk)"
+    )
+
+    def _update_from_block_tx(self, db, addr, address, address_coinbase, block_info, inp_vouts, out_vouts):
+        nq = self.data.setdefault("nq", [])
+
+        pass
 
     @staticmethod
     async def get_pkid(db, user_id: int) -> Optional[int]:
@@ -43,50 +58,68 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         return u.pkid if u is not None else None
 
     @staticmethod
-    async def load_or_create(db, user_id: int, full: bool = False) -> AttrDict:
-        return await db.run_in_executor_session(User._load_or_create, db, user_id, full)
+    async def load(db, user_id: int, create: bool = True, full: bool = False) -> Optional[AttrDict]:
+        return await db.run_in_executor_session(User._load, db, user_id, create, full)
 
     @staticmethod
-    def _load_or_create(db, user_id: int, full: bool) -> AttrDict:
-        try:
-            # noinspection PyProtectedMember
-            return AttrDict(
-                db.Session.query(
-                    User.pkid, User.name, User.user_id, User.info, User.data
-                ).filter(
-                    User.user_id == user_id
-                ).one()._asdict()
-                if not full else
-                db.Session.query(
-                    User
-                ).filter(
-                    User.user_id == user_id
-                ).one().asdict()
-            )
+    def _load(db, user_id: int, create: bool, full: bool) -> Optional[AttrDict]:
 
-        except NoResultFound:
-            while True:
-                pkid = UserPkid()
+        u: dict = db.Session.query(
+            User.pkid, User.name, User.user_id, User.info, User.data
+        ).filter(
+            User.user_id == user_id
+        ).one_or_none()._asdict() if not full else db.Session.query(
+            User
+        ).filter(
+            User.user_id == user_id
+        ).one_or_none().asdict()
 
-                try:
-                    db.Session.add(pkid)
-                    db.Session.commit()
-                    break
-                except IntegrityError:
-                    db.Session.rollback()
-                    log.error("User unique PKID name clash! Trying again.")
-                    continue
+        if u is not None:
+            u = AttrDict(u)
 
-            user_ = User(
-                pkid=pkid.pkid,
-                name=pkid.name,
-                user_id=user_id,
-            )
+            if full:
+                u.addrs = list(AttrDict(ua.addr.asdict()) for ua in u.addrs)
+                u.blocks = list(AttrDict(ub.block.asdict()) for ub in u.blocks)
+            else:
+                del u.addrs
+                del u.blocks
 
-            db.Session.add(user_)
-            db.Session.commit()
+            return u
 
-            return AttrDict(user_.asdict())
+        elif not create:
+            return None
+
+        while True:
+            pkid = UserPkid()
+
+            try:
+                db.Session.add(pkid)
+                db.Session.commit()
+                break
+            except IntegrityError:
+                db.Session.rollback()
+                log.error("User unique PKID name clash! Trying again.")
+                continue
+
+        user_ = User(
+            pkid=pkid.pkid,
+            name=pkid.name,
+            user_id=user_id,
+        )
+
+        db.Session.add(user_)
+        db.Session.commit()
+
+        user_ = AttrDict(user_.asdict())
+
+        if full:
+            user_.addrs = list(AttrDict(ua.addr.asdict()) for ua in user_.addrs)
+            user_.blocks = list(AttrDict(ub.block.asdict()) for ub in user_.blocks)
+        else:
+            del user_.addrs
+            del user_.blocks
+
+        return user_
 
     @staticmethod
     async def update_info(db, user_pk: int, info: dict, data: dict = None, over: bool = False) -> None:
@@ -99,7 +132,8 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         u: User = db.Session.query(User).where(
             User.pkid == user_pk
         ).options(
-            lazyload(User.addrs)
+            lazyload(User.addrs),
+            lazyload(User.blocks),
         ).one()
 
         if over:
@@ -124,10 +158,69 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     def _delete(db, user_id: int) -> None:
         u: User = db.Session.query(User).where(
             User.user_id == user_id
+        ).one_or_none()
+
+        if u is not None:
+            return u.__delete(db)
+
+    def __delete(self, db):
+        for user_addr in self.addrs:
+            self.addrs.remove(user_addr)
+            if not len(user_addr.addr.info) and not len(user_addr.addr.users):
+                log.info(f"Deleting address with no users and empty info: {str(user_addr)}")
+                db.Session.delete(user_addr.addr)
+
+        db.Session.delete(self)
+        db.Session.commit()
+
+    @staticmethod
+    async def addr_add(db, user_pk: int, address: str) -> AttrDict:
+        return await db.run_in_executor_session(User._addr_add, db, user_pk, address)
+
+    @staticmethod
+    def _addr_add(db, user_pk: int, address: str) -> AttrDict:
+        u = db.Session.query(
+            User
+        ).where(
+            User.pkid == user_pk
+        ).options(
+            lazyload(User.addrs),
+            lazyload(User.blocks)
         ).one()
 
-        from . import UserAddr
-        UserAddr._remove_addrs(db, u)
-        db.Session.delete(u)
+        user_addr = u.__addr_add(db, address)
         db.Session.commit()
+        return AttrDict(user_addr.asdict())
+
+    def __addr_add(self, db, address: str) -> UserAddr:
+        addr = Addr._load(db, address, create=True)
+        ua = UserAddr(user=self, addr=addr)
+        self.addrs.append(ua)
+        db.Session.add(self)
+        return ua
+
+    @staticmethod
+    async def addr_del(db, user_pk: int, address: str) -> Optional[AttrDict]:
+        return await db.run_in_executor_session(User._addr_del, db, user_pk, address)
+
+    @staticmethod
+    def _addr_del(db, user_pk: int, address: str) -> Optional[AttrDict]:
+        addr = Addr._load(db, address, create=False)
+
+        stmt = UserAddr.__table__.delete().where(
+            and_(
+                UserAddr.user_pk == user_pk,
+                UserAddr.addr_pk == addr.pkid
+            )
+        )
+
+        rows_found = db.Session.execute(stmt).rowcount
+
+        if rows_found > 0:
+            if not len(addr.info) and not len(addr.users):
+                log.info(f"Deleting address with no users and empty info: {str(addr)}")
+                db.Session.delete(addr)
+
+            db.Session.commit()
+            return AttrDict(addr.asdict())
 

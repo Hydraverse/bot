@@ -17,7 +17,7 @@ async def addr(bot: HydraBot, msg: types.Message):
                 "List: <b>/addr list</b>"
             )
 
-        u = await HydraBotUser.load(bot.db, msg, full=True)
+        u = await HydraBotUser.load(bot.db, msg, create=True, full=True)
 
         if address == "list":
             if not len(u.addrs):
@@ -26,9 +26,9 @@ async def addr(bot: HydraBot, msg: types.Message):
             result = []
 
             for addr_tp in (Addr.Type.H, Addr.Type.T, Addr.Type.S):
-                addrs = tuple(filter(lambda adr: adr.addr_tp is addr_tp, u.addrs))
+                user_addrs = tuple(filter(lambda adr: adr.addr_tp is addr_tp, u.addrs))
 
-                if len(addrs):
+                if len(user_addrs):
                     tp_str = str(addr_tp.value).capitalize() if addr_tp is not Addr.Type.H else str(addr_tp.value)
                     adr_str = lambda adr: (
                         adr.addr_hy if addr_tp == Addr.Type.H else
@@ -43,7 +43,7 @@ async def addr(bot: HydraBot, msg: types.Message):
                     result.append(f"{tp_str} addresses:\n")
                     result += [
                         f"<pre>{adr_str(adr)}</pre>"
-                        for adr in addrs
+                        for adr in user_addrs
                     ] + ["\n"]
 
             return await msg.answer("\n".join(result))
@@ -51,17 +51,14 @@ async def addr(bot: HydraBot, msg: types.Message):
         if address.endswith(" del"):
             address = address.replace(" del", "", 1).strip()
 
-            addr_tp, addr_hx, addr_hy = await Addr.addr_normalize(bot.db, address)
-
-            for user_addr in u.addrs:
-                if user_addr.addr_hx == addr_hx:
-                    await UserAddr.remove(bot.db, u.pkid, user_addr.pkid)
-                    return await msg.answer("Address removed.\n")
+            if await User.addr_del(bot.db, u.pkid, address) is not None:
+                return await msg.answer("Address removed.\n")
 
             return await msg.answer("Address not removed: not found.\n")
 
         try:
-            addr_pk, addr_tp, addr_hx, addr_hy, addr_info = await UserAddr.add(bot.db, u.pkid, address)
+            user_addr = await User.addr_add(bot.db, u.pkid, address)
+            addr_ = user_addr.addr
 
         except IntegrityError:
             return await msg.answer(
@@ -70,14 +67,14 @@ async def addr(bot: HydraBot, msg: types.Message):
             )
 
         tp_str = (
-            str(addr_tp.value).upper() if addr_tp == Addr.Type.H else
+            str(addr_.addr_tp.value).upper() if addr_.addr_tp == Addr.Type.H else
             (
-                f"{addr_info.sc.get('sym', addr_info.sc.get('name', 'unnamed'))} " +
-                str(addr_tp.value)
+                f"{addr_.info.sc.get('sym', addr_.info.sc.get('name', 'unnamed'))} " +
+                str(addr_.addr_tp.value)
             )
         )
 
-        addr_str = addr_hy if addr_tp == Addr.Type.H else addr_hx
+        addr_str = addr_.addr_hy if addr_.addr_tp == Addr.Type.H else addr_.addr_hx
 
         return await msg.answer(f"Added {tp_str} address:\n<pre>{addr_str}</pre>")
 

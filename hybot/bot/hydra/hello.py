@@ -9,7 +9,7 @@ from .user import HydraBotUser
 
 
 async def hello(bot: HydraBot, msg: types.Message):
-    u = await HydraBotUser.load(bot.db, msg, full=False)
+    u = await HydraBotUser.load(bot.db, msg, create=True, full=False)
 
     response_tz = (
         "Manage addresses with <b>/addr</b>.\n\n"
@@ -28,7 +28,7 @@ async def hello(bot: HydraBot, msg: types.Message):
         __doc__ += f"<b><pre>{HydraBot.CONF.donations}</pre></b>\n"
 
     response_donate = (
-            "Please consider supporting further development of this and other projects.\n"
+            "Please consider supporting this and future projects.\n"
             "Thank You!!\n\n"
             f"<pre>{bot.conf.donations}</pre>\n" + __doc__)
 

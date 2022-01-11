@@ -13,13 +13,13 @@ class HydraBotUser:
         return await User.get_pkid(db, user_id)
 
     @staticmethod
-    async def load(db: DB, msg: Message, full: bool = False) -> AttrDict:
+    async def load(db: DB, msg: Message, create: bool = True, full: bool = False) -> Optional[AttrDict]:
         pkid = await HydraBotUser.pkid(db, msg.from_user.id)
 
-        if pkid is None:
+        if pkid is None and create:
             await msg.answer(
                 f"Welcome, <b>{msg.from_user.full_name}!</b>\n\n"
                 "One moment while I dream up a new name for your account..."
             )
 
-        return await User.load_or_create(db, msg.from_user.id, full)
+        return await User.load(db, msg.from_user.id, create=create, full=full)

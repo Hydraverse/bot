@@ -96,7 +96,7 @@ class HydraBot(Bot):
 
     async def __poll(self):
         while 1:
-            await self.__poll_update_addrs()
+            # await self.__poll_update_addrs()
             await asyncio.sleep(10)
 
     @staticmethod

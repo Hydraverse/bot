@@ -7,7 +7,8 @@ from attrdict import AttrDict
 from hydra import log
 from hydra.rpc.hydra_rpc import HydraRPC, BaseRPC
 from sqlalchemy import Column, String, Enum, BigInteger
-from sqlalchemy.orm import relationship
+from sqlalchemy.exc import NoResultFound
+from sqlalchemy.orm import relationship, lazyload
 
 from .base import *
 
@@ -40,13 +41,43 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     info = DbInfoColumn()
     data = DbDataColumn()
 
-    users = relationship("User", secondary="user_addr", back_populates="addrs", passive_deletes=True)
+    users = relationship("UserAddr", back_populates="addr", passive_deletes=True)
+
+    def __str__(self):
+        return self.addr_hy if self.addr_tp == Addr.Type.H else self.addr_hx
 
     def _ensure_imported(self, db):
         if self.addr_tp == Addr.Type.H:
             if self.addr_hy not in db.rpc.listlabels():
                 log.info(f"Importing address {self.addr_hy}")
                 db.rpc.importaddress(self.addr_hy, self.addr_hy)
+
+    @staticmethod
+    def _load(db, address: str, create=True) -> Addr:
+        addr = Addr._addr_normalize(db, address)
+
+        try:
+            q = db.Session.query(Addr).where(
+                Addr.addr_hx == addr.addr_hx
+            ).options(
+                lazyload(Addr.users)
+            )
+
+            if not create:
+                return q.one_or_none()
+
+            return q.one()
+
+        except NoResultFound:
+            if addr.addr_tp == Addr.Type.S:
+                addr.addr_tp, sc_info = Addr._validate_contract(db, addr.addr_hx)
+
+                if len(sc_info):
+                    addr.info.sc = sc_info
+
+            db.Session.add(addr)
+            db.Session.commit()
+            return addr
 
     @staticmethod
     async def validate_address(db, address: str):
@@ -57,11 +88,11 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
         return db.rpc.validateaddress(address)
 
     @staticmethod
-    async def addr_normalize(db, address: str) -> Tuple[Addr.Type, str, str]:
+    async def addr_normalize(db, address: str) -> Addr:
         return await type(db).run_in_executor(Addr._addr_normalize, db, address)
 
     @staticmethod
-    def _addr_normalize(db, address: str) -> Tuple[Addr.Type, str, str]:
+    def _addr_normalize(db, address: str) -> Addr:
         """Normalize an input address into a tuple of (Addr.Type, addr_hex, addr_hydra).
         Or raise ValueError.
         """
@@ -89,7 +120,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
         else:
             raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (bad type)")
 
-        return by_len, addr_hx, addr_hy
+        return Addr(addr_tp=by_len, addr_hx=addr_hx, addr_hy=addr_hy)
 
     @staticmethod
     async def validate_contract(db, addr_hx: str) -> Tuple[Addr.Type, AttrDict]:
@@ -136,3 +167,4 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     @staticmethod
     def __sc_out_str(val):
         return binascii.unhexlify(val).replace(b"\x00", b"").decode("utf-8")
+

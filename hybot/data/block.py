@@ -15,15 +15,19 @@ from .base import *
 __all__ = "Block",
 
 
-@dictattrs("pkid", "addr_tp", "addr_hx", "addr_hy", "date_create", "date_update", "info", "data", "users")
-class Block(Base):
+@dictattrs("pkid", "date_create", "date_update", "height", "hash", "info", "data", "users")
+class Block(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "block"
 
-    height = Column(Integer, nullable=False, unique=True, primary_key=True, index=True)
-    hash = Column(String(64), nullable=False, unique=True, primary_key=True, index=True)
+    height = Column(Integer, nullable=False, unique=True, primary_key=False, index=True)
+    hash = Column(String(64), nullable=False, unique=True, primary_key=False, index=True)
 
     info = DbInfoColumn()
     data = DbInfoColumn()
+
+    users = relationship(
+        "UserBlock", back_populates="block", passive_deletes=True
+    )
 
     @staticmethod
     async def update(db) -> None:
@@ -32,7 +36,7 @@ class Block(Base):
     @staticmethod
     def _update(db) -> None:
         block = db.Session.query(
-            Block
+            Block.height
         ).order_by(
             desc(Block.height)
         ).limit(1).one_or_none()
@@ -44,21 +48,21 @@ class Block(Base):
         ):
             bhash = db.rpc.getblockhash(height)
             info = db.rpc.getblock(bhash, verbosity=2)
-            data = {}
-
-            del info.hash
-            info.conf = info.confirmations
-            del info.confirmations
-            del info.height
+            vin_vouts = {}
 
             if info.get("nTx", 0) > 0:
                 for tx in info.tx:
-                    vins = Block.__get_vins(db.rpc, tx)
-                    if len(vins):
-                        data.setdefault("vin", {})[tx.txid] = vins
+                    vinouts = Block.__get_vins(db.rpc, tx)
 
-            log.info(f"Adding block at height {height}")
-            db.Session.add(Block(height=height, hash=bhash, info=info, data=data))
+                    if len(vinouts):
+                        vin_vouts[tx.txid] = vinouts
+
+                info.vin_vouts = vin_vouts
+
+                log.info(f"Adding block at height {height}")
+                new_block = Block(height=height, hash=bhash, info=info)
+                UserBlock._update_from_block(db, new_block)
+                db.Session.add(new_block)
 
         db.Session.commit()
 
@@ -79,3 +83,4 @@ class Block(Base):
             vins[txid] = vin
 
         return vins
+
