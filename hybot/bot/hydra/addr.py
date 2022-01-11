@@ -20,13 +20,13 @@ async def addr(bot: HydraBot, msg: types.Message):
         u = await HydraBotUser.load(bot.db, msg, create=True, full=True)
 
         if address == "list":
-            if not len(u.addrs):
+            if not len(u.user_addrs):
                 return await msg.answer("No addresses yet.")
 
             result = []
 
             for addr_tp in (Addr.Type.H, Addr.Type.T, Addr.Type.S):
-                user_addrs = tuple(filter(lambda adr: adr.addr.addr_tp is addr_tp, u.addrs))
+                user_addrs = tuple(filter(lambda adr: adr.addr.addr_tp is addr_tp, u.user_addrs))
 
                 if len(user_addrs):
                     tp_str = str(addr_tp.value).capitalize() if addr_tp is not Addr.Type.H else str(addr_tp.value)

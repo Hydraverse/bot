@@ -5,8 +5,8 @@ import binascii
 
 from attrdict import AttrDict
 from hydra import log
-from hydra.rpc.hydra_rpc import HydraRPC, BaseRPC
-from sqlalchemy import Column, String, Enum, BigInteger
+from hydra.rpc.hydra_rpc import BaseRPC
+from sqlalchemy import Column, String, Enum
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import relationship, lazyload
 
@@ -41,7 +41,9 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     info = DbInfoColumn()
     data = DbDataColumn()
 
-    users = relationship("UserAddr", back_populates="addr", passive_deletes=True)
+    user_addrs = relationship(
+        "UserAddr", back_populates="addr", passive_deletes=False
+    )
 
     def __str__(self):
         return self.addr_hy if self.addr_tp == Addr.Type.H else self.addr_hx
@@ -52,6 +54,14 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
                 log.info(f"Importing address {self.addr_hy}")
                 db.rpc.importaddress(self.addr_hy, self.addr_hy)
 
+    def _delete(self, db):
+        if not len(self.user_addrs):
+            if not len(self.info):
+                log.info(f"Deleting address {str(self)} with no users and empty info.")
+                db.Session.delete(self)
+            else:
+                log.info(f"Keeping address {str(self)} with no users and non-empty info.")
+
     @staticmethod
     def _load(db, address: str, create=True) -> Addr:
         addr = Addr._addr_normalize(db, address)
@@ -60,7 +70,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             q = db.Session.query(Addr).where(
                 Addr.addr_hx == addr.addr_hx
             ).options(
-                lazyload(Addr.users)
+                lazyload(Addr.user_addrs)
             )
 
             if not create:

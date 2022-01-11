@@ -4,17 +4,15 @@ from typing import Optional
 from attrdict import AttrDict
 from hydra import log
 from sqlalchemy import Column, Integer, and_
-from sqlalchemy.exc import NoResultFound, IntegrityError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship, lazyload
 
 from .base import *
 from .addr import Addr
-from .block import Block
 from .user_pkid import UserPkid, DbUserPkidMixin
 from .user_addr import UserAddr
-from .user_block import UserBlock
 
-__all__ = "User", "UserPkid", "UserAddr", "UserBlock"
+__all__ = "User", "UserPkid", "UserAddr"
 
 
 @dictattrs("pkid", "name", "user_id", "date_create", "date_update", "info", "data")
@@ -29,11 +27,8 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     info = DbInfoColumn()
     data = DbDataColumn()
 
-    addrs = relationship(UserAddr, back_populates="user", cascade="all, delete")
-
-    blocks = relationship(
-        UserBlock, back_populates="user", cascade="all, delete",
-        order_by="desc(UserBlock.block_pk)"
+    user_addrs = relationship(
+        UserAddr, back_populates="user", cascade="all, delete-orphan"
     )
 
     def __str__(self):
@@ -43,15 +38,9 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         user_dict = AttrDict(self.asdict())
 
         if full:
-            user_dict.addrs = list(AttrDict(ua.asdict()) for ua in self.addrs)
-            user_dict.blocks = list(AttrDict(ub.asdict()) for ub in self.blocks)
+            user_dict.user_addrs = list(AttrDict(ua.asdict()) for ua in self.user_addrs)
 
         return user_dict
-
-    def _update_from_block_tx(self, db, addr, address, address_coinbase, block_info, inp_vouts, out_vouts):
-        nq = self.data.setdefault("nq", [])
-
-        pass
 
     @staticmethod
     async def get_pkid(db, user_id: int) -> Optional[int]:
@@ -122,8 +111,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         u: User = db.Session.query(User).where(
             User.pkid == user_pk
         ).options(
-            lazyload(User.addrs),
-            lazyload(User.blocks),
+            lazyload(User.user_addrs)
         ).one()
 
         if over:
@@ -142,26 +130,20 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
 
     @staticmethod
     async def delete(db, user_id: int) -> None:
-        return await db.run_in_executor_session(User._delete, db, user_id)
+        return await db.run_in_executor_session(User.__delete, db, user_id)
 
     @staticmethod
-    def _delete(db, user_id: int) -> None:
+    def __delete(db, user_id: int) -> None:
         u: User = db.Session.query(User).where(
             User.user_id == user_id
         ).one_or_none()
 
         if u is not None:
-            return u.__delete(db)
-
-    def __delete(self, db):
-        for user_addr in self.addrs:
-            self.addrs.remove(user_addr)
-            if not len(user_addr.addr.users):
-                if not len(user_addr.addr.info):
-                    log.info(f"Deleting address with no users and empty info: {str(user_addr)}")
-                    db.Session.delete(user_addr.addr)
-                else:
-                    log.info(f"Keeping address with no users and non-empty info: {str(user_addr)}")
+            return u._delete(db)
+        
+    def _delete(self, db):
+        for user_addr in self.user_addrs:
+            user_addr._delete(db)
 
         db.Session.delete(self)
         db.Session.commit()
@@ -177,8 +159,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         ).where(
             User.pkid == user_pk
         ).options(
-            lazyload(User.addrs),
-            lazyload(User.blocks)
+            lazyload(User.user_addrs)
         ).one()
 
         user_addr = u.__addr_add(db, address)
@@ -188,7 +169,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     def __addr_add(self, db, address: str) -> UserAddr:
         addr = Addr._load(db, address, create=True)
         ua = UserAddr(user=self, addr=addr)
-        self.addrs.append(ua)
+        self.user_addrs.append(ua)
         db.Session.add(self)
         return ua
 
@@ -198,26 +179,19 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
 
     @staticmethod
     def _addr_del(db, user_pk: int, address: str) -> Optional[AttrDict]:
-        addr = Addr._load(db, address, create=False)
+        u = db.Session.query(
+            User
+        ).where(
+            User.pkid == user_pk
+        ).one()
 
-        stmt = UserAddr.__table__.delete().where(
-            and_(
-                UserAddr.user_pk == user_pk,
-                UserAddr.addr_pk == addr.pkid
-            )
-        )
+        return u.__addr_del(db, address)
 
-        rows_found = db.Session.execute(stmt).rowcount
-
-        if rows_found > 0:
-            if not len(addr.users):
-                if not len(addr.info):
-                    log.info(f"Deleting address with no users and empty info: {str(addr)}")
-                    db.Session.delete(addr)
-                else:
-                    log.info(f"Keeping address with no users and non-empty info: {str(addr)}")
-
-            db.Session.commit()
-            return AttrDict(addr.asdict())
-
+    def __addr_del(self, db, address: str):
+        for user_addr in self.user_addrs:
+            if str(user_addr.addr) == address:
+                user_addr._delete(db)
+                db.Session.add(self)
+                db.Session.commit()
+                return AttrDict(user_addr.addr.asdict())
 

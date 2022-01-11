@@ -1,11 +1,6 @@
 from __future__ import annotations
-from typing import Tuple, List
-
-from attrdict import AttrDict
-from hydra import log
-from sqlalchemy import Column, ForeignKey, Integer, or_
-from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm import lazyload, relationship
+from sqlalchemy import Column, ForeignKey, Integer
+from sqlalchemy.orm import relationship
 
 
 from .base import *
@@ -23,34 +18,12 @@ class UserAddr(DbDateMixin, Base):
     info = DbInfoColumn()
     data = DbDataColumn()
 
-    user = relationship("User", back_populates="addrs")
-    addr = relationship("Addr", back_populates="users")
+    user = relationship("User", back_populates="user_addrs")
+    addr = relationship("Addr", back_populates="user_addrs")
 
-    @staticmethod
-    def _new(user, addr) -> UserAddr:
-        return UserAddr(
-            user=user,
-            addr=addr
-        )
-
-    @staticmethod
-    async def load_all(db) -> List[AttrDict]:
-        return await db.run_in_executor_session(UserAddr._load_all, db)
-
-    @staticmethod
-    def _load_all(db) -> List[AttrDict]:
-        return list(map(lambda ua: ua.asdict(), db.Session.query(UserAddr)))
-
-    @staticmethod
-    async def load(db, user_pk: int, addr_pk: int) -> AttrDict:
-        return await db.run_in_executor_session(UserAddr._load, db, user_pk, addr_pk)
-
-    @staticmethod
-    def _load(db, user_pk: int, addr_pk: int) -> AttrDict:
-        return AttrDict(db.Session.query(UserAddr).where(
-            UserAddr.user_pk == user_pk and
-            UserAddr.addr_pk == addr_pk
-        ).one().asdict())
+    def _delete(self, db):
+        self.user.user_addrs.remove(self)
+        self.addr._delete(db)
 
     @staticmethod
     async def update(

@@ -1,16 +1,13 @@
 from __future__ import annotations
-import enum
-from typing import Optional, Tuple
-import binascii
 
 from attrdict import AttrDict
 from hydra import log
-from hydra.app.txvio import TxVIOApp
-from hydra.rpc.hydra_rpc import HydraRPC, BaseRPC
-from sqlalchemy import Column, String, Enum, Integer, func, desc
+from sqlalchemy import Column, String, Integer, desc, or_, and_
 from sqlalchemy.orm import relationship
 
 from .base import *
+from .addr import Addr
+from .user_addr import UserAddr
 
 __all__ = "Block",
 
@@ -19,15 +16,103 @@ __all__ = "Block",
 class Block(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "block"
 
-    height = Column(Integer, nullable=False, unique=True, primary_key=False, index=True)
+    height = Column(Integer, nullable=False, unique=False, primary_key=False, index=True)
     hash = Column(String(64), nullable=False, unique=True, primary_key=False, index=True)
 
     info = DbInfoColumn()
-    data = DbInfoColumn()
+    data = DbDataColumn()
 
-    users = relationship(
-        "UserBlock", back_populates="block", passive_deletes=True
-    )
+    def _delete(self, db):
+        if not len(self.user_blocks):
+            if not len(self.data):
+                log.info(f"Deleting block #{self.height} with no users and empty data.")
+                db.Session.delete(self)
+            else:
+                log.info(f"Keeping block #{self.height} with no users and non-empty data.")
+
+    def _load(self, db):
+        n_tx = self.info.get("nTx", -1)
+
+        if n_tx < 2:
+            log.warning(f"Found {n_tx} TX in block, expected at least two.")
+            return
+
+        # First TX is coinbase input to the block.
+        # Second TX is receiver TX to self + reward.
+        self.info["coinbase"] = self.info["tx"][1]["vout"][1]["scriptPubKey"]["addresses"][0]
+
+        addr_vout = {}
+        addr_vin_vout = {}
+        addrs_vio = set()
+
+        vo_filt = lambda vo: hasattr(vo, "scriptPubKey") and hasattr(vo.scriptPubKey, "addresses")
+
+        for tx in self.info["tx"][1:]:
+            for vout in filter(vo_filt, tx.vout):
+                for address in vout.scriptPubKey.addresses:
+                    addrs_vio.add(address)
+                    vout = AttrDict(vout)
+                    vout.txid_ = tx.txid
+                    addr_vout.setdefault(address, []).append(vout)
+
+            for vin in filter(lambda vi: hasattr(vi, "txid"), tx.vin):
+                vin_ = self.info["vin_vouts"][tx.txid][vin.txid]
+
+                if vo_filt(vin_.vout):
+                    for address in vin_.vout.scriptPubKey.addresses:
+                        addrs_vio.add(address)
+                        vin__vout = AttrDict(vin_.vout)
+                        vin__vout.txid_ = tx.txid
+                        addr_vin_vout.setdefault(address, []).append(vin__vout)
+
+        addrs_hy = tuple(filter(lambda a: len(a) == 34, addrs_vio))
+        addrs_hx = tuple(filter(lambda a: len(a) == 40, addrs_vio))
+
+        user_addrs = db.Session.query(
+            UserAddr
+        ).join(
+            Addr, and_(
+                UserAddr.addr_pk == Addr.pkid,
+                or_(
+                    Addr.addr_hy.in_(addrs_hy),
+                    Addr.addr_hx.in_(addrs_hx)
+                )
+            )
+        ).all()
+
+        db.Session.add(self)
+        db.Session.commit()
+
+        for address in addrs_vio:
+
+            for user_addr in filter(lambda ua: str(ua.addr) == address, user_addrs):
+                user_addr_data = user_addr.data.setdefault("b", AttrDict())
+
+                if user_addr_data.get("h", 0) < self.height:
+                    log.info(f"Adding block #{self.height} for user #{user_addr.user_pk} at addr {str(user_addr.addr)}")
+
+                    user_addr_data.h = self.height
+
+                    self.data.setdefault("map", {}).setdefault(str(user_addr.addr), []).append(user_addr.user_pk)
+
+                    info_addr = AttrDict()
+                    info_addr.height = self.height
+                    info_addr.hash = self.hash
+                    info_addr.minr = str(user_addr.addr) == self.info["coinbase"]
+                    info_addr.vios = addr_vin_vout.get(address, [])
+                    info_addr.vous = addr_vout.get(address, [])
+
+                    user_addr_data.setdefault("map", {}).setdefault(self.hash, AttrDict()).update(info_addr)
+
+                    db.Session.add(user_addr)
+
+        if len(self.data):
+            db.Session.add(self)
+            db.Session.commit()
+        else:
+            log.debug(f"Skipping block #{self.height}.")
+            db.Session.delete(self)
+            db.Session.commit()
 
     @staticmethod
     async def update(db) -> None:
@@ -58,15 +143,13 @@ class Block(DbPkidMixin, DbDateMixin, Base):
 
             info.vin_vouts = vin_vouts
 
-            new_block = Block(height=height, hash=bhash, info=info)
-            UserBlock._update_from_block(db, new_block)
+            info.conf = info.confirmations
+            del info.confirmations
+            del info.hash
+            del info.height  # height == info.height
 
-            if len(new_block.users):
-                log.info(f"Adding block at height {height}")
-                db.Session.add(new_block)
-                db.Session.commit()
-            else:
-                log.info(f"Skipping block at height {height}")
+            new_block = Block(height=height, hash=bhash, info=info, data=AttrDict())
+            new_block._load(db)
 
     @staticmethod
     def __get_vins(rpc, tx) -> dict:
@@ -86,5 +169,3 @@ class Block(DbPkidMixin, DbDateMixin, Base):
 
         return vins
 
-
-from .user_block import UserBlock
