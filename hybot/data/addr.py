@@ -48,7 +48,8 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     def __str__(self):
         return self.addr_hy if self.addr_tp == Addr.Type.H else self.addr_hx
 
-    def _ensure_imported(self, db):
+    # noinspection PyPep8Naming
+    def __UNUSED_ensure_imported(self, db):
         if self.addr_tp == Addr.Type.H:
             if self.addr_hy not in db.rpc.listlabels():
                 log.info(f"Importing address {self.addr_hy}")

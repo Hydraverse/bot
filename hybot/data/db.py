@@ -49,11 +49,13 @@ class DB(DbOperatorMixin):
     def __init_wallet(self):
         if DB.WALLET not in self.rpc.listwallets():
             try:
+                log.info(f"Loading wallet '{DB.WALLET}'...")
                 self.rpc.loadwallet(DB.WALLET)
                 log.info(f"Wallet '{DB.WALLET}' loaded.")
             except BaseRPC.Exception:
-                log.warning(f"Creating wallet '{DB.WALLET}'.")
+                log.warning(f"Creating wallet '{DB.WALLET}'...")
                 self.rpc.createwallet(DB.WALLET, disable_private_keys=True, blank=True)
+                log.warning(f"Wallet '{DB.WALLET}' created.")
 
     @staticmethod
     def default(rpc: HydraRPC):

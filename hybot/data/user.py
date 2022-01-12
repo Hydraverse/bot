@@ -143,8 +143,9 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
             return u._delete(db)
         
     def _delete(self, db):
-        for user_addr in self.user_addrs:
-            user_addr._delete(db)
+        for user_addr in list(self.user_addrs):
+            self.user_addrs.remove(user_addr)
+            user_addr._removed_user(db)
 
         db.Session.delete(self)
         db.Session.commit()
@@ -192,7 +193,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
             ).one_or_none()
 
             if ua is not None:
-                db.Session.delete(ua)
                 ua._removed_user(db)
+                db.Session.delete(ua)
                 db.Session.commit()
                 return AttrDict(addr.asdict())

@@ -11,6 +11,11 @@ from .tx import TX
 __all__ = "Block",
 
 
+class LocalState:
+    height = 0
+    hash = ""
+
+
 @dictattrs("pkid", "height", "hash", "info", "user_data")
 class Block(DbPkidMixin, DbUserDataMixin, Base):
     __tablename__ = "block"
@@ -53,13 +58,15 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
         added = False
 
         txes = self.info["tx"][1:]
-        del self.info["tx"]
 
         for txno, votx in enumerate(txes):
-            txno = txno + 1
+            txno += 1
 
             if not hasattr(votx, "vout"):
+                votx["n"] = txno  # Preserve ordering info after deletion.
                 continue
+
+            self.info["tx"].remove(votx)  # Leave behind the unprocessed TXes
 
             vouts_inp = Block.__get_vout_inp(db.rpc, votx)
             vouts_out = [vout for vout in filter(vo_filt, votx.vout)]
@@ -73,7 +80,10 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
                     vouts_out=vouts_out,
                 )
 
-                added |= tx._load(db)
+                if not tx._load(db):
+                    self.txes.remove(tx)
+                else:
+                    added = True
 
         if added:
             db.Session.add(self)
@@ -82,41 +92,72 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
 
     @staticmethod
     async def update(db) -> None:
-        return await db.run_in_executor_session(Block._update, db)
+        # noinspection PyBroadException
+        try:
+            if LocalState.height == 0:
+                await db.run_in_executor_session(Block.__update_init, db)
+
+            return await db.run_in_executor_session(Block._update, db)
+        except BaseException as exc:
+            log.critical(f"Block.update exception: {str(exc)}", exc_info=exc)
 
     @staticmethod
-    def _update(db) -> None:
+    def __update_init(db) -> None:
         block = db.Session.query(
-            Block.height
+            Block
         ).order_by(
             desc(Block.height)
         ).limit(1).one_or_none()
 
+        if block is not None:
+            LocalState.height = block.height
+            LocalState.hash = block.hash
+        else:
+            LocalState.height = db.rpc.getblockcount() - 1
+
+    @staticmethod
+    def _update(db) -> None:
+
         chain_height = db.rpc.getblockcount()
+        chain_hash = db.rpc.getblockhash(chain_height)
 
-        for height in range(
-                block.height + 1 if block is not None else chain_height, chain_height + 1
-        ):
+        log.debug(f"Poll: chain={chain_height} local={LocalState.height}")
+
+        if chain_height == LocalState.height:
+            if chain_hash != LocalState.hash:
+                log.warning(f"Fork detected at height {chain_height}: {chain_hash} != {LocalState.hash}")
+            else:
+                return
+
+        for height in range(LocalState.height + 1, chain_height + 1):
             bhash = db.rpc.getblockhash(height)
-            info = db.rpc.getblock(bhash, verbosity=2)
 
-            info.conf = info.confirmations
-            del info.confirmations
-            del info.hash
-            del info.height  # height == info.height
-
-            new_block = Block(height=height, hash=bhash, info=info)
-
-            # Set PKID before load?
-            # db.Session.add(new_block)
-            # db.Session.commit()
+            new_block = Block(
+                height=height,
+                hash=bhash,
+                info=Block.__get_block_info(db.rpc, bhash)
+            )
 
             if not new_block._load(db):
-                log.info(f"Discarding block without TXes at height {new_block.height}")
+                log.debug(f"Discarding block without TXes at height {new_block.height}")
                 db.Session.rollback()
             else:
+                log.info(f"Added block with {len(new_block.txes)} TX(es) at height {new_block.height}")
                 db.Session.commit()
-                log.info(f"Added block with {len(new_block.txes)} TXes at height {new_block.height}")
+
+        LocalState.height = chain_height
+        LocalState.hash = chain_hash
+
+    @staticmethod
+    def __get_block_info(rpc, block_hash):
+        info = rpc.getblock(block_hash, verbosity=2)
+
+        info.conf = info.confirmations
+        del info.confirmations
+        del info.hash
+        del info.height
+
+        return info
 
     @staticmethod
     def __get_vout_inp(rpc, tx) -> dict:

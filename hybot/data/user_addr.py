@@ -35,9 +35,9 @@ class UserAddr(DbPkidMixin, DbDateMixin, Base):
         # self.user.user_addrs.remove(self)
 
         for user_addr_tx in self.user_addr_txes:
-            self.user_addr_txes.remove(user_addr_tx)
-            user_addr_tx._removed(db, self)
+            user_addr_tx._removed(db)
 
+        self.user_addr_txes.clear()
         self.addr._removed(db, self)
 
 

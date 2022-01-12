@@ -34,22 +34,24 @@ class TX(DbPkidMixin, DbUserDataMixin, Base):
     )
 
     # noinspection PyUnusedLocal
-    def _removed(self, db, user_addr=None) -> bool:
-        if not len(self.user_data):
-            log.info(f"Deleting TX #{self.block_txno} from block #{self.block.height} with no user data.")
-            db.Session.delete(self)
-            self.block._delete_if_unused(db)
-            return True
-        else:
-            log.info(f"Keeping TX #{self.block_txno} from block #{self.block.height} with non-empty user data.")
+    def _removed(self, db, user_addr_tx) -> bool:
+        if len(self.user_addr_txes) == 1 and self.user_addr_txes[0] == user_addr_tx:
+            if not len(self.user_data):
+                log.info(f"Deleting TX #{self.block_txno} from block #{self.block.height}.")
+                db.Session.delete(self)
+                self.block._delete_if_unused(db)
+                return True
+            else:
+                log.info(f"Keeping TX #{self.block_txno} from block #{self.block.height} with non-empty user data.")
 
         return False
 
     def _load(self, db) -> bool:
         if not UserAddrTX._load(db, self):
-            log.info(f"Not adding TX #{self.block_txno} from block #{self.block.height} with no current subscribers.")
+            log.debug(f"Not adding TX #{self.block_txno} from block #{self.block.height} with no current subscribers.")
             return False
 
+        log.info(f"Adding TX #{self.block_txno} from block #{self.block.height} with {len(self.user_addr_txes)} subscriber(s).")
         db.Session.add(self)
         return True
 

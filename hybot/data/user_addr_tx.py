@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, Index, or_
+from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, Index, or_, event
 from sqlalchemy.orm import relationship
 
 from .base import *
@@ -26,8 +26,8 @@ class UserAddrTX(Base):
     tx = relationship("TX", back_populates="user_addr_txes", passive_deletes=True)
     user_addr = relationship("UserAddr", back_populates="user_addr_txes", passive_deletes=True)
 
-    def _removed(self, db, user_addr):
-        self.tx._removed(db, user_addr)
+    def _removed(self, db):
+        self.tx._removed(db, self)
 
     @staticmethod
     def _load(db, tx) -> bool:

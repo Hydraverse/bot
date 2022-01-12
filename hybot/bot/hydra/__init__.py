@@ -85,19 +85,10 @@ class HydraBot(Bot):
     async def echo(msg: types.Message):
         return await msg.answer(msg.text)
 
-    async def __poll_update_addrs(self):
-        # user_addrs = await UserAddr.load_all(self.db)
-        # print(f"loaded {len(user_addrs)} user_addrs")
-
-        # user_pks = await UserAddr.update_txns(self.db)
-        # print(f"User PKs updated: {user_pks}")
-
-        await Block.update(self.db)
-
     async def __poll(self):
         while 1:
-            await self.__poll_update_addrs()
-            await asyncio.sleep(10)
+            await Block.update(self.db)
+            await asyncio.sleep(5)
 
     @staticmethod
     @dp.startup()
