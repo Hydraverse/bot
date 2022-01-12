@@ -1,6 +1,8 @@
 from __future__ import annotations
+
+from attrdict import AttrDict
 from hydra import log
-from sqlalchemy import Column, String, UniqueConstraint, Integer
+from sqlalchemy import Column, String, UniqueConstraint, Integer, ForeignKey, SmallInteger
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship
 
@@ -9,49 +11,39 @@ from .base import *
 __all__ = "TX",
 
 
-@dictattrs("pkid", "date_create", "date_update", "info", "data")
-class TX(DbPkidMixin, DbDateMixin, Base):
+@dictattrs("pkid", "block_height", "block_txno", "block_txid", "vouts_inp", "vouts_out", "user_data")
+class TX(DbPkidMixin, DbUserDataMixin, Base):
     __tablename__ = "tx"
     __table_args__ = (
-        UniqueConstraint("block_height", "block_hash", name="_tx_block_height_hash_uc"),
+        UniqueConstraint("block_pkid", "block_txno", name="_tx_block_pkid_txno_uc"),
     )
 
-    block_tx_index = Column(Integer, nullable=False)
-    block_height = Column(String(64), nullable=False)
-    block_hash = Column(String(64), nullable=False, unique=True)
-    txid = Column(String(64), nullable=False, unique=True)
+    block_pkid = Column(Integer, ForeignKey("block.pkid", ondelete="CASCADE"), nullable=False)
+    block_txno = Column(SmallInteger, nullable=False)
+    block_txid = Column(String(64), nullable=False, unique=True)
     vouts_inp = DbInfoColumn()
     vouts_out = DbInfoColumn()
-    user_pkid = DbInfoColumn()
-    info = DbInfoColumn()
-    data = DbDataColumn()
+    user_data = DbUserDataMixin.user_data()
+
+    block = relationship("Block", back_populates="txes", passive_deletes=True)
 
     user_addr_txes = relationship(
         "UserAddrTX",
-        back_populates="tx"
+        back_populates="tx",
+        cascade="all, delete-orphan",
+        single_parent=True
     )
 
-    def __init__(self, *args, **kwds):
-        self.user_pkid = []
-        super().__init__(*args, **kwds)
+    # noinspection PyUnusedLocal
+    def _removed(self, db, user_addr=None) -> bool:
+        if not len(self.user_data):
+            log.info(f"Deleting block #{self.block_height} TX #{self.block_tx_idx} with no user data.")
+            db.Session.delete(self)
+            return True
+        else:
+            log.info(f"Keeping block #{self.block_height} TX #{self.block_tx_idx} with non-empty user data.")
 
-    def user_pkid_add(self, user_pk: int):
-        self.user_pkid.append(user_pk)
+        return False
 
-    def user_pkid_del(self, user_pk: int):
-        self.user_pkid.remove(user_pk)
-
-    def _added(self, user_addr):
-        self.user_pkid_add(user_addr.user.pkid)
-
-    def _removed(self, db, user_addr):
-        self.user_pkid_del(user_addr.user.pkid)
-
-        if not len(self.user_addr_txes):
-            if len(self.user_pkid):
-                raise RuntimeError("Some user_pkid's are not attached to user_addrs! (while deleting TX from user_addr_txes).")
-            elif not len(self.data):
-                log.info(f"Deleting TX with no user_addrs and no data: {self.txid}.")
-                db.Session.delete(self)
-            else:
-                log.debug(f"Keeping TX with no user_addrs and non-empty data: {self.txid}.")
+    def _load(self, db) -> bool:
+        return True

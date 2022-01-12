@@ -22,17 +22,18 @@ class UserAddr(DbPkidMixin, DbDateMixin, Base):
     info = DbInfoColumn()
     data = DbDataColumn()
 
-    user = relationship("User", back_populates="user_addrs")
-    addr = relationship("Addr", back_populates="user_addrs")
+    user = relationship("User", back_populates="user_addrs", passive_deletes=True)
+    addr = relationship("Addr", back_populates="user_addrs", passive_deletes=True)
 
     user_addr_txes = relationship(
         UserAddrTX,
         back_populates="user_addr",
-        cascade="all, delete",
+        cascade="all, delete-orphan",
+        single_parent=True
     )
 
     def _delete(self, db):
-        self.user.user_addrs.remove(self)
+        # self.user.user_addrs.remove(self)
 
         for user_addr_tx in self.user_addr_txes:
             self.user_addr_txes.remove(user_addr_tx)

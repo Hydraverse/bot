@@ -28,7 +28,8 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     data = DbDataColumn()
 
     user_addrs = relationship(
-        UserAddr, back_populates="user", cascade="all, delete-orphan"
+        UserAddr, back_populates="user", cascade="all, delete-orphan",
+        single_parent=True
     )
 
     def __str__(self):
@@ -179,7 +180,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
 
     @staticmethod
     def _addr_del(db, user_pk: int, address: str) -> Optional[AttrDict]:
-        u = db.Session.query(
+        u: User = db.Session.query(
             User
         ).where(
             User.pkid == user_pk

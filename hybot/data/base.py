@@ -1,3 +1,4 @@
+from attrdict import AttrDict
 from sqlalchemy import Column, DateTime, func, Integer
 from sqlalchemy.orm import declarative_base
 from sqlalchemy_json import NestedMutableJson
@@ -6,6 +7,7 @@ __all__ = (
     "Base", "dictattrs",
     "DbPkidMixin", "DbDateMixin",
     "DbInfoColumn", "DbDataColumn",
+    "DbUserDataMixin",
 )
 
 Base = declarative_base()
@@ -38,6 +40,8 @@ DbDataColumn = lambda: Column(NestedMutableJson, nullable=False, index=False, de
 
 
 class DbPkidMixin:
+    __mapper_args__ = {"eager_defaults": True}
+
     pkid = Column(Integer, nullable=False, unique=True, primary_key=True, autoincrement=True, index=True)
 
 
@@ -48,5 +52,16 @@ class DbDateMixin:
     date_update = Column(DateTime, onupdate=func.now(), index=True)
 
 
+class DbUserDataMixin:
+    user_data = DbDataColumn
+
+    def user_data_for(self, key: int, default: AttrDict = None) -> AttrDict:
+        if default is None:
+            default = AttrDict()
+        return self.user_data.setdefault(key, default)
+
+    def user_data_del(self, key: int) -> None:
+        if key in self.user_data:
+            del self.user_data[key]
 
 

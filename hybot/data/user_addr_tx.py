@@ -19,8 +19,8 @@ class UserAddrTX(DbDateMixin, Base):
     tx_pk = Column(Integer, ForeignKey("tx.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
     user_addr_pk = Column(Integer, ForeignKey("user_addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
 
-    tx = relationship("TX", back_populates="user_addr_txes")
-    user_addr = relationship("UserAddr", back_populates="user_addr_txes")
+    tx = relationship("TX", back_populates="user_addr_txes", passive_deletes=True)
+    user_addr = relationship("UserAddr", back_populates="user_addr_txes", passive_deletes=True)
 
     def __init__(self, tx: TX, user_addr, *args, **kwds):
         tx._added(user_addr)
