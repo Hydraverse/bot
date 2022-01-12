@@ -126,7 +126,11 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
         elif by_len == Addr.Type.S:
 
-            addr_hx = hex(int(address, 16))[2:].rjust(40, "0")  # ValueError on int() fail
+            try:
+                addr_hx = hex(int(address, 16))[2:].rjust(40, "0")  # ValueError on int() fail
+            except ValueError:
+                raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (conversion failed)")
+
             addr_hy = db.rpc.fromhexaddress(addr_hx)
 
         else:

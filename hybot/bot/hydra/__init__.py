@@ -85,15 +85,11 @@ class HydraBot(Bot):
     async def echo(msg: types.Message):
         return await msg.answer(msg.text)
 
-    async def __poll(self):
-        while 1:
-            await Block.update(self.db)
-            await asyncio.sleep(5)
-
     @staticmethod
     @dp.startup()
     async def __on_startup():
-        asyncio.create_task(HydraBot.bot().__poll())
+        bot = HydraBot.bot()
+        asyncio.create_task(Block.update_task(bot.db))
 
     def run(self):
         return self.dp.run_polling(self)
