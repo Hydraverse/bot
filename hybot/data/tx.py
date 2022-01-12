@@ -24,7 +24,8 @@ class TX(DbPkidMixin, DbUserDataMixin, Base):
     vouts_out = DbInfoColumn()
     user_data = DbUserDataMixin.user_data()
 
-    block = relationship("Block", back_populates="txes", passive_deletes=True)
+    block = relationship(
+        "Block", back_populates="txes", passive_deletes=True)
 
     user_addr_txes = relationship(
         "UserAddrTX",
@@ -38,8 +39,9 @@ class TX(DbPkidMixin, DbUserDataMixin, Base):
         if len(self.user_addr_txes) == 1 and self.user_addr_txes[0] == user_addr_tx:
             if not len(self.user_data):
                 log.info(f"Deleting TX #{self.block_txno} from block #{self.block.height}.")
-                db.Session.delete(self)
-                self.block._delete_if_unused(db)
+                block = self.block
+                block.txes.remove(self)
+                block._delete_if_unused(db)
                 return True
             else:
                 log.info(f"Keeping TX #{self.block_txno} from block #{self.block.height} with non-empty user data.")

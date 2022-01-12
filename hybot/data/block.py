@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+
 from attrdict import AttrDict
 from hydra import log
-from sqlalchemy import Column, String, Integer, desc, or_, and_, UniqueConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, String, Integer, desc, or_, and_, UniqueConstraint, event, func
+from sqlalchemy.orm import relationship, Session
 
 from .base import *
 from .tx import TX
@@ -12,7 +14,7 @@ __all__ = "Block",
 
 
 class LocalState:
-    height = 0
+    height = 160339
     hash = ""
 
 
@@ -62,33 +64,38 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
         for txno, votx in enumerate(txes):
             txno += 1
 
-            if not hasattr(votx, "vout"):
-                votx["n"] = txno  # Preserve ordering info after deletion.
-                continue
+            if hasattr(votx, "vout"):
+                vouts_inp = Block.__get_vout_inp(db.rpc, votx)
+                vouts_out = [vout for vout in filter(vo_filt, votx.vout)]
 
-            self.info["tx"].remove(votx)  # Leave behind the unprocessed TXes
+                if len(vouts_out):
+                    tx = TX(
+                        block=self,
+                        block_txno=txno,
+                        block_txid=votx.txid,
+                        vouts_inp=vouts_inp,
+                        vouts_out=vouts_out,
+                    )
 
-            vouts_inp = Block.__get_vout_inp(db.rpc, votx)
-            vouts_out = [vout for vout in filter(vo_filt, votx.vout)]
+                    if not tx._load(db):
+                        self.txes.remove(tx)
+                    else:
+                        self.info["tx"].remove(votx)  # Leave behind the unprocessed TXes
+                        added = True
+                        continue
 
-            if len(vouts_out):
-                tx = TX(
-                    block=self,
-                    block_txno=txno,
-                    block_txid=votx.txid,
-                    vouts_inp=vouts_inp,
-                    vouts_out=vouts_out,
-                )
-
-                if not tx._load(db):
-                    self.txes.remove(tx)
-                else:
-                    added = True
+            votx["n"] = txno  # Preserve ordering info after deletion.
 
         if added:
             db.Session.add(self)
 
         return added
+
+    @staticmethod
+    async def update_task(db) -> None:
+        while 1:
+            await asyncio.sleep(15)
+            await Block.update(db)
 
     @staticmethod
     async def update(db) -> None:
@@ -173,4 +180,3 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
                 vout_inp[vin.txid] = vin_rawtx_decoded.vout[vin.vout]
 
         return vout_inp
-
