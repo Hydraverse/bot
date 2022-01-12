@@ -22,11 +22,20 @@ def make_name():
 
 if __name__ == "__main__":
     if "-c" in sys.argv[1:]:
+
+        names = []
+
         try:
             while 1:
-                print(" ".join(make_name()))
+                name = " ".join(make_name())
+                if name in names:
+                    print(f"!! Collision !! {name}", file=sys.stderr)
+                else:
+                    names.append(name)
+                    print(name)
+
         except KeyboardInterrupt:
-            print(file=sys.stderr)
+            print(f"\nGenerated {len(names)} names.", file=sys.stderr)
             pass
     else:
         print(" ".join(make_name()))
