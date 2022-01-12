@@ -54,12 +54,14 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
                 log.info(f"Importing address {self.addr_hy}")
                 db.rpc.importaddress(self.addr_hy, self.addr_hy)
 
-    def _removed(self, db):
-        if not len(self.data):
-            log.info(f"Deleting address {str(self)} with empty data.")
-            db.Session.delete(self)
-        else:
-            log.info(f"Keeping address {str(self)} with non-empty data.")
+    # noinspection PyUnusedLocal
+    def _removed(self, db, user_addr=None):
+        if not len(self.user_addrs):
+            if not len(self.data):
+                log.info(f"Deleting address {str(self)} with empty data.")
+                db.Session.delete(self)
+            else:
+                log.info(f"Keeping address {str(self)} with non-empty data.")
 
     @staticmethod
     def _load(db, address: str, create=True) -> Addr:

@@ -170,8 +170,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     def __addr_add(self, db, address: str) -> UserAddr:
         addr = Addr._load(db, address, create=True)
         ua = UserAddr(user=self, addr=addr)
-        self.user_addrs.append(ua)
-        db.Session.add(self)
+        db.Session.add(ua)
         return ua
 
     @staticmethod
@@ -180,19 +179,19 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
 
     @staticmethod
     def _addr_del(db, user_pk: int, address: str) -> Optional[AttrDict]:
-        u: User = db.Session.query(
-            User
-        ).where(
-            User.pkid == user_pk
-        ).one()
+        addr = Addr._load(db, address, create=False)
 
-        return u.__addr_del(db, address)
+        if addr is not None:
+            ua: UserAddr = db.Session.query(
+                UserAddr,
+            ).where(
+                and_(
+                    UserAddr.user_pk == user_pk,
+                    UserAddr.addr_pk == addr.pkid,
+                )
+            ).one_or_none()
 
-    def __addr_del(self, db, address: str):
-        for user_addr in self.user_addrs:
-            if str(user_addr.addr) == address:
-                user_addr._delete(db)
-                db.Session.add(self)
-                db.Session.commit()
-                return AttrDict(user_addr.addr.asdict())
-
+            if ua is not None:
+                db.Session.delete(ua)
+                ua._removed_user(db)
+                return AttrDict(addr.asdict())

@@ -52,25 +52,31 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
         vo_filt = lambda vo: hasattr(vo, "scriptPubKey") and hasattr(vo.scriptPubKey, "addresses")
         added = False
 
-        for txno, tx in enumerate(self.info["tx"][1:]):
+        txes = self.info["tx"][1:]
+        del self.info["tx"]
+
+        for txno, votx in enumerate(txes):
             txno = txno + 1
 
-            if not hasattr(tx, "vout"):
+            if not hasattr(votx, "vout"):
                 continue
 
-            vouts_inp = Block.__get_vout_inp(db.rpc, tx)
-            vouts_out = [vout for vout in filter(vo_filt, tx.vout)]
+            vouts_inp = Block.__get_vout_inp(db.rpc, votx)
+            vouts_out = [vout for vout in filter(vo_filt, votx.vout)]
 
             if len(vouts_out):
                 tx = TX(
                     block=self,
                     block_txno=txno,
-                    block_txid=tx.txid,
+                    block_txid=votx.txid,
                     vouts_inp=vouts_inp,
                     vouts_out=vouts_out,
                 )
 
                 added |= tx._load(db)
+
+        if added:
+            db.Session.add(self)
 
         return added
 
@@ -107,10 +113,8 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
 
             if not new_block._load(db):
                 log.info(f"Discarding block without TXes at height {new_block.height}")
-                db.Session.delete(new_block)
-                db.Session.commit()
+                db.Session.rollback()
             else:
-                db.Session.add(new_block)
                 db.Session.commit()
                 log.info(f"Added block with {len(new_block.txes)} TXes at height {new_block.height}")
 
