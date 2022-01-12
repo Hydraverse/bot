@@ -194,4 +194,5 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
             if ua is not None:
                 db.Session.delete(ua)
                 ua._removed_user(db)
+                db.Session.commit()
                 return AttrDict(addr.asdict())

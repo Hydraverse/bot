@@ -38,6 +38,7 @@ class TX(DbPkidMixin, DbUserDataMixin, Base):
         if not len(self.user_data):
             log.info(f"Deleting TX #{self.block_txno} from block #{self.block.height} with no user data.")
             db.Session.delete(self)
+            self.block._delete_if_unused(db)
             return True
         else:
             log.info(f"Keeping TX #{self.block_txno} from block #{self.block.height} with non-empty user data.")
