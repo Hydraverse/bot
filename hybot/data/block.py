@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import asyncio
 
-from attrdict import AttrDict
 from hydra import log
-from sqlalchemy import Column, String, Integer, desc, or_, and_, UniqueConstraint, event, func
-from sqlalchemy.orm import relationship, Session
+from sqlalchemy import Column, String, Integer, desc, UniqueConstraint
+from sqlalchemy.orm import relationship
 
 from .base import *
 from .tx import TX
@@ -14,7 +13,10 @@ __all__ = "Block",
 
 
 class LocalState:
-    height = 160339
+    # Testnet blocks:
+    # 160387 (160388 is HYDRA SC TX + minting two tokens to sender)
+    # 160544 (160545 is HYDRA TX)
+    height = 160387
     hash = ""
 
 
@@ -36,6 +38,7 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
     )
 
     info = DbInfoColumn()
+    logs = DbInfoColumn()
     user_data = DbUserDataMixin.user_data()
 
     def _delete_if_unused(self, db) -> bool:
@@ -59,10 +62,8 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
         vo_filt = lambda vo: hasattr(vo, "scriptPubKey") and hasattr(vo.scriptPubKey, "addresses")
         added = False
 
-        txes = self.info["tx"][1:]
-
-        for txno, votx in enumerate(txes):
-            txno += 1
+        for txno, votx in enumerate(list(self.info["tx"])):
+            votx.n = txno  # Preserve ordering info after deletion.
 
             if hasattr(votx, "vout"):
                 vouts_inp = Block.__get_vout_inp(db.rpc, votx)
@@ -82,9 +83,6 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
                     else:
                         self.info["tx"].remove(votx)  # Leave behind the unprocessed TXes
                         added = True
-                        continue
-
-            votx["n"] = txno  # Preserve ordering info after deletion.
 
         if added:
             db.Session.add(self)
@@ -93,9 +91,11 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
 
     @staticmethod
     async def update_task(db) -> None:
+        await asyncio.sleep(30)
+
         while 1:
-            await asyncio.sleep(15)
             await Block.update(db)
+            await asyncio.sleep(15)
 
     @staticmethod
     async def update(db) -> None:
@@ -142,7 +142,8 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
             new_block = Block(
                 height=height,
                 hash=bhash,
-                info=Block.__get_block_info(db.rpc, bhash)
+                info=Block.__get_block_info(db.rpc, bhash),
+                logs=db.rpc.searchlogs(height, height)
             )
 
             if not new_block._load(db):
