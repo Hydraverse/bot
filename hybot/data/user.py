@@ -8,11 +8,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship, lazyload
 
 from .base import *
+from .db import DB
 from .addr import Addr
 from .user_pkid import UserPkid, DbUserPkidMixin
-from .user_addr import UserAddr
+from .user_addr import UserAddr, UserToknAddr
 
-__all__ = "User", "UserPkid", "UserAddr"
+__all__ = "User", "UserPkid", "UserAddr", "UserToknAddr"
 
 
 @dictattrs("pkid", "name", "user_id", "date_create", "date_update", "info", "data")
@@ -28,8 +29,10 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     data = DbDataColumn()
 
     user_addrs = relationship(
-        UserAddr, back_populates="user", cascade="all, delete-orphan",
-        single_parent=True
+        UserAddr,
+        back_populates="user",
+        cascade="all, delete-orphan",
+        single_parent=True,
     )
 
     def __str__(self):
@@ -39,16 +42,22 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         user_dict = AttrDict(self.asdict())
 
         if full:
-            user_dict.user_addrs = list(AttrDict(ua.asdict()) for ua in self.user_addrs)
+            user_dict.user_addrs = list(
+                AttrDict(
+                    user=ua.user.asdict(),
+                    addr=ua.addr.asdict(),
+                )
+                for ua in self.user_addrs
+            )
 
         return user_dict
 
     @staticmethod
-    async def get_pkid(db, user_id: int) -> Optional[int]:
+    async def get_pkid(db: DB, user_id: int) -> Optional[int]:
         return await db.run_in_executor_session(User._get_pkid, db, user_id)
 
     @staticmethod
-    def _get_pkid(db, user_id: int) -> Optional[int]:
+    def _get_pkid(db: DB, user_id: int) -> Optional[int]:
         u = (
             db.Session.query(
                 User.pkid
@@ -60,11 +69,11 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         return u.pkid if u is not None else None
 
     @staticmethod
-    async def get(db, user_id: int, create: bool = True, full: bool = False) -> Optional[AttrDict]:
+    async def get(db: DB, user_id: int, create: bool = True, full: bool = False) -> Optional[AttrDict]:
         return await db.run_in_executor_session(User._get, db, user_id, create, full)
 
     @staticmethod
-    def _get(db, user_id: int, create: bool, full: bool) -> Optional[AttrDict]:
+    def _get(db: DB, user_id: int, create: bool, full: bool) -> Optional[AttrDict]:
 
         u: User = db.Session.query(
             User
@@ -102,13 +111,13 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         return user_.attrdict(full=full)
 
     @staticmethod
-    async def update_info(db, user_pk: int, info: dict, data: dict = None, over: bool = False) -> None:
+    async def update_info(db: DB, user_pk: int, info: dict, data: dict = None, over: bool = False) -> None:
         if (info is None and data is None) or (over and (not info or not data)):
             return
         return await db.run_in_executor_session(User._update_info, db, user_pk, info, data, over)
 
     @staticmethod
-    def _update_info(db, user_pk: int, info: dict, data: dict, over: bool) -> None:
+    def _update_info(db: DB, user_pk: int, info: dict, data: dict, over: bool) -> None:
         u: User = db.Session.query(User).where(
             User.pkid == user_pk
         ).options(
@@ -130,11 +139,11 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         db.Session.commit()
 
     @staticmethod
-    async def delete(db, user_id: int) -> None:
+    async def delete(db: DB, user_id: int) -> None:
         return await db.run_in_executor_session(User.__delete, db, user_id)
 
     @staticmethod
-    def __delete(db, user_id: int) -> None:
+    def __delete(db: DB, user_id: int) -> None:
         u: User = db.Session.query(User).where(
             User.user_id == user_id
         ).one_or_none()
@@ -142,7 +151,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         if u is not None:
             return u._delete(db)
         
-    def _delete(self, db):
+    def _delete(self, db: DB):
         for user_addr in list(self.user_addrs):
             user_addr._remove(db, self.user_addrs)
 
@@ -150,12 +159,12 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         db.Session.commit()
 
     @staticmethod
-    async def addr_add(db, user_pk: int, address: str) -> AttrDict:
+    async def addr_add(db: DB, user_pk: int, address: str) -> AttrDict:
         return await db.run_in_executor_session(User._addr_add, db, user_pk, address)
 
     @staticmethod
-    def _addr_add(db, user_pk: int, address: str) -> AttrDict:
-        u = db.Session.query(
+    def _addr_add(db: DB, user_pk: int, address: str) -> AttrDict:
+        u: User = db.Session.query(
             User
         ).where(
             User.pkid == user_pk
@@ -163,9 +172,9 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
             lazyload(User.user_addrs)
         ).one()
 
-        user_addr = u.__addr_add(db, address)
+        user_addr: UserAddr = u.__addr_add(db, address)
         db.Session.commit()
-        return AttrDict(user_addr.asdict())
+        return AttrDict(user=user_addr.user.asdict(), addr=user_addr.addr.asdict())
 
     def __addr_add(self, db, address: str) -> UserAddr:
         addr = Addr.get(db, address, create=True)
@@ -174,11 +183,11 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         return ua
 
     @staticmethod
-    async def addr_del(db, user_pk: int, address: str) -> Optional[AttrDict]:
+    async def addr_del(db: DB, user_pk: int, address: str) -> Optional[AttrDict]:
         return await db.run_in_executor_session(User._addr_del, db, user_pk, address)
 
     @staticmethod
-    def _addr_del(db, user_pk: int, address: str) -> Optional[AttrDict]:
+    def _addr_del(db: DB, user_pk: int, address: str) -> Optional[AttrDict]:
         addr = Addr.get(db, address, create=False)
 
         if addr is not None:
@@ -192,7 +201,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
             ).one_or_none()
 
             if ua is not None:
-                ua._removed_user(db)
-                db.Session.delete(ua)
+                addr_dict = addr.asdict()
+                ua._remove(db, ua.user.user_addrs)
                 db.Session.commit()
-                return AttrDict(addr.asdict())
+                return AttrDict(addr_dict)

@@ -80,7 +80,8 @@ class DB(DbOperatorMixin):
             self.Session.remove()
 
 
-os.environ.setdefault("HY_RPC_WALLET", DB.WALLET)
+if DB.WALLET is not None:
+    os.environ.setdefault("HY_RPC_WALLET", DB.WALLET)
 
 
 from .base import __all__ as __base_all__

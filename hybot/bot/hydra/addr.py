@@ -34,8 +34,8 @@ async def addr(bot: HydraBot, msg: types.Message):
                         adr.addr_hy if addr_tp == Addr.Type.H else
                         adr.addr_hx if addr_tp == Addr.Type.S else
                         (
-                            f"{adr.info.get('sc', {}).get('sym', '???')}: "
-                            f"{adr.info.get('sc', {}).get('name', '(Unknown name)')}\n"
+                            f"{getattr(adr, 'symb', '(SC)')}: "
+                            f"{adr.name or '(Unknown name)'}\n"
                             f"{adr.addr_hx}\n"
                         )
                     )
@@ -69,7 +69,7 @@ async def addr(bot: HydraBot, msg: types.Message):
         tp_str = (
             str(addr_.addr_tp.value).upper() if addr_.addr_tp == Addr.Type.H else
             (
-                f"{addr_.info.sc.get('sym', addr_.info.sc.get('name', 'unnamed'))} " +
+                f"{getattr(addr_, 'symb', None) or addr_.name} " +
                 str(addr_.addr_tp.value)
             )
         )

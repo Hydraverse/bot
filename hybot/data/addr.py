@@ -19,7 +19,7 @@ from .addr_tx import AddrTX
 __all__ = "Addr", "AddrTX", "Smac", "Tokn"
 
 
-@dictattrs("pkid", "date_create", "date_update", "addr_tp", "addr_hx", "addr_hy", "block_h", "balance", "info", "data")
+@dictattrs("pkid", "date_create", "date_update", "addr_tp", "addr_hx", "addr_hy", "block_h", "balance")
 class Addr(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "addr"
 
@@ -44,9 +44,6 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     block_h = Column(Integer, ForeignKey("block.height", ondelete="SET NULL"), nullable=True, index=True)
     balance = Column(Integer, nullable=True)
 
-    info = DbInfoColumn()
-    data = DbDataColumn()
-
     user_addrs = relationship(
         "UserAddr",
         back_populates="addr",
@@ -56,6 +53,13 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
     addr_txes = relationship(
         "AddrTX",
+        back_populates="addr",
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
+    addr_tokns = relationship(
+        "ToknAddr",
         back_populates="addr",
         cascade="all, delete-orphan",
         single_parent=True,
@@ -82,13 +86,12 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
     def on_new_tx(self, db: DB, addr_tx: AddrTX):
         if self.block_h != addr_tx.tx.block.height:
+            self.block_h = addr_tx.tx.block.height
             self.on_new_block(db, addr_tx.tx.block)
 
     def on_new_block(self, db: DB, block: Block):
-        if self.block_h != block.height:
-            self.block_h = block.height
-            self.update_balance(db)
-            db.Session.add(self)
+        self.update_balance(db)
+        db.Session.add(self)
 
     def update_balance(self, db: DB):
         balance = int(db.rpc.getbalanceofaddress(self.addr_hy) * 10**8)
@@ -96,28 +99,25 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             self.balance = balance
 
     # noinspection PyPep8Naming
-    def __UNUSED_ensure_imported(self, db):
+    def __UNUSED_ensure_imported(self, db: DB):
         if self.addr_tp == Addr.Type.H:
             if self.addr_hy not in db.rpc.listlabels():
                 log.info(f"Importing address {self.addr_hy}")
                 db.rpc.importaddress(self.addr_hy, self.addr_hy)
 
-    def _removed_user(self, db):
-        for addr_tx in list(self.addr_txes):
-            addr_tx._remove(db, self.addr_txes)
-
-        # if self.addr_tp == Addr.Type.H:
+    def _removed_user(self, db: DB):
         if not len(self.user_addrs):
-            if not len(self.data):
-                log.info(f"Deleting address {str(self)} with no users and empty data.")
-                db.Session.delete(self)
-            else:
-                log.info(f"Keeping address {str(self)} with no user and non-empty data.")
-        # else:
-        #     log.info(f"Keeping {self.addr_tp.value} address {str(self)}.")
+            for addr_tx in list(self.addr_txes):
+                addr_tx._remove(db, self.addr_txes)
+
+            for addr_tokn in list(self.addr_tokns):
+                addr_tokn._remove(db, self.addr_tokns)
+
+            log.info(f"Deleting address {str(self)} with no users.")
+            db.Session.delete(self)
 
     @staticmethod
-    def get(db, address: str, create=True) -> Addr:
+    def get(db: DB, address: str, create=True) -> Addr:
         addr_tp, addr_hx, addr_hy, addr_attr = Addr.normalize(db, address)
 
         try:
@@ -140,13 +140,13 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
     @staticmethod
     @lru_cache(maxsize=None)
-    def validate(db, address: str):
+    def validate(db: DB, address: str):
         av = db.rpc.validateaddress(address)
         return av
 
     @staticmethod
     @lru_cache(maxsize=None)
-    def normalize(db, address: str) -> Tuple[Addr.Type, str, str, AttrDict]:
+    def normalize(db: DB, address: str) -> Tuple[Addr.Type, str, str, AttrDict]:
         """Normalize an input address into a tuple of (Addr.Type, addr_hex, addr_hydra).
         Or raise ValueError.
         """
@@ -158,7 +158,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
         if addr_tp == Addr.Type.H:
 
-            valid = Addr._validate(db, address)
+            valid = Addr.validate(db, address)
 
             if not valid.isvalid:
                 raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (validation failed)")
@@ -183,7 +183,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
         return addr_tp, addr_hx, addr_hy, attrs
 
     @staticmethod
-    def __validate_contract(db, addr_hx: str) -> Tuple[Addr.Type, AttrDict]:
+    def __validate_contract(db: DB, addr_hx: str) -> Tuple[Addr.Type, AttrDict]:
 
         sci = AttrDict()
         addr_tp = Addr.Type.S

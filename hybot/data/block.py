@@ -66,6 +66,12 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
 
             logs = list(filter(lambda lg: lg.transactionHash == votx.txid, self.logs))
 
+            for log_ in logs:
+                del log_.blockHash
+                del log_.blockNumber
+                del log_.transactionHash
+                del log_.transactionIndex
+
             if hasattr(votx, "vout"):
                 vouts_inp = Block.__get_vout_inp(db.rpc, votx)
                 vouts_out = [vout for vout in filter(vo_filt, votx.vout)]

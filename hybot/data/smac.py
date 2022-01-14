@@ -21,6 +21,13 @@ class Smac(Addr):
     def __str__(self):
         return self.addr_hx
 
+    def asdict(self):
+        d = super().asdict()
+        d.update({
+            "name": self.name,
+        })
+        return d
+
     def on_new_block(self, db: DB, block: Block):
         # TODO: Optionally (?) also update name & Addr.validate_contract() info.
         self.stor = db.rpc.getstorage(self.addr_hx, self.block_h)

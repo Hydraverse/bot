@@ -6,7 +6,6 @@ from sqlalchemy.orm import relationship
 
 from .base import *
 from .db import DB
-from .addr_tx import AddrTX
 
 __all__ = "TX",
 
@@ -54,3 +53,5 @@ class TX(DbPkidMixin, DbUserDataMixin, Base):
         db.Session.add(self)
         return True
 
+
+from .addr_tx import AddrTX
