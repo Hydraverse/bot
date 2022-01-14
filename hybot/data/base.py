@@ -28,9 +28,7 @@ def dictattrs(*attrs):
 
     def _cls(cls):
         cls.__dictattrs__ = getattr(cls, "__dictattrs__", ()) + attrs
-
-        if not hasattr(cls, "_asdict"):
-            cls._asdict = lambda slf, *atrs_: _asdict(slf, tuple(cls.__dictattrs__) + atrs_)
+        cls._asdict = lambda slf, *atrs_: _asdict(slf, tuple(cls.__dictattrs__) + atrs_)
 
         return cls
 

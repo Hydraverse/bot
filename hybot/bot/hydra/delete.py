@@ -1,7 +1,7 @@
 from aiogram import types
 
 from . import HydraBot
-from ...data import User
+from .data import User
 
 
 async def delete(bot: HydraBot, msg: types.Message):

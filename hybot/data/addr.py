@@ -44,7 +44,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     block_h = Column(Integer, nullable=True, index=True)
     balance = Column(Integer, nullable=True)
 
-    user_addrs = relationship(
+    addr_users = relationship(
         "UserAddr",
         back_populates="addr",
         cascade="all, delete-orphan",
@@ -71,7 +71,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     }
 
     @staticmethod
-    def make(addr_tp: Type, addr_hx: str, addr_hy: str, **kwds) -> [Addr, Smac, Tokn]:
+    def __make(addr_tp: Type, addr_hx: str, addr_hy: str, **kwds) -> [Addr, Smac, Tokn]:
         if addr_tp == Addr.Type.H:
             return Addr(addr_hx=addr_hx, addr_hy=addr_hy, **kwds)
         elif addr_tp == Addr.Type.S:
@@ -114,7 +114,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
                 db.rpc.importaddress(self.addr_hy, self.addr_hy)
 
     def _removed_user(self, db: DB):
-        if not len(self.user_addrs):
+        if not len(self.addr_users):
             for addr_tx in list(self.addr_txes):
                 addr_tx._remove(db, self.addr_txes)
 
@@ -149,7 +149,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             return q.one()
 
         except NoResultFound:
-            addr: [Addr, Smac, Tokn] = Addr.make(addr_tp, addr_hx, addr_hy, **addr_attr)
+            addr: [Addr, Smac, Tokn] = Addr.__make(addr_tp, addr_hx, addr_hy, **addr_attr)
             addr.__on_new_addr(db)
             return addr
 

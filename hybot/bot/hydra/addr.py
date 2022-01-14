@@ -2,8 +2,7 @@ from sqlalchemy.exc import IntegrityError
 from aiogram import types
 
 from . import HydraBot
-from ...data import User, UserAddr, Addr
-from .user import HydraBotUser
+from .data import HydraBotData, User, Addr
 
 
 async def addr(bot: HydraBot, msg: types.Message):
@@ -17,34 +16,27 @@ async def addr(bot: HydraBot, msg: types.Message):
                 "List: <b>/addr list</b>"
             )
 
-        u = await HydraBotUser.load(bot.db, msg, create=True, full=True)
+        u = await HydraBotData.user_load(bot.db, msg, create=True, full=True)
 
         if address == "list":
-            if not len(u.user_addrs):
-                return await msg.answer("No addresses yet.")
-
             result = []
 
-            for addr_tp in (Addr.Type.H, Addr.Type.T, Addr.Type.S):
-                user_addrs = tuple(filter(lambda adr: adr.addr.addr_tp is addr_tp, u.user_addrs))
+            if len(u.user_addrs):
+                result += [f"{Addr.Type.H.value} addresses:\n"]
+                result += [
+                    f"<pre>{ua.addr.addr_hy}</pre>"
+                    for ua in u.user_addrs
+                ] + ["\n"]
 
-                if len(user_addrs):
-                    tp_str = str(addr_tp.value).capitalize() if addr_tp is not Addr.Type.H else str(addr_tp.value)
-                    adr_str = lambda adr: (
-                        adr.addr_hy if addr_tp == Addr.Type.H else
-                        adr.addr_hx if addr_tp == Addr.Type.S else
-                        (
-                            f"{getattr(adr, 'symb', '(SC)')}: "
-                            f"{getattr(adr, 'name', '(Unknown name)')}\n"
-                            f"{adr.addr_hx}\n"
-                        )
-                    )
+            if len(u.user_tokns):
+                result += [f"{Addr.Type.T.value.capitalize()} addresses:\n"]
+                result += [
+                    f"<pre>{ut.tokn.symb}: {ut.tokn.name}\n{ut.tokn.addr_hx}</pre>"
+                    for ut in u.user_tokns
+                ] + ["\n"]
 
-                    result.append(f"{tp_str} addresses:\n")
-                    result += [
-                        f"<pre>{adr_str(adr.addr)}</pre>"
-                        for adr in user_addrs
-                    ] + ["\n"]
+            if not len(result):
+                result = ["No addresses yet."]
 
             return await msg.answer("\n".join(result))
 
@@ -58,7 +50,7 @@ async def addr(bot: HydraBot, msg: types.Message):
 
         try:
             user_addr = await User.addr_add(bot.db, u.pkid, address)
-            addr_ = user_addr.addr
+            addr_ = getattr(user_addr, "addr", getattr(user_addr, "tokn", None))
 
         except IntegrityError:
             return await msg.answer(
@@ -69,8 +61,8 @@ async def addr(bot: HydraBot, msg: types.Message):
         tp_str = (
             str(addr_.addr_tp.value).upper() if addr_.addr_tp == Addr.Type.H else
             (
-                f"{getattr(addr_, 'symb', None) or addr_.name} " +
-                str(addr_.addr_tp.value)
+                    f"{getattr(addr_, 'symb', None) or addr_.name} " +
+                    str(addr_.addr_tp.value)
             )
         )
 

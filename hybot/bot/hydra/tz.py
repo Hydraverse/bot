@@ -4,12 +4,11 @@ from fuzzywuzzy import fuzz
 import pytz
 
 from . import HydraBot
-from ...data import User
-from .user import HydraBotUser
+from .data import HydraBotData, User
 
 
 async def tz(bot: HydraBot, msg: types.Message):
-    u = await HydraBotUser.load(bot.db, msg, create=True, full=False)
+    u = await HydraBotData.user_load(bot.db, msg, create=True, full=False)
 
     try:
         tz_cur = u.info.get("tz", "UTC")

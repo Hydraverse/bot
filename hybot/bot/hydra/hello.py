@@ -1,15 +1,16 @@
 from __future__ import annotations
 from aiogram import types
 
+# noinspection PyUnresolvedReferences
 from . import __doc__
 from . import HydraBot
 
 from ...data import User
-from .user import HydraBotUser
+from .data import HydraBotData
 
 
 async def hello(bot: HydraBot, msg: types.Message):
-    u = await HydraBotUser.load(bot.db, msg, create=True, full=False)
+    u = await HydraBotData.user_load(bot.db, msg, create=True, full=False)
 
     response_tz = (
         "Manage addresses with <b>/addr</b>.\n\n"
@@ -22,6 +23,7 @@ async def hello(bot: HydraBot, msg: types.Message):
         f"Your unique Hydraverse ID and name:\n  <b><pre>{u.pkid}: {u.name}</pre></b>\n\n"
     )
 
+    # noinspection PyGlobalUndefined
     global __doc__
 
     if HydraBot.CONF.donations not in bot.conf.donations:

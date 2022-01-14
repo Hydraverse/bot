@@ -26,7 +26,7 @@ class UserAddr(Base):
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
 
     user = relationship("User", back_populates="user_addrs", passive_deletes=True)
-    addr = relationship("Addr", back_populates="user_addrs", passive_deletes=True)
+    addr = relationship("Addr", back_populates="addr_users", passive_deletes=True)
 
     # Polymorphic relations
     # smac = relationship("Smac", primaryjoin="Smac.pkid == UserAddr.addr_pk", passive_deletes=True)

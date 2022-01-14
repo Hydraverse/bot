@@ -9,12 +9,13 @@ from sqlalchemy.orm import relationship, lazyload
 
 from .base import *
 from .db import DB
-from .addr import Addr
+from .addr import Addr, Smac, Tokn
 from .user_pkid import UserPkid, DbUserPkidMixin
 from .user_addr import UserAddr
+from .user_tokn import UserTokn
 from .tokn_addr import ToknAddr
 
-__all__ = "User", "UserPkid", "UserAddr",
+__all__ = "User", "UserPkid", "UserAddr", "UserTokn",
 
 
 @dictattrs("pkid", "name", "user_id", "date_create", "date_update", "info", "data")
@@ -36,16 +37,28 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         single_parent=True,
     )
 
+    user_tokns = relationship(
+        UserTokn,
+        back_populates="user",
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
     def __str__(self):
         return f"{self.pkid} [{self.name}] {self.user_id}"
 
-    def asdict(self, full=False):
+    def asdict(self, full=False) -> AttrDict:
         user_dict = super().asdict()
 
         if full:
             user_dict.user_addrs = list(
                 ua.asdict()
                 for ua in self.user_addrs
+            )
+
+            user_dict.user_tokns = list(
+                ut.asdict()
+                for ut in self.user_tokns
             )
 
         return user_dict
@@ -167,35 +180,31 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         ).where(
             User.pkid == user_pk
         ).options(
-            lazyload(User.user_addrs)
+            lazyload(User.user_addrs),
+            lazyload(User.user_tokns),
         ).one()
 
-        user_addr: UserAddr = u.__addr_add(db, address)
+        user_addr: [UserAddr, UserTokn] = u.__addr_add(db, address)
         db.Session.commit()
         return user_addr.asdict()
 
-    def __addr_add(self, db, address: str) -> UserAddr:
-        addr = Addr.get(db, address, create=True)
+    def __addr_add(self, db, address: str) -> [UserAddr, UserTokn]:
+        addr: [Addr, Smac, Tokn] = Addr.get(db, address, create=True)
 
-        ua = UserAddr(user=self, addr=addr)
-        db.Session.add(ua)
-
-        if ua.addr.addr_tp == Addr.Type.T:
-            self.__on_new_tokn_user_addr(db, ua)
-        elif ua.addr.addr_tp == Addr.Type.H:
+        if isinstance(addr, Tokn):
+            ua = UserTokn(user=self, tokn=addr)
+            db.Session.add(ua)
+            self.__on_new_user_tokn(db, ua)
+        else:
+            ua = UserAddr(user=self, addr=addr)
+            db.Session.add(ua)
             self.__on_new_user_addr(db, ua)
 
         return ua
 
-    def __on_new_tokn_user_addr(self, db: DB, tokn_user_addr: UserAddr):
-        filt = lambda ua: (
-                ua != tokn_user_addr and
-                ua.addr.addr_tp == Addr.Type.H
-        )
-
-        for user_addr in filter(filt, self.user_addrs):
-            for tokn_addr in self.enumerate_user_addr_tokns(db, user_addr):
-                tokn_addr.update_balance(db)
+    def __on_new_user_tokn(self, db: DB, user_tokn: UserTokn):
+        for tokn_addr in self.enumerate_user_tokn_addrs(db, user_tokn):
+            tokn_addr.update_balance(db)
 
     def __on_new_user_addr(self, db: DB, user_addr: UserAddr):
         for tokn_addr in self.enumerate_user_addr_tokns(db, user_addr):
@@ -225,11 +234,10 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
                 db.Session.commit()
                 return addr_dict
 
-    def enumerate_user_addr_tokns(self, db: DB, user_addr: UserAddr) -> Generator[ToknAddr]:
-        filt = lambda ua: (
-                ua != user_addr and
-                ua.addr.addr_tp == Addr.Type.T
-        )
+    def enumerate_user_tokn_addrs(self, db: DB, user_tokn: UserTokn) -> Generator[ToknAddr]:
+        for user_addr in self.user_addrs:
+            yield user_tokn.get_tokn_addr(db, user_addr.addr, create=True)
 
-        for user_addr_tokn in filter(filt, self.user_addrs):
-            yield user_addr_tokn.get_addr_tokn(db, user_addr.addr, create=True)
+    def enumerate_user_addr_tokns(self, db: DB, user_addr: UserAddr) -> Generator[ToknAddr]:
+        for user_tokn in self.user_tokns:
+            yield user_tokn.get_tokn_addr(db, user_addr.addr, create=True)
