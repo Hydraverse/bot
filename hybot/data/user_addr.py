@@ -8,7 +8,6 @@ from .base import *
 __all__ = "UserAddr",
 
 
-@dictattrs("pkid", "user_pk", "addr_pk", "date_create", "date_update", "info", "data", "user", "addr")
 class UserAddr(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "user_addr"
     __table_args__ = (
@@ -24,21 +23,10 @@ class UserAddr(DbPkidMixin, DbDateMixin, Base):
     user = relationship("User", back_populates="user_addrs", passive_deletes=True)
     addr = relationship("Addr", back_populates="user_addrs", passive_deletes=True)
 
-    user_addr_txes = relationship(
-        "UserAddrTX",
-        back_populates="user_addr",
-        cascade="all, delete-orphan",
-        single_parent=True
-    )
-
-    def _removed_user(self, db):
-        # self.user.user_addrs.remove(self)
-
-        for user_addr_tx in self.user_addr_txes:
-            user_addr_tx._removed(db)
-
-        self.user_addr_txes.clear()
-        self.addr._removed(db, self)
+    def _remove(self, db, user_addrs):
+        addr = self.addr
+        user_addrs.remove(self)
+        addr._removed_user(db)
 
 
 Index(UserAddr.__tablename__ + "_idx", UserAddr.user_pk, UserAddr.addr_pk)

@@ -60,11 +60,11 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         return u.pkid if u is not None else None
 
     @staticmethod
-    async def load(db, user_id: int, create: bool = True, full: bool = False) -> Optional[AttrDict]:
-        return await db.run_in_executor_session(User._load, db, user_id, create, full)
+    async def get(db, user_id: int, create: bool = True, full: bool = False) -> Optional[AttrDict]:
+        return await db.run_in_executor_session(User._get, db, user_id, create, full)
 
     @staticmethod
-    def _load(db, user_id: int, create: bool, full: bool) -> Optional[AttrDict]:
+    def _get(db, user_id: int, create: bool, full: bool) -> Optional[AttrDict]:
 
         u: User = db.Session.query(
             User
@@ -144,8 +144,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         
     def _delete(self, db):
         for user_addr in list(self.user_addrs):
-            self.user_addrs.remove(user_addr)
-            user_addr._removed_user(db)
+            user_addr._remove(db, self.user_addrs)
 
         db.Session.delete(self)
         db.Session.commit()
@@ -169,7 +168,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         return AttrDict(user_addr.asdict())
 
     def __addr_add(self, db, address: str) -> UserAddr:
-        addr = Addr._load(db, address, create=True)
+        addr = Addr.get(db, address, create=True)
         ua = UserAddr(user=self, addr=addr)
         db.Session.add(ua)
         return ua
@@ -180,7 +179,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
 
     @staticmethod
     def _addr_del(db, user_pk: int, address: str) -> Optional[AttrDict]:
-        addr = Addr._load(db, address, create=False)
+        addr = Addr.get(db, address, create=False)
 
         if addr is not None:
             ua: UserAddr = db.Session.query(

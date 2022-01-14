@@ -7,20 +7,19 @@ from sqlalchemy import Column, String, Integer, desc, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from .base import *
-from .tx import TX
+from .db import DB
 
-__all__ = "Block",
+__all__ = "Block", "TX"
 
 
 class LocalState:
     # Testnet blocks:
     # 160387 (160388 is HYDRA SC TX + minting two tokens to sender)
     # 160544 (160545 is HYDRA TX)
-    height = 160387
+    height = 0
     hash = ""
 
 
-@dictattrs("pkid", "height", "hash", "info", "user_data")
 class Block(DbPkidMixin, DbUserDataMixin, Base):
     __tablename__ = "block"
     __table_args__ = (
@@ -41,7 +40,7 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
     logs = DbInfoColumn()
     user_data = DbUserDataMixin.user_data()
 
-    def _delete_if_unused(self, db) -> bool:
+    def _delete_if_unused(self, db: DB) -> bool:
         if not len(self.txes):
             if not len(self.user_data):
                 log.info(f"Deleting block #{self.height} with no TXes and empty data.")
@@ -52,18 +51,20 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
 
         return False
 
-    def _load(self, db):
+    def on_new_block(self, db: DB) -> bool:
         n_tx = self.info.get("nTx", -1)
 
         if n_tx < 2:
             log.warning(f"Found {n_tx} TX in block, expected at least two.")
-            return
+            return False
 
         vo_filt = lambda vo: hasattr(vo, "scriptPubKey") and hasattr(vo.scriptPubKey, "addresses")
         added = False
 
         for txno, votx in enumerate(list(self.info["tx"])):
             votx.n = txno  # Preserve ordering info after deletion.
+
+            logs = list(filter(lambda lg: lg.transactionHash == votx.txid, self.logs))
 
             if hasattr(votx, "vout"):
                 vouts_inp = Block.__get_vout_inp(db.rpc, votx)
@@ -76,9 +77,10 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
                         block_txid=votx.txid,
                         vouts_inp=vouts_inp,
                         vouts_out=vouts_out,
+                        logs=logs
                     )
 
-                    if not tx._load(db):
+                    if not tx.on_new_block(db):
                         self.txes.remove(tx)
                     else:
                         self.info["tx"].remove(votx)  # Leave behind the unprocessed TXes
@@ -90,27 +92,27 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
         return added
 
     @staticmethod
-    async def update_task(db) -> None:
-        await asyncio.sleep(30)
+    async def update_task(db: DB) -> None:
+        # await asyncio.sleep(30)
 
         while 1:
             await Block.update(db)
             await asyncio.sleep(15)
 
     @staticmethod
-    async def update(db) -> None:
+    async def update(db: DB) -> None:
         # noinspection PyBroadException
         try:
             if LocalState.height == 0:
                 await db.run_in_executor_session(Block.__update_init, db)
 
-            return await db.run_in_executor_session(Block._update, db)
+            return await db.run_in_executor_session(Block.__update, db)
         except BaseException as exc:
             log.critical(f"Block.update exception: {str(exc)}", exc_info=exc)
 
     @staticmethod
-    def __update_init(db) -> None:
-        block = db.Session.query(
+    def __update_init(db: DB) -> None:
+        block: Block = db.Session.query(
             Block
         ).order_by(
             desc(Block.height)
@@ -123,7 +125,7 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
             LocalState.height = db.rpc.getblockcount() - 1
 
     @staticmethod
-    def _update(db) -> None:
+    def __update(db: DB) -> None:
 
         chain_height = db.rpc.getblockcount()
         chain_hash = db.rpc.getblockhash(chain_height)
@@ -139,14 +141,14 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
         for height in range(LocalState.height + 1, chain_height + 1):
             bhash = db.rpc.getblockhash(height)
 
-            new_block = Block(
+            new_block: Block = Block(
                 height=height,
                 hash=bhash,
-                info=Block.__get_block_info(db.rpc, bhash),
+                info=Block.__get_block_info(db, bhash),
                 logs=db.rpc.searchlogs(height, height)
             )
 
-            if not new_block._load(db):
+            if not new_block.on_new_block(db):
                 log.debug(f"Discarding block without TXes at height {new_block.height}")
                 db.Session.rollback()
             else:
@@ -157,8 +159,8 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
         LocalState.hash = chain_hash
 
     @staticmethod
-    def __get_block_info(rpc, block_hash):
-        info = rpc.getblock(block_hash, verbosity=2)
+    def __get_block_info(db: DB, block_hash: str):
+        info = db.rpc.getblock(block_hash, verbosity=2)
 
         info.conf = info.confirmations
         del info.confirmations
@@ -181,3 +183,6 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
                 vout_inp[vin.txid] = vin_rawtx_decoded.vout[vin.vout]
 
         return vout_inp
+
+
+from .tx import TX

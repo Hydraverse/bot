@@ -6,7 +6,6 @@ from hybot.util import namegen
 __all__ = "UserPkid",
 
 
-@dictattrs("pkid", "name")
 class UserPkid(DbPkidMixin, Base):
     __tablename__ = "user_pkid"
 

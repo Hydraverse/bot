@@ -14,7 +14,7 @@ class HydraBotUser:
 
     @staticmethod
     async def load(db: DB, msg: Message, create: bool = True, full: bool = False) -> Optional[AttrDict]:
-        pkid = await HydraBotUser.pkid(db, msg.from_user.id)
+        pkid = await User.get_pkid(db, msg.from_user.id)
 
         if pkid is None and create:
             await msg.answer(
@@ -22,4 +22,4 @@ class HydraBotUser:
                 "One moment while I set things up..."
             )
 
-        return await User.load(db, msg.from_user.id, create=create, full=full)
+        return await User.get(db, msg.from_user.id, create=create, full=full)

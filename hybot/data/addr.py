@@ -1,21 +1,25 @@
 from __future__ import annotations
 import enum
+from functools import lru_cache
 from typing import Optional, Tuple
 import binascii
 
 from attrdict import AttrDict
 from hydra import log
-from hydra.rpc.hydra_rpc import BaseRPC
-from sqlalchemy import Column, String, Enum
+from hydra.rpc.hydra_rpc import BaseRPC, HydraRPC
+from sqlalchemy import Column, String, Enum, Integer, ForeignKey
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import relationship, lazyload
 
 from .base import *
+from .db import DB
+from .block import Block
+from .addr_tx import AddrTX
 
-__all__ = "Addr",
+__all__ = "Addr", "AddrTX", "Smac", "Tokn"
 
 
-@dictattrs("pkid", "addr_tp", "addr_hx", "addr_hy", "date_create", "date_update", "info", "data")
+@dictattrs("pkid", "date_create", "date_update", "addr_tp", "addr_hx", "addr_hy", "block_h", "balance", "info", "data")
 class Addr(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "addr"
 
@@ -37,16 +41,59 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     addr_tp = Column(Enum(Type, validate_strings=True), nullable=False, index=True)
     addr_hx = Column(String(40), nullable=False, unique=True, index=True)
     addr_hy = Column(String(34), nullable=False, unique=True, index=True)
+    block_h = Column(Integer, ForeignKey("block.height", ondelete="SET NULL"), nullable=True, index=True)
+    balance = Column(Integer, nullable=True)
 
     info = DbInfoColumn()
     data = DbDataColumn()
 
     user_addrs = relationship(
-        "UserAddr", back_populates="addr", passive_deletes=False
+        "UserAddr",
+        back_populates="addr",
+        cascade="all, delete-orphan",
+        single_parent=True,
     )
 
+    addr_txes = relationship(
+        "AddrTX",
+        back_populates="addr",
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": Type.H,
+        "polymorphic_on": addr_tp
+    }
+
+    @staticmethod
+    def make(addr_tp: Type, addr_hx: str, addr_hy: str, **kwds):
+        if addr_tp == Addr.Type.H:
+            return Addr(addr_hx=addr_hx, addr_hy=addr_hy, **kwds)
+        elif addr_tp == Addr.Type.S:
+            return Smac(addr_hx=addr_hx, addr_hy=addr_hy, **kwds)
+        elif addr_tp == Addr.Type.T:
+            return Tokn(addr_hx=addr_hx, addr_hy=addr_hy, **kwds)
+        else:
+            return Addr(addr_tp=addr_tp, addr_hx=addr_hx, addr_hy=addr_hy, **kwds)
+
     def __str__(self):
-        return self.addr_hy if self.addr_tp == Addr.Type.H else self.addr_hx
+        return self.addr_hy
+
+    def on_new_tx(self, db: DB, addr_tx: AddrTX):
+        if self.block_h != addr_tx.tx.block.height:
+            self.on_new_block(db, addr_tx.tx.block)
+
+    def on_new_block(self, db: DB, block: Block):
+        if self.block_h != block.height:
+            self.block_h = block.height
+            self.update_balance(db)
+            db.Session.add(self)
+
+    def update_balance(self, db: DB):
+        balance = int(db.rpc.getbalanceofaddress(self.addr_hy) * 10**8)
+        if self.balance != balance:
+            self.balance = balance
 
     # noinspection PyPep8Naming
     def __UNUSED_ensure_imported(self, db):
@@ -55,22 +102,27 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
                 log.info(f"Importing address {self.addr_hy}")
                 db.rpc.importaddress(self.addr_hy, self.addr_hy)
 
-    # noinspection PyUnusedLocal
-    def _removed(self, db, user_addr=None):
+    def _removed_user(self, db):
+        for addr_tx in list(self.addr_txes):
+            addr_tx._remove(db, self.addr_txes)
+
+        # if self.addr_tp == Addr.Type.H:
         if not len(self.user_addrs):
             if not len(self.data):
-                log.info(f"Deleting address {str(self)} with empty data.")
+                log.info(f"Deleting address {str(self)} with no users and empty data.")
                 db.Session.delete(self)
             else:
-                log.info(f"Keeping address {str(self)} with non-empty data.")
+                log.info(f"Keeping address {str(self)} with no user and non-empty data.")
+        # else:
+        #     log.info(f"Keeping {self.addr_tp.value} address {str(self)}.")
 
     @staticmethod
-    def _load(db, address: str, create=True) -> Addr:
-        addr = Addr._addr_normalize(db, address)
+    def get(db, address: str, create=True) -> Addr:
+        addr_tp, addr_hx, addr_hy, addr_attr = Addr.normalize(db, address)
 
         try:
             q = db.Session.query(Addr).where(
-                Addr.addr_hx == addr.addr_hx
+                Addr.addr_hx == addr_hx
             ).options(
                 lazyload(Addr.user_addrs)
             )
@@ -81,42 +133,32 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             return q.one()
 
         except NoResultFound:
-            if addr.addr_tp == Addr.Type.S:
-                addr.addr_tp, sc_info = Addr._validate_contract(db, addr.addr_hx)
-
-                if len(sc_info):
-                    addr.info.sc = sc_info
-
+            addr = Addr.make(addr_tp, addr_hx, addr_hy, **addr_attr)
             db.Session.add(addr)
             db.Session.commit()
             return addr
 
     @staticmethod
-    async def validate_address(db, address: str):
-        return await type(db).run_in_executor(Addr._validate_address, db, address)
+    @lru_cache(maxsize=None)
+    def validate(db, address: str):
+        av = db.rpc.validateaddress(address)
+        return av
 
     @staticmethod
-    def _validate_address(db, address: str):
-        return db.rpc.validateaddress(address)
-
-    @staticmethod
-    async def addr_normalize(db, address: str) -> Addr:
-        return await type(db).run_in_executor(Addr._addr_normalize, db, address)
-
-    @staticmethod
-    def _addr_normalize(db, address: str) -> Addr:
+    @lru_cache(maxsize=None)
+    def normalize(db, address: str) -> Tuple[Addr.Type, str, str, AttrDict]:
         """Normalize an input address into a tuple of (Addr.Type, addr_hex, addr_hydra).
         Or raise ValueError.
         """
+        addr_tp = Addr.Type.by_len(address)
+        attrs = AttrDict()
 
-        by_len = Addr.Type.by_len(address)
-
-        if by_len is None:
+        if addr_tp is None:
             raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (bad length)")
 
-        if by_len == Addr.Type.H:
+        if addr_tp == Addr.Type.H:
 
-            valid = db.rpc.validateaddress(address)
+            valid = Addr._validate(db, address)
 
             if not valid.isvalid:
                 raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (validation failed)")
@@ -124,7 +166,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             addr_hy = valid.address
             addr_hx = db.rpc.gethexaddress(address)
 
-        elif by_len == Addr.Type.S:
+        elif addr_tp == Addr.Type.S:
 
             try:
                 addr_hx = hex(int(address, 16))[2:].rjust(40, "0")  # ValueError on int() fail
@@ -133,17 +175,15 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
             addr_hy = db.rpc.fromhexaddress(addr_hx)
 
+            addr_tp, attrs = Addr.__validate_contract(db, addr_hx)
+
         else:
             raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (bad type)")
 
-        return Addr(addr_tp=by_len, addr_hx=addr_hx, addr_hy=addr_hy)
+        return addr_tp, addr_hx, addr_hy, attrs
 
     @staticmethod
-    async def validate_contract(db, addr_hx: str) -> Tuple[Addr.Type, AttrDict]:
-        return await type(db).run_in_executor(Addr._validate_contract, db, addr_hx)
-
-    @staticmethod
-    def _validate_contract(db, addr_hx: str) -> Tuple[Addr.Type, AttrDict]:
+    def __validate_contract(db, addr_hx: str) -> Tuple[Addr.Type, AttrDict]:
 
         sci = AttrDict()
         addr_tp = Addr.Type.S
@@ -152,7 +192,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             # Raises BaseRPC.Exception if address does not exist
             r = db.rpc.callcontract(addr_hx, "06fdde03")  # name()
         except BaseRPC.Exception:
-            # Safest assumption is that this is actually a HYDRA address
+            # Safest assumption is that this is actually a HYDRA hex address
             return Addr.Type.H, sci
 
         if r.executionResult.excepted == "None":
@@ -163,19 +203,21 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
         r = db.rpc.callcontract(addr_hx, "95d89b41")  # symbol()
 
         if r.executionResult.excepted == "None":
-            sci.sym = Addr.__sc_out_str(
+            symb = Addr.__sc_out_str(
                 r.executionResult.output[128:]
             )
 
             r = db.rpc.callcontract(addr_hx, "313ce567")  # decimals()
 
             if r.executionResult.excepted == "None":
-                sci.dec = int(r.executionResult.output, 16)
+                deci = int(r.executionResult.output, 16)
 
                 r = db.rpc.callcontract(addr_hx, "18160ddd")  # totalSupply()
 
                 if r.executionResult.excepted == "None":
-                    sci.tot = int(r.executionResult.output, 16)
+                    sci.symb = symb
+                    sci.deci = deci
+                    sci.supt = int(r.executionResult.output, 16)
                     addr_tp = Addr.Type.T
 
         return addr_tp, sci
@@ -184,3 +226,5 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     def __sc_out_str(val):
         return binascii.unhexlify(val).replace(b"\x00", b"").decode("utf-8")
 
+
+from .smac import Smac, Tokn
