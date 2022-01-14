@@ -30,9 +30,8 @@ class AddrTX(Base):
         addr_txes.remove(self)
         tx._removed_addr(db)
 
-    def on_new_tx(self, db: DB):
-        self.addr.on_new_tx(db, self)
-        db.Session.add(self)
+    def on_new_addr_tx(self, db: DB):
+        self.addr.on_new_addr_tx(db, self)
 
     @staticmethod
     def on_new_block_tx(db: DB, tx: TX) -> bool:
@@ -54,9 +53,6 @@ class AddrTX(Base):
 
         addrs: List[Addr] = db.Session.query(
             Addr,
-        ).join(
-            AddrTX,
-            AddrTX.addr_pk == Addr.pkid
         ).where(
             or_(
                 Addr.addr_hy.in_(addresses),
@@ -66,10 +62,17 @@ class AddrTX(Base):
 
         added = False
 
+        uatxes = []
+
         for addr in addrs:
             uatx = AddrTX(addr=addr, tx=tx)
-            uatx.on_new_tx(db)
+            uatxes.append(uatx)
+            db.Session.add(uatx)
             added = True
+
+        # Call after list is fully formed
+        for uatx in uatxes:
+            uatx.on_new_addr_tx(db)
 
         return added
 

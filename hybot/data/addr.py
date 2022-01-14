@@ -13,7 +13,7 @@ from sqlalchemy.orm import relationship, lazyload
 
 from .base import *
 from .db import DB
-from .block import Block
+from .block import Block, TX
 from .addr_tx import AddrTX
 
 __all__ = "Addr", "AddrTX", "Smac", "Tokn"
@@ -84,19 +84,27 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     def __str__(self):
         return self.addr_hy
 
-    def on_new_tx(self, db: DB, addr_tx: AddrTX):
-        if self.block_h != addr_tx.tx.block.height:
-            self.block_h = addr_tx.tx.block.height
-            self.on_new_block(db, addr_tx.tx.block)
+    def on_new_addr_tx(self, db: DB, addr_tx: AddrTX):
+        tx = addr_tx.tx
+        if self.block_h != tx.block.height:
+            self.block_h = tx.block.height
+            self.on_new_block(db, tx.block)
+
+        self.on_new_tx(db, tx)
 
     def on_new_block(self, db: DB, block: Block):
-        self.update_balance(db)
-        db.Session.add(self)
+        pass
 
-    def update_balance(self, db: DB):
+    def on_new_tx(self, db: DB, tx: TX):
+        self.update_balances(db, tx)
+
+    # noinspection PyUnusedLocal
+    def update_balances(self, db: DB, tx: TX):
         balance = int(db.rpc.getbalanceofaddress(self.addr_hy) * 10**8)
+
         if self.balance != balance:
             self.balance = balance
+            db.Session.add(self)
 
     # noinspection PyPep8Naming
     def __UNUSED_ensure_imported(self, db: DB):
@@ -113,7 +121,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             for addr_tokn in list(self.addr_tokns):
                 addr_tokn._remove(db, self.addr_tokns)
 
-            log.info(f"Deleting address {str(self)} with no users.")
+            log.info(f"Deleting {self.addr_tp.value} address {str(self)} with no users.")
             db.Session.delete(self)
 
     @staticmethod

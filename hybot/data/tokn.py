@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 from .db import DB
 from .addr import Addr
 from .smac import Smac
+from .tx import TX
 
 __all__ = "Tokn", "ToknAddr"
 
@@ -38,14 +39,14 @@ class Tokn(Smac):
         })
         return d
 
-    def _removed_user(self, db: DB):
+    def update_balances(self, db: DB, tx: TX):
+        super().update_balances(db, tx)
 
-
-    def update_balance(self, db: DB):
-        super().update_balance(db)
+        tx_addrs = filter(lambda a: a != self, tuple(txa.addr for txa in tx.addr_txes))
 
         for tokn_addr in self.tokn_addrs:
-            tokn_addr.update_balance(db)
+            if tokn_addr.addr in tx_addrs:
+                tokn_addr.update_balance(db)
 
 
 from .tokn_addr import ToknAddr

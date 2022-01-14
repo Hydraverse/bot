@@ -15,7 +15,7 @@ from .addr import Addr
 __all__ = "ToknAddr",
 
 
-class ToknAddr(DbPkidMixin, Base):
+class ToknAddr(Base):
     __tablename__ = "tokn_addr"
     __table_args__ = (
         UniqueConstraint("tokn_pk", "addr_pk", name="_tokn_addr_uc"),
@@ -26,31 +26,22 @@ class ToknAddr(DbPkidMixin, Base):
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
     balance = Column(Integer, nullable=True)
 
-    tokn = relationship("Tokn", back_populates="tokn_addrs", passive_deletes=True)
-    addr = relationship("Addr", back_populates="addr_tokns", passive_deletes=True)
-
-    tokn_addr_user_addrs = relationship(
-        "UserToknAddr",
-        back_populates="tokn_addr",
-        cascade="all, delete-orphan",
-        single_parent=True,
-    )
+    tokn = relationship("Tokn", back_populates="tokn_addrs", foreign_keys=(tokn_pk,), passive_deletes=True)
+    addr = relationship("Addr", back_populates="addr_tokns", foreign_keys=(addr_pk,), passive_deletes=True)
 
     def _remove(self, db: DB, tokn_addrs):
         tokn = self.tokn
-        addr = self.addr
-
-        if not len(self.tokn_addr_user_addrs):
-            log.info(f"Deleting info for token {str(self.tokn)} at addr {str(self.addr)} - no subscriptions.")
-            db.Session.delete(self)
-
         tokn_addrs.remove(self)
         tokn._removed_user(db)
-        addr._removed_user(db)
 
     def update_balance(self, db: DB):
+        balance = self.balance
+
         # TODO: Implement
-        pass
+
+        if balance != self.balance:
+            self.balance = balance
+            db.Session.add(self)
 
     @staticmethod
     def get_for(db: DB, tokn: Tokn, addr: Addr, create=True) -> Optional[ToknAddr]:

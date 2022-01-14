@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
+from attrdict import AttrDict
 from hydra import log
 from sqlalchemy import Column, String, Integer, desc, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -16,7 +17,7 @@ class LocalState:
     # Testnet blocks:
     # 160387 (160388 is HYDRA SC TX + minting two tokens to sender)
     # 160544 (160545 is HYDRA TX)
-    height = 0
+    height = 160387
     hash = ""
 
 
@@ -64,7 +65,7 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
         for txno, votx in enumerate(list(self.info["tx"])):
             votx.n = txno  # Preserve ordering info after deletion.
 
-            logs = list(filter(lambda lg: lg.transactionHash == votx.txid, self.logs))
+            logs = list(AttrDict(lg) for lg in filter(lambda lg_: lg_.transactionHash == votx.txid, self.logs))
 
             for log_ in logs:
                 del log_.blockHash

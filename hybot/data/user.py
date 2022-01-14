@@ -11,9 +11,9 @@ from .base import *
 from .db import DB
 from .addr import Addr
 from .user_pkid import UserPkid, DbUserPkidMixin
-from .user_addr import UserAddr, UserToknAddr
+from .user_addr import UserAddr
 
-__all__ = "User", "UserPkid", "UserAddr", "UserToknAddr"
+__all__ = "User", "UserPkid", "UserAddr",
 
 
 @dictattrs("pkid", "name", "user_id", "date_create", "date_update", "info", "data")

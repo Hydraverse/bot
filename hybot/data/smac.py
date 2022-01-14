@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, ForeignKey, String
 from .base import DbDataColumn
 from .db import DB
 from .addr import Addr
-from .block import Block
+from .block import Block, TX
 
 __all__ = "Smac", "Tokn"
 
@@ -33,7 +33,7 @@ class Smac(Addr):
         self.stor = db.rpc.getstorage(self.addr_hx, self.block_h)
         super().on_new_block(db, block)
 
-    def update_balance(self, db):
+    def update_balances(self, db, tx: TX):
         # TODO: Implement this -- get HYDRA balance of smart contract
         #   (override super, do not call)
         pass
