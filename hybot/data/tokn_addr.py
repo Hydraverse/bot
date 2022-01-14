@@ -25,7 +25,7 @@ class ToknAddr(Base):
 
     tokn_pk = Column(Integer, ForeignKey("tokn.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
-    block_h = Column(Integer, ForeignKey("block.height", ondelete="SET NULL"), nullable=True)
+    block_h = Column(Integer, nullable=True, index=True)
     balance = Column(Integer, nullable=True)
 
     tokn = relationship("Tokn", back_populates="tokn_addrs", foreign_keys=(tokn_pk,), passive_deletes=True)
@@ -45,9 +45,11 @@ class ToknAddr(Base):
         tokn_addrs.remove(self)
         tokn._removed_user(db)
 
-    def update_balance(self, db: DB, tx: TX):
-        if self.block_h != tx.block.height:
-            self.block_h = tx.block.height
+    def update_balance(self, db: DB, tx: Optional[TX] = None):
+        height = tx.block.height if tx is not None else db.rpc.getblockcount()
+
+        if self.block_h != height:
+            self.block_h = height
 
             balance = self.tokn.balance_of(db, self.addr)
 

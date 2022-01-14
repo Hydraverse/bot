@@ -54,6 +54,10 @@ class Tokn(Smac):
     def apply_deci(self, balance: int) -> float:
         return balance / 10**self.deci
 
+    def populate_balances(self, db: DB):
+        for tokn_addr in self.tokn_addrs:
+            tokn_addr.update_balance(db)
+
     def update_balances(self, db: DB, tx: TX):
         super().update_balances(db, tx)
 

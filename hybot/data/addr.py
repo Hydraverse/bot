@@ -41,7 +41,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     addr_tp = Column(Enum(Type, validate_strings=True), nullable=False, index=True)
     addr_hx = Column(String(40), nullable=False, unique=True, index=True)
     addr_hy = Column(String(34), nullable=False, unique=True, index=True)
-    block_h = Column(Integer, ForeignKey("block.height", ondelete="SET NULL"), nullable=True, index=True)
+    block_h = Column(Integer, nullable=True, index=True)
     balance = Column(Integer, nullable=True)
 
     user_addrs = relationship(
