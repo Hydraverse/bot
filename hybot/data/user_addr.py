@@ -27,6 +27,7 @@ class UserAddr(Base):
 
     user = relationship("User", back_populates="user_addrs", passive_deletes=True)
     addr = relationship("Addr", back_populates="addr_users", passive_deletes=True)
+    tokn = relationship("Tokn", back_populates="tokn_users", primaryjoin="and_(UserAddr.addr_pk == Addr.pkid, Tokn.pkid == Addr.pkid)")
 
     # Polymorphic relations
     # smac = relationship("Smac", primaryjoin="Smac.pkid == UserAddr.addr_pk", passive_deletes=True)

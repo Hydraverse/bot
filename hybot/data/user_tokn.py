@@ -26,12 +26,13 @@ class UserTokn(Base):
     tokn_pk = Column(Integer, ForeignKey("tokn.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
 
     user = relationship("User", back_populates="user_tokns", passive_deletes=True)
-    tokn = relationship("Tokn", passive_deletes=True)
+    tokn = relationship("Tokn", back_populates="tokn_users", passive_deletes=True)
 
     def _remove(self, db: DB, user_tokns):
         tokn = self.tokn
         user_tokns.remove(self)
-        tokn._removed_user(db)
+        db.Session.add(user_tokns)
+        tokn._removed_user(db, self)
 
     def get_tokn_addr(self, db: DB, addr: Addr, create=True) -> Optional[ToknAddr]:
         return ToknAddr.get_for(db, self.tokn, addr, create=create)

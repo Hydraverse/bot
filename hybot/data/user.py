@@ -160,11 +160,14 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         ).one_or_none()
 
         if u is not None:
-            return u._delete(db)
+            return u.___delete(db)
         
-    def _delete(self, db: DB):
+    def ___delete(self, db: DB):
         for user_addr in list(self.user_addrs):
             user_addr._remove(db, self.user_addrs)
+
+        for user_tokn in list(self.user_tokns):
+            user_tokn._remove(db, self.user_tokns)
 
         db.Session.delete(self)
         db.Session.commit()
@@ -216,23 +219,38 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
 
     @staticmethod
     def _addr_del(db: DB, user_pk: int, address: str) -> Optional[AttrDict]:
-        addr = Addr.get(db, address, create=False)
+        addr: [Addr, Smac, Tokn] = Addr.get(db, address, create=False)
 
         if addr is not None:
-            ua: UserAddr = db.Session.query(
-                UserAddr,
-            ).where(
-                and_(
-                    UserAddr.user_pk == user_pk,
-                    UserAddr.addr_pk == addr.pkid,
-                )
-            ).one_or_none()
+            if isinstance(addr, Tokn):
+                ua: UserTokn = db.Session.query(
+                    UserTokn,
+                ).where(
+                    and_(
+                        UserTokn.user_pk == user_pk,
+                        UserTokn.tokn_pk == addr.pkid,
+                    )
+                ).one_or_none()
+            else:
+                ua: UserAddr = db.Session.query(
+                    UserAddr,
+                ).where(
+                    and_(
+                        UserAddr.user_pk == user_pk,
+                        UserAddr.addr_pk == addr.pkid,
+                        )
+                ).one_or_none()
 
             if ua is not None:
-                addr_dict = addr.asdict()
-                ua._remove(db, ua.user.user_addrs)
+                ua_dict = ua.asdict()
+
+                if isinstance(ua, UserTokn):
+                    ua._remove(db, ua.user.user_tokns)
+                else:
+                    ua._remove(db, ua.user.user_addrs)
+
                 db.Session.commit()
-                return addr_dict
+                return ua_dict
 
     def enumerate_user_tokn_addrs(self, db: DB, user_tokn: UserTokn) -> Generator[ToknAddr]:
         for user_addr in self.user_addrs:

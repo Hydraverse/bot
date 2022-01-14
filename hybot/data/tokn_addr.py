@@ -42,7 +42,7 @@ class ToknAddr(Base):
     def _remove(self, db: DB, tokn_addrs):
         tokn = self.tokn
         tokn_addrs.remove(self)
-        tokn._removed_user(db)
+        tokn._removed_user(db, self)
 
     def update_balance(self, db: DB, tx: Optional[TX] = None):
         height = tx.block.height if tx is not None else db.rpc.getblockcount()
