@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 import os
+from typing import Dict
+
 import sqlalchemy.exc
 from hydra.rpc.base import BaseRPC
 from sqlalchemy import create_engine
@@ -8,10 +12,6 @@ import asyncio
 
 from hydra.rpc import HydraRPC
 from hydra import log
-
-from .base import Base
-
-__all__ = "DB",
 
 
 class DbOperatorMixin:
@@ -28,15 +28,16 @@ class DbOperatorMixin:
 
 # noinspection PyProtectedMember
 class DB(DbOperatorMixin):
+    _: Dict[HydraRPC, DB] = {}
     engine = None
     Session = None  # type: scoped_session
     rpc: HydraRPC = None
 
     FILE_DIR = "local"
     FILE_NAME = "hybot"
-    PATH = os.path.abspath(os.path.join(os.getcwd(), f"{FILE_DIR}/{FILE_NAME}.sqlite3"))
+    FILE_PATH = os.path.abspath(os.path.join(os.getcwd(), f"{FILE_DIR}/{FILE_NAME}.sqlite3"))
 
-    WALLET = "hybot"
+    WALLET = None  # Unused for now
 
     def __init__(self, rpc: HydraRPC, url: str, *args, **kwds):
         log.debug(f"db: open url='{url}'")
@@ -46,8 +47,11 @@ class DB(DbOperatorMixin):
         self.rpc = rpc
         self.__init_wallet()
 
+    def __hash__(self):
+        return hash(self.FILE_PATH + self.rpc.url)
+
     def __init_wallet(self):
-        if DB.WALLET not in self.rpc.listwallets():
+        if DB.WALLET is not None and DB.WALLET not in self.rpc.listwallets():
             try:
                 log.info(f"Loading wallet '{DB.WALLET}'...")
                 self.rpc.loadwallet(DB.WALLET)
@@ -59,7 +63,10 @@ class DB(DbOperatorMixin):
 
     @staticmethod
     def default(rpc: HydraRPC):
-        return DB(rpc, f"sqlite:///{DB.PATH}")  # , echo=log.level() <= log.INFO)
+        if rpc not in DB._:
+            return DB._.setdefault(rpc, DB(rpc, f"sqlite:///{DB.FILE_PATH}"))  # , echo=log.level() <= log.INFO)
+
+        return DB._[rpc]
 
     def _run_in_executor_session(self, fn, *args):
         self.Session()
@@ -74,3 +81,22 @@ class DB(DbOperatorMixin):
 
 
 os.environ.setdefault("HY_RPC_WALLET", DB.WALLET)
+
+
+from .base import __all__ as __base_all__
+from .base import *
+from .user import __all__ as __user_all__
+from .user import *
+from .addr import __all__ as __addr_all__
+from .addr import *
+from .block import __all__ as __block_all__
+from .block import *
+from .tx import __all__ as __tx_all__
+from .tx import *
+
+__all__ = ("DB",) + \
+          __base_all__ + \
+          __user_all__ + \
+          __addr_all__ + \
+          __block_all__ + \
+          __tx_all__
