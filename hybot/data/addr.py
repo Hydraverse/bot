@@ -71,7 +71,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     }
 
     @staticmethod
-    def make(addr_tp: Type, addr_hx: str, addr_hy: str, **kwds):
+    def make(addr_tp: Type, addr_hx: str, addr_hy: str, **kwds) -> [Addr, Smac, Tokn]:
         if addr_tp == Addr.Type.H:
             return Addr(addr_hx=addr_hx, addr_hy=addr_hy, **kwds)
         elif addr_tp == Addr.Type.S:
@@ -125,15 +125,23 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             db.Session.delete(self)
 
     @staticmethod
-    def get(db: DB, address: str, create=True) -> Addr:
+    def get(db: DB, address: str, create=True) -> [Addr, Smac, Tokn]:
         addr_tp, addr_hx, addr_hy, addr_attr = Addr.normalize(db, address)
 
         try:
-            q = db.Session.query(Addr).where(
-                Addr.addr_hx == addr_hx
-            ).options(
-                lazyload(Addr.user_addrs)
-            )
+            if addr_tp == Addr.Type.T:
+                q: Tokn = db.Session.query(Tokn).where(
+                    Tokn.addr_hx == addr_hx
+                )
+            elif addr_tp == Addr.Type.S:
+                q: Smac = db.Session.query(Smac).where(
+                    Smac.addr_hx == addr_hx
+                )
+            else:
+                q: Addr = db.Session.query(Addr).where(
+                    Addr.addr_hx == addr_hx,
+                    Addr.addr_tp == addr_tp
+                )
 
             if not create:
                 return q.one_or_none()
@@ -141,7 +149,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             return q.one()
 
         except NoResultFound:
-            addr = Addr.make(addr_tp, addr_hx, addr_hy, **addr_attr)
+            addr: [Addr, Smac, Tokn] = Addr.make(addr_tp, addr_hx, addr_hy, **addr_attr)
             db.Session.add(addr)
             db.Session.commit()
             return addr

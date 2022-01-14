@@ -46,7 +46,7 @@ class Tokn(Smac):
         r = db.rpc.callcontract(self.addr_hx, "70a08231" + addr.addr_hx.rjust(64, "0"))  # balanceOf(address)
 
         if r.executionResult.excepted != "None":
-            log.warning(f"Contract call failed: {str(r)}")
+            log.warning(f"Contract call failed: {r.executionResult.excepted}")
             return None
 
         return int(r.executionResult.output, 16)
@@ -59,7 +59,7 @@ class Tokn(Smac):
 
         for tx_addr in filter(lambda txa: txa.addr.addr_tp == Addr.Type.H, tx.addr_txes):
             tokn_addr = ToknAddr.get_for(db, self, tx_addr.addr, create=True)
-            tokn_addr.update_balance(db)
+            tokn_addr.update_balance(db, tx)
 
 
 from .tokn_addr import ToknAddr

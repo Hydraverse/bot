@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+from typing import Optional
+
 from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, Index, and_
 from sqlalchemy.orm import relationship
 
@@ -22,13 +25,22 @@ class UserAddr(Base):
     user = relationship("User", back_populates="user_addrs", passive_deletes=True)
     addr = relationship("Addr", back_populates="user_addrs", passive_deletes=True)
 
+    def asdict(self):
+        return {
+            "user": self.user.asdict(),
+            "addr": self.addr.asdict(),
+        }
+
     def _remove(self, db: DB, user_addrs):
         addr = self.addr
         user_addrs.remove(self)
         addr._removed_user(db)
 
-    def get_token_addr(self, db: DB, tokn, create=True):
+    def get_tokn_addr(self, db: DB, tokn, create=True) -> Optional[ToknAddr]:
         return ToknAddr.get_for(db, tokn, self.addr, create=create)
+
+    def get_addr_tokn(self, db: DB, addr, create=True) -> Optional[ToknAddr]:
+        return ToknAddr.get_for(db, self.addr, addr, create=create)
 
 
 Index(UserAddr.__tablename__ + "_idx", UserAddr.user_pk, UserAddr.addr_pk)

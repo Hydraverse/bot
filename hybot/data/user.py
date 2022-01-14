@@ -43,10 +43,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
 
         if full:
             user_dict.user_addrs = list(
-                AttrDict(
-                    user=ua.user.asdict(),
-                    addr=ua.addr.asdict(),
-                )
+                AttrDict(ua.asdict())
                 for ua in self.user_addrs
             )
 
