@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from typing import Optional
 
+from attrdict import AttrDict
 from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, Index, and_
 from sqlalchemy.orm import relationship
-
-from hydra import log
 
 from .base import *
 from .db import DB
@@ -32,13 +31,13 @@ class ToknAddr(Base):
     addr = relationship("Addr", back_populates="addr_tokns", foreign_keys=(addr_pk,), passive_deletes=True)
 
     def asdict(self):
-        return {
+        return AttrDict({
             "tokn": self.tokn.asdict(),
             "addr": self.addr.asdict(),
             "block_h": self.block_h,
             "balance": self.balance,
             "balance_deci": self.tokn.apply_deci(self.balance) if self.balance else self.balance
-        }
+        })
 
     def _remove(self, db: DB, tokn_addrs):
         tokn = self.tokn

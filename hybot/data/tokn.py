@@ -4,6 +4,7 @@ from hydra import log
 from sqlalchemy import Column, Integer, ForeignKey, String
 from sqlalchemy.orm import relationship
 
+from .base import dictattrs
 from .db import DB
 from .addr import Addr
 from .smac import Smac
@@ -12,6 +13,7 @@ from .tx import TX
 __all__ = "Tokn", "ToknAddr"
 
 
+@dictattrs("symb", "deci", "supt")
 class Tokn(Smac):
     __tablename__ = "tokn"
     __mapper_args__ = {
@@ -32,15 +34,6 @@ class Tokn(Smac):
 
     def __str__(self):
         return self.addr_hx
-
-    def asdict(self):
-        d = super().asdict()
-        d.update({
-            "symb": self.symb,
-            "deci": self.deci,
-            "supt": self.supt,
-        })
-        return d
 
     def balance_of(self, db: DB, addr: Addr) -> Optional[int]:
         r = db.rpc.callcontract(self.addr_hx, "70a08231" + addr.addr_hx.rjust(64, "0"))  # balanceOf(address)

@@ -10,30 +10,39 @@ __all__ = (
     "DbUserDataMixin",
 )
 
-Base = declarative_base()
-
 
 def dictattrs(*attrs):
-    def _asdict(self, *attrs_):
+    def _asdict(self, attrs_) -> AttrDict:
         def _attr_conv(s, attr):
             attr = getattr(s, attr)
-            if hasattr(attr, "asdict"):
-                return attr.asdict()
+            if hasattr(attr, "_asdict"):
+                return attr._asdict()
             if isinstance(attr, (list, tuple)):
                 return [_attr_conv(attr, a) for a in attr]
             return attr
 
-        return {
+        return AttrDict({
             attr: _attr_conv(self, attr)
             for attr in attrs_
-        }
+        })
 
     def _cls(cls):
-        cls.asdict = lambda slf: _asdict(slf, *attrs)
+        cls.__dictattrs__ = getattr(cls, "__dictattrs__", ()) + attrs
+
+        if not hasattr(cls, "_asdict"):
+            cls._asdict = lambda slf, *atrs_: _asdict(slf, tuple(cls.__dictattrs__) + atrs_)
+
         return cls
 
     return _cls
 
+
+class Base:
+    def asdict(self) -> AttrDict:
+        return getattr(self, "_asdict", AttrDict)()
+
+
+Base = declarative_base(cls=Base)
 
 DbInfoColumn = lambda: Column(NestedMutableJson, nullable=False, index=True, default={})
 DbDataColumn = lambda: Column(NestedMutableJson, nullable=False, index=False, default={})

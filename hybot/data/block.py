@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+from asyncio import CancelledError
+from typing import Optional
 
 from attrdict import AttrDict
 from hydra import log
 from sqlalchemy import Column, String, Integer, desc, UniqueConstraint
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import relationship
 
 from .base import *
@@ -17,7 +20,7 @@ class LocalState:
     # Testnet blocks:
     # 160387 (160388 is HYDRA SC TX + minting two tokens to sender)
     # 160544 (160545 is HYDRA TX)
-    height = 160387
+    height = 0
     hash = ""
 
 
@@ -78,6 +81,7 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
                 vouts_out = [vout for vout in filter(vo_filt, votx.vout)]
 
                 if len(vouts_out):
+                    # noinspection PyArgumentList
                     tx = TX(
                         block=self,
                         block_txno=txno,
@@ -108,12 +112,60 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
         return _lg
 
     @staticmethod
+    def get(db: DB, height: int, create: Optional[bool] = True) -> Optional[Block]:
+        try:
+            block: Block = db.Session.query(
+                Block,
+            ).where(
+                Block.height == height,
+            )
+
+            if not create:
+                return block.one_or_none()
+
+            return block.one()
+        except NoResultFound:
+            return Block.make(db, height)
+
+    @staticmethod
+    def make(db: DB, height: int) -> Optional[Block]:
+        bhash = db.rpc.getblockhash(height)
+
+        # noinspection PyArgumentList
+        new_block: Block = Block(
+            height=height,
+            hash=bhash,
+            info=Block.__get_block_info(db, bhash),
+            logs=db.rpc.searchlogs(height, height)
+        )
+
+        if new_block.on_new_block(db):
+            log.info(f"Added block with {len(new_block.txes)} TX(es) at height {new_block.height}")
+            db.Session.commit()
+            return new_block
+
+        log.debug(f"Discarding block without TXes at height {new_block.height}")
+        db.Session.rollback()
+
+    @staticmethod
+    def _on_new_addr(db: DB, addr) -> Optional[Block]:
+        """Load the latest block & related txes for addr.
+        """
+        # TODO: Implement this (probably just update balance?).
+        pass
+
+    @staticmethod
     async def update_task(db: DB) -> None:
         # await asyncio.sleep(30)
 
-        while 1:
-            await Block.update(db)
-            await asyncio.sleep(15)
+        try:
+            while 1:
+                await Block.update(db)
+                await asyncio.sleep(15)
+        except KeyboardInterrupt:
+            pass
+        except CancelledError:
+            pass
 
     @staticmethod
     async def update(db: DB) -> None:
@@ -123,6 +175,10 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
                 await db.run_in_executor_session(Block.__update_init, db)
 
             return await db.run_in_executor_session(Block.__update, db)
+        except KeyboardInterrupt:
+            raise
+        except CancelledError:
+            raise
         except BaseException as exc:
             log.critical(f"Block.update exception: {str(exc)}", exc_info=exc)
 
@@ -155,21 +211,7 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
                 return
 
         for height in range(LocalState.height + 1, chain_height + 1):
-            bhash = db.rpc.getblockhash(height)
-
-            new_block: Block = Block(
-                height=height,
-                hash=bhash,
-                info=Block.__get_block_info(db, bhash),
-                logs=db.rpc.searchlogs(height, height)
-            )
-
-            if not new_block.on_new_block(db):
-                log.debug(f"Discarding block without TXes at height {new_block.height}")
-                db.Session.rollback()
-            else:
-                log.info(f"Added block with {len(new_block.txes)} TX(es) at height {new_block.height}")
-                db.Session.commit()
+            Block.make(db, height)
 
         LocalState.height = chain_height
         LocalState.hash = chain_hash

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Generator
 
 from attrdict import AttrDict
 from hydra import log
@@ -12,6 +12,7 @@ from .db import DB
 from .addr import Addr
 from .user_pkid import UserPkid, DbUserPkidMixin
 from .user_addr import UserAddr
+from .tokn_addr import ToknAddr
 
 __all__ = "User", "UserPkid", "UserAddr",
 
@@ -38,12 +39,12 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     def __str__(self):
         return f"{self.pkid} [{self.name}] {self.user_id}"
 
-    def attrdict(self, full=False):
-        user_dict = AttrDict(self.asdict())
+    def asdict(self, full=False):
+        user_dict = super().asdict()
 
         if full:
             user_dict.user_addrs = list(
-                AttrDict(ua.asdict())
+                ua.asdict()
                 for ua in self.user_addrs
             )
 
@@ -79,7 +80,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         ).one_or_none()
 
         if u is not None:
-            return u.attrdict(full=full)
+            return u.asdict(full=full)
 
         elif not create:
             return None
@@ -105,7 +106,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         db.Session.add(user_)
         db.Session.commit()
 
-        return user_.attrdict(full=full)
+        return user_.asdict(full=full)
 
     @staticmethod
     async def update_info(db: DB, user_pk: int, info: dict, data: dict = None, over: bool = False) -> None:
@@ -171,13 +172,34 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
 
         user_addr: UserAddr = u.__addr_add(db, address)
         db.Session.commit()
-        return AttrDict(user=user_addr.user.asdict(), addr=user_addr.addr.asdict())
+        return user_addr.asdict()
 
     def __addr_add(self, db, address: str) -> UserAddr:
         addr = Addr.get(db, address, create=True)
+
         ua = UserAddr(user=self, addr=addr)
         db.Session.add(ua)
+
+        if ua.addr.addr_tp == Addr.Type.T:
+            self.__on_new_tokn_user_addr(db, ua)
+        elif ua.addr.addr_tp == Addr.Type.H:
+            self.__on_new_user_addr(db, ua)
+
         return ua
+
+    def __on_new_tokn_user_addr(self, db: DB, tokn_user_addr: UserAddr):
+        filt = lambda ua: (
+                ua != tokn_user_addr and
+                ua.addr.addr_tp == Addr.Type.H
+        )
+
+        for user_addr in filter(filt, self.user_addrs):
+            for tokn_addr in self.enumerate_user_addr_tokns(db, user_addr):
+                tokn_addr.update_balance(db)
+
+    def __on_new_user_addr(self, db: DB, user_addr: UserAddr):
+        for tokn_addr in self.enumerate_user_addr_tokns(db, user_addr):
+            tokn_addr.update_balance(db)
 
     @staticmethod
     async def addr_del(db: DB, user_pk: int, address: str) -> Optional[AttrDict]:
@@ -201,4 +223,13 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
                 addr_dict = addr.asdict()
                 ua._remove(db, ua.user.user_addrs)
                 db.Session.commit()
-                return AttrDict(addr_dict)
+                return addr_dict
+
+    def enumerate_user_addr_tokns(self, db: DB, user_addr: UserAddr) -> Generator[ToknAddr]:
+        filt = lambda ua: (
+                ua != user_addr and
+                ua.addr.addr_tp == Addr.Type.T
+        )
+
+        for user_addr_tokn in filter(filt, self.user_addrs):
+            yield user_addr_tokn.get_addr_tokn(db, user_addr.addr, create=True)

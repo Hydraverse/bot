@@ -150,9 +150,13 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
         except NoResultFound:
             addr: [Addr, Smac, Tokn] = Addr.make(addr_tp, addr_hx, addr_hy, **addr_attr)
-            db.Session.add(addr)
-            db.Session.commit()
+            addr.__on_new_addr(db)
             return addr
+
+    def __on_new_addr(self, db: DB):
+        db.Session.add(self)
+        db.Session.commit()
+        Block._on_new_addr(db, self)
 
     @staticmethod
     @lru_cache(maxsize=None)

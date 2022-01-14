@@ -35,7 +35,7 @@ async def addr(bot: HydraBot, msg: types.Message):
                         adr.addr_hx if addr_tp == Addr.Type.S else
                         (
                             f"{getattr(adr, 'symb', '(SC)')}: "
-                            f"{adr.name or '(Unknown name)'}\n"
+                            f"{getattr(adr, 'name', '(Unknown name)')}\n"
                             f"{adr.addr_hx}\n"
                         )
                     )

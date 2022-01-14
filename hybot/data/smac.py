@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, ForeignKey, String
 
-from .base import DbDataColumn
+from .base import DbDataColumn, dictattrs
 from .db import DB
 from .addr import Addr
 from .block import Block, TX
@@ -8,6 +8,7 @@ from .block import Block, TX
 __all__ = "Smac", "Tokn"
 
 
+@dictattrs("name")
 class Smac(Addr):
     __tablename__ = "smac"
     __mapper_args__ = {
@@ -20,13 +21,6 @@ class Smac(Addr):
 
     def __str__(self):
         return self.addr_hx
-
-    def asdict(self):
-        d = super().asdict()
-        d.update({
-            "name": self.name,
-        })
-        return d
 
     def on_new_block(self, db: DB, block: Block):
         # TODO: Optionally (?) also update name & Addr.validate_contract() info.
