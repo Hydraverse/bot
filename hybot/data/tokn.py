@@ -1,3 +1,6 @@
+from typing import Optional
+
+from hydra import log
 from sqlalchemy import Column, Integer, ForeignKey, String
 from sqlalchemy.orm import relationship
 
@@ -39,14 +42,24 @@ class Tokn(Smac):
         })
         return d
 
+    def balance_of(self, db: DB, addr: Addr) -> Optional[int]:
+        r = db.rpc.callcontract(self.addr_hx, "70a08231" + addr.addr_hx.rjust(64, "0"))  # balanceOf(address)
+
+        if r.executionResult.excepted != "None":
+            log.warning(f"Contract call failed: {str(r)}")
+            return None
+
+        return int(r.executionResult.output, 16)
+
+    def apply_deci(self, balance: int) -> float:
+        return balance / 10**self.deci
+
     def update_balances(self, db: DB, tx: TX):
         super().update_balances(db, tx)
 
-        tx_addrs = filter(lambda a: a != self, tuple(txa.addr for txa in tx.addr_txes))
-
-        for tokn_addr in self.tokn_addrs:
-            if tokn_addr.addr in tx_addrs:
-                tokn_addr.update_balance(db)
+        for tx_addr in filter(lambda txa: txa.addr.addr_tp == Addr.Type.H, tx.addr_txes):
+            tokn_addr = ToknAddr.get_for(db, self, tx_addr.addr, create=True)
+            tokn_addr.update_balance(db)
 
 
 from .tokn_addr import ToknAddr

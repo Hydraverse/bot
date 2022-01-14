@@ -37,17 +37,32 @@ class AddrTX(Base):
     def on_new_block_tx(db: DB, tx: TX) -> bool:
         """Correspond Addr's to TX."""
 
-        addresses = set()
+        addresses_hy = set()
+        addresses_hx = set()
 
         vo_filt = lambda vo: "scriptPubKey" in vo and "addresses" in vo["scriptPubKey"]
 
         for vout in filter(vo_filt, tx.vouts_out):
-            addresses.update(vout["scriptPubKey"]["addresses"])
+            addresses_hy.update(vout["scriptPubKey"]["addresses"])
 
         for vout in filter(vo_filt, tx.vouts_inp.values()):
-            addresses.update(vout["scriptPubKey"]["addresses"])
+            addresses_hy.update(vout["scriptPubKey"]["addresses"])
 
-        # TODO: Determine contract addresses from tx.logs
+        for log_ in tx.logs:
+            if "contractAddress" in log_:
+                addresses_hx.add(log_["contractAddress"])
+
+            if "from" in log_:
+                addresses_hx.add(log_["from"])
+
+            if "to" in log_:
+                addresses_hx.add(log_["to"])
+
+            for log__ in log_.log:
+                addresses_hx.add(log__["address"])
+
+        if not len(addresses_hy) and not len(addresses_hx):
+            return False
 
         from .addr import Addr
 
@@ -55,8 +70,8 @@ class AddrTX(Base):
             Addr,
         ).where(
             or_(
-                Addr.addr_hy.in_(addresses),
-                Addr.addr_hx.in_(addresses),
+                Addr.addr_hy.in_(addresses_hy),
+                Addr.addr_hx.in_(addresses_hx),
             )
         ).all()
 

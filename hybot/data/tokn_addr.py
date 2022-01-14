@@ -29,15 +29,21 @@ class ToknAddr(Base):
     tokn = relationship("Tokn", back_populates="tokn_addrs", foreign_keys=(tokn_pk,), passive_deletes=True)
     addr = relationship("Addr", back_populates="addr_tokns", foreign_keys=(addr_pk,), passive_deletes=True)
 
+    def asdict(self):
+        return {
+            "tokn": self.tokn.asdict(),
+            "addr": self.addr.asdict(),
+            "balance": self.balance,
+            "balance_deci": self.tokn.apply_deci(self.balance) if self.balance else self.balance
+        }
+
     def _remove(self, db: DB, tokn_addrs):
         tokn = self.tokn
         tokn_addrs.remove(self)
         tokn._removed_user(db)
 
     def update_balance(self, db: DB):
-        balance = self.balance
-
-        # TODO: Implement
+        balance = self.tokn.balance_of(db, self.addr)
 
         if balance != self.balance:
             self.balance = balance
@@ -45,29 +51,38 @@ class ToknAddr(Base):
 
     @staticmethod
     def get_for(db: DB, tokn: Tokn, addr: Addr, create=True) -> Optional[ToknAddr]:
-        if tokn.pkid is None or addr.pkid is None:
-            if create:
-                ta = ToknAddr(tokn=tokn, addr=addr)
-                db.Session.add(ta)
-                return ta
-            else:
-                return None
+        for tokn_addr in tokn.tokn_addrs:
+            if tokn_addr.addr == addr:
+                return tokn_addr
 
-        ta: ToknAddr = db.Session.query(
-            ToknAddr,
-        ).where(
-            and_(
-                ToknAddr.tokn_pk == tokn.pkid,
-                ToknAddr.addr_pk == addr.pkid
-            )
-        ).one_or_none()
-
-        if ta is not None or not create:
+        if create:
+            ta = ToknAddr(tokn=tokn, addr=addr)
+            db.Session.add(ta)
             return ta
 
-        ta = ToknAddr(tokn=tokn, addr=addr)
-        db.Session.add(ta)
-        return ta
+        # if tokn.pkid is None or addr.pkid is None:
+        #     if create:
+        #         ta = ToknAddr(tokn=tokn, addr=addr)
+        #         db.Session.add(ta)
+        #         return ta
+        #     else:
+        #         return None
+        #
+        # ta: ToknAddr = db.Session.query(
+        #     ToknAddr,
+        # ).where(
+        #     and_(
+        #         ToknAddr.tokn_pk == tokn.pkid,
+        #         ToknAddr.addr_pk == addr.pkid
+        #     )
+        # ).one_or_none()
+        #
+        # if ta is not None or not create:
+        #     return ta
+        #
+        # ta = ToknAddr(tokn=tokn, addr=addr)
+        # db.Session.add(ta)
+        # return ta
 
 
 Index(ToknAddr.__tablename__ + "_idx", ToknAddr.addr_pk, ToknAddr.tokn_pk)

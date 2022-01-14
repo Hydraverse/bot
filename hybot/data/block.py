@@ -65,13 +65,13 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
         for txno, votx in enumerate(list(self.info["tx"])):
             votx.n = txno  # Preserve ordering info after deletion.
 
-            logs = list(AttrDict(lg) for lg in filter(lambda lg_: lg_.transactionHash == votx.txid, self.logs))
-
-            for log_ in logs:
-                del log_.blockHash
-                del log_.blockNumber
-                del log_.transactionHash
-                del log_.transactionIndex
+            logs = list(
+                self.__remove_log(lg)
+                for lg in filter(
+                    lambda lg_: lg_.transactionHash == votx.txid,
+                    tuple(self.logs)
+                )
+            )
 
             if hasattr(votx, "vout"):
                 vouts_inp = Block.__get_vout_inp(db.rpc, votx)
@@ -97,6 +97,15 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
             db.Session.add(self)
 
         return added
+
+    def __remove_log(self, lo):
+        _lg = AttrDict(lo)
+        self.logs.remove(lo)
+        del _lg.blockHash
+        del _lg.blockNumber
+        del _lg.transactionHash
+        del _lg.transactionIndex
+        return _lg
 
     @staticmethod
     async def update_task(db: DB) -> None:
