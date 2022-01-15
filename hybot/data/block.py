@@ -114,7 +114,7 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
     @staticmethod
     def get(db: DB, height: int, create: Optional[bool] = True) -> Optional[Block]:
         try:
-            block: Block = db.Session.query(
+            block = db.Session.query(
                 Block,
             ).where(
                 Block.height == height,
@@ -151,7 +151,14 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
     def _on_new_addr(db: DB, addr) -> Optional[Block]:
         """Load the latest block & related txes for addr.
         """
-        # TODO: Implement this (probably just update balance?).
+        #
+        # TODO: Implement this if preloading addresses.
+        # if addr.addr_tp == addr.Type.H:
+        #     txes = db.rpc.listtransactions(label=addr.addr_hy, count=1, skip=0, include_watchonly=True)
+        #
+        #     if not len(txes):
+        #         return
+        #
         pass
 
     @staticmethod
