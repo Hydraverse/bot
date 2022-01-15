@@ -65,6 +65,7 @@ class AddrTX(Base):
 
         from .addr import Addr
 
+        # noinspection PyUnresolvedReferences
         addrs: List[Addr] = db.Session.query(
             Addr,
         ).where(
@@ -79,6 +80,7 @@ class AddrTX(Base):
         uatxes = []
 
         for addr in addrs:
+            # noinspection PyArgumentList
             uatx = AddrTX(addr=addr, tx=tx)
             uatxes.append(uatx)
             db.Session.add(uatx)

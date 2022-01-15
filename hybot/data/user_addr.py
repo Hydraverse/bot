@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship
 
 from .base import *
 from .db import DB
-from .addr import Addr, Tokn
+from .addr import Addr, Tokn, Smac
 from .tokn_addr import ToknAddr
 
 __all__ = "UserAddr",
@@ -29,24 +29,24 @@ class UserAddr(Base):
 
     addr = relationship("Addr", back_populates="addr_users", foreign_keys=(addr_pk,), passive_deletes=True)
 
-    tokn = relationship(
-        "Tokn",
-        viewonly=True,
-        primaryjoin="""and_(
-            Tokn.pkid == UserAddr.addr_pk,
-        )""",
-        foreign_keys=(addr_pk,)
-    )
-
     def asdict(self) -> AttrDict:
-        d = super(UserAddr, self).asdict()
+        d = super().asdict()
 
-        if self.addr.addr_tp == Addr.Type.T:
-            d.tokn = self.tokn.asdict()
-        else:
-            d.addr = self.addr.asdict()
+        d["tokn" if self.addr_is_tokn else "addr"] = self.addr.asdict()
 
         return d
+
+    @property
+    def addr_is_hydra(self) -> bool:
+        return self.addr.addr_tp == Addr.Type.H
+
+    @property
+    def addr_is_smac(self) -> bool:
+        return isinstance(self.addr, Smac)
+
+    @property
+    def addr_is_tokn(self) -> bool:
+        return isinstance(self.addr, Tokn)
 
     def _remove(self, db: DB, user_addrs):
         addr = self.addr
@@ -57,7 +57,7 @@ class UserAddr(Base):
         return ToknAddr.get_for(db, tokn, self.addr, create=create)
 
     def get_addr_tokn(self, db: DB, addr: Addr, create=True) -> Optional[ToknAddr]:
-        return ToknAddr.get_for(db, self.tokn, addr, create=create)
+        return ToknAddr.get_for(db, self.addr, addr, create=create)
 
 
 Index(UserAddr.__tablename__ + "_idx", UserAddr.user_pk, UserAddr.addr_pk)

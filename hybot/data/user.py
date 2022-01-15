@@ -34,13 +34,25 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
         single_parent=True,
+        primaryjoin="""and_(
+            UserAddr.user_pk == User.pkid,
+            UserAddr.addr_pk == Addr.pkid,
+            Addr.addr_tp == 'H'
+        )"""
     )
 
-    def user_addrs_hydra(self):
-        return filter(lambda ua: ua.addr.addr_tp == Addr.Type.H, list(self.user_addrs))
-
-    def user_addrs_token(self):
-        return filter(lambda ua: ua.addr.addr_tp == Addr.Type.T, list(self.user_addrs))
+    user_tokns = relationship(
+        UserAddr,
+        back_populates="user",
+        cascade="all, delete-orphan",
+        single_parent=True,
+        primaryjoin="""and_(
+            UserAddr.user_pk == User.pkid,
+            UserAddr.addr_pk == Addr.pkid,
+            Addr.addr_tp == 'T'
+        )""",
+        overlaps="user_addrs",
+    )
 
     def __str__(self):
         return f"{self.pkid} [{self.name}] {self.user_id}"
@@ -51,12 +63,12 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
         if full:
             user_dict.user_addrs = list(
                 ua.asdict()
-                for ua in self.user_addrs_hydra()
+                for ua in self.user_addrs
             )
 
             user_dict.user_tokns = list(
                 ut.asdict()
-                for ut in self.user_addrs_token()
+                for ut in self.user_tokns
             )
 
         return user_dict
@@ -161,8 +173,8 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
             return u.___delete(db)
         
     def ___delete(self, db: DB):
-        for user_addr in list(self.user_addrs_token()):
-            user_addr._remove(db, self.user_addrs)
+        for user_addr_tokn in list(self.user_tokns):
+            user_addr_tokn._remove(db, self.user_tokns)
 
         for user_addr in list(self.user_addrs):
             user_addr._remove(db, self.user_addrs)
@@ -233,10 +245,10 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
                 db.Session.commit()
                 return ua_dict
 
-    def enumerate_user_tokn_addrs(self, db: DB, user_tokn_addr: UserAddr) -> Generator[ToknAddr]:
-        for user_addr in self.user_addrs_hydra():
-            yield user_tokn_addr.get_addr_tokn(db, user_addr.addr, create=True)
+    def enumerate_user_tokn_addrs(self, db: DB, user_addr_tokn: UserAddr) -> Generator[ToknAddr]:
+        for user_addr in self.user_addrs:
+            yield user_addr_tokn.get_addr_tokn(db, user_addr.addr, create=True)
 
     def enumerate_user_addr_tokns(self, db: DB, user_addr: UserAddr) -> Generator[ToknAddr]:
-        for user_tokn_addr in self.user_addrs_token():
-            yield user_tokn_addr.get_addr_tokn(db, user_addr.addr, create=True)
+        for user_addr_tokn in self.user_tokns:
+            yield user_addr_tokn.get_addr_tokn(db, user_addr.addr, create=True)

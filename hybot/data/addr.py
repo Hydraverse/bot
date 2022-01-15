@@ -7,7 +7,7 @@ import binascii
 from attrdict import AttrDict
 from hydra import log
 from hydra.rpc.hydra_rpc import BaseRPC, HydraRPC
-from sqlalchemy import Column, String, Enum, Integer, ForeignKey
+from sqlalchemy import Column, String, Enum, Integer, ForeignKey, select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import relationship, lazyload
 
@@ -67,7 +67,8 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
     __mapper_args__ = {
         "polymorphic_identity": Type.H,
-        "polymorphic_on": addr_tp
+        "polymorphic_on": addr_tp,
+        "with_polymorphic": "*",
     }
 
     @staticmethod
@@ -248,3 +249,5 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
 
 from .smac import Smac, Tokn
+
+__addrs__ = select()
