@@ -37,10 +37,10 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     )
 
     def user_addrs_hydra(self):
-        return filter(lambda ua: ua.addr.addr_tp == Addr.Type.H, self.user_addrs)
+        return filter(lambda ua: ua.addr.addr_tp == Addr.Type.H, list(self.user_addrs))
 
     def user_addrs_token(self):
-        return filter(lambda ua: ua.addr.addr_tp == Addr.Type.T, self.user_addrs)
+        return filter(lambda ua: ua.addr.addr_tp == Addr.Type.T, list(self.user_addrs))
 
     def __str__(self):
         return f"{self.pkid} [{self.name}] {self.user_id}"
@@ -161,6 +161,9 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
             return u.___delete(db)
         
     def ___delete(self, db: DB):
+        for user_addr in list(self.user_addrs_token()):
+            user_addr._remove(db, self.user_addrs)
+
         for user_addr in list(self.user_addrs):
             user_addr._remove(db, self.user_addrs)
 

@@ -106,12 +106,17 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             self.balance = balance
             db.Session.add(self)
 
-    # noinspection PyPep8Naming
-    def __UNUSED_ensure_imported(self, db: DB):
+    def __ensure_imported(self, db: DB):
         if self.addr_tp == Addr.Type.H:
             if self.addr_hy not in db.rpc.listlabels():
                 log.info(f"Importing address {self.addr_hy}")
                 db.rpc.importaddress(self.addr_hy, self.addr_hy)
+
+    def __on_new_addr(self, db: DB):
+        db.Session.add(self)
+        db.Session.commit()  # <-- TODO: Ensure that this is necessary.
+        self.__ensure_imported(db)
+        Block._on_new_addr(db, self)
 
     def _removed_user(self, db: DB):
         if not len(self.addr_users):
@@ -152,11 +157,6 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             addr: [Addr, Smac, Tokn] = Addr.__make(addr_tp, addr_hx, addr_hy, **addr_attr)
             addr.__on_new_addr(db)
             return addr
-
-    def __on_new_addr(self, db: DB):
-        db.Session.add(self)
-        db.Session.commit()
-        Block._on_new_addr(db, self)
 
     @staticmethod
     @lru_cache(maxsize=None)

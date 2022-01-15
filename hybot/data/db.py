@@ -37,7 +37,7 @@ class DB(DbOperatorMixin):
     FILE_NAME = "hybot"
     FILE_PATH = os.path.abspath(os.path.join(os.getcwd(), f"{FILE_DIR}/{FILE_NAME}.sqlite3"))
 
-    WALLET = None  # Unused for now
+    WALLET = "hybot"
 
     def __init__(self, rpc: HydraRPC, url: str, *args, **kwds):
         log.debug(f"db: open url='{url}'")
