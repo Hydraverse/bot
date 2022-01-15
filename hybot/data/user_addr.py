@@ -15,7 +15,7 @@ from .tokn_addr import ToknAddr
 __all__ = "UserAddr",
 
 
-@dictattrs("user", "addr")
+@dictattrs("user")
 class UserAddr(Base):
     __tablename__ = "user_addr"
     __table_args__ = (
@@ -26,30 +26,27 @@ class UserAddr(Base):
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
 
     user = relationship("User", back_populates="user_addrs", passive_deletes=True)
-    addr = relationship("Addr", back_populates="addr_users", passive_deletes=True)
-    tokn = relationship("Tokn", back_populates="tokn_users", primaryjoin="and_(UserAddr.addr_pk == Addr.pkid, Tokn.pkid == Addr.pkid)")
 
-    # Polymorphic relations
-    # smac = relationship("Smac", primaryjoin="Smac.pkid == UserAddr.addr_pk", passive_deletes=True)
-    # tokn = relationship("Tokn", primaryjoin="Tokn.pkid == UserAddr.addr_pk", passive_deletes=True)
+    addr = relationship("Addr", back_populates="addr_users", foreign_keys=(addr_pk,), passive_deletes=True)
 
-    # def asdict(self, full=True) -> AttrDict:
-    #     attrs = super().asdict()
-    #
-    #     if not full:
-    #         attrs.addr = self.addr.asdict()
-    #         return attrs
-    #
-    #     if self.addr.addr_tp == Addr.Type.T:
-    #         attrs.addr = self.tokn.asdict()
-    #
-    #     elif self.addr.addr_tp == Addr.Type.S:
-    #         attrs.addr = self.smac.asdict()
-    #
-    #     else:
-    #         attrs.addr = self.addr.asdict()
-    #
-    #     return attrs
+    tokn = relationship(
+        "Tokn",
+        viewonly=True,
+        primaryjoin="""and_(
+            Tokn.pkid == UserAddr.addr_pk,
+        )""",
+        foreign_keys=(addr_pk,)
+    )
+
+    def asdict(self) -> AttrDict:
+        d = super(UserAddr, self).asdict()
+
+        if self.addr.addr_tp == Addr.Type.T:
+            d.tokn = self.tokn.asdict()
+        else:
+            d.addr = self.addr.asdict()
+
+        return d
 
     def _remove(self, db: DB, user_addrs):
         addr = self.addr
