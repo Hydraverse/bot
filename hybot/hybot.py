@@ -1,7 +1,6 @@
 """Hydra Bot Application.
 """
 from argparse import ArgumentParser
-import code
 
 from hydra.app import HydraApp
 from hydra.rpc import HydraRPC
@@ -51,11 +50,17 @@ class Hybot(HydraApp):
         self.db = DB.default(self.rpc)
 
         if self.args.shell:
-            code.interact(local=locals())
-            exit(0)
+            return self.shell()
 
         if bot == "HydraBot":
             HydraBot.main(self.rpc, self.db)
+
+    # noinspection PyMethodMayBeStatic,PyUnresolvedReferences,PyBroadException
+    def shell(self):
+        import sys, traceback, code
+        from hybot.data import DB, Addr, Smac, Tokn, TX, AddrTX, User, UserAddr, Block
+        code.interact(local=locals())
+        exit(0)
 
 
 @Test.register()
