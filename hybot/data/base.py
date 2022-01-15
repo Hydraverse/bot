@@ -1,5 +1,5 @@
 from attrdict import AttrDict
-from sqlalchemy import Column, DateTime, func, Integer
+from sqlalchemy import Column, DateTime, func, Integer, Sequence
 from sqlalchemy.orm import declarative_base
 from sqlalchemy_json import NestedMutableJson
 
@@ -47,9 +47,12 @@ DbDataColumn = lambda: Column(NestedMutableJson, nullable=False, index=False, de
 
 
 class DbPkidMixin:
-    __mapper_args__ = {"eager_defaults": True}
+    __mapper_args__ = {
+        "eager_defaults": True,
+    }
 
     pkid = Column(Integer, nullable=False, unique=True, primary_key=True, autoincrement=True, index=True)
+    # pkid = Column(Integer, Sequence("pkid_seq", metadata=Base.metadata), nullable=False, unique=True, primary_key=True, index=True)
 
 
 class DbDateMixin:
