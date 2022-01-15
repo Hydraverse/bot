@@ -17,7 +17,6 @@ class AddrTX(Base):
     __table_args__ = (
         UniqueConstraint("addr_pk", "tx_pk", name="_addr_tx_uc"),
     )
-    __mapper_args__ = {"eager_defaults": True}
 
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
     tx_pk = Column(Integer, ForeignKey("tx.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)

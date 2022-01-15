@@ -36,6 +36,8 @@ def dictattrs(*attrs):
 
 
 class Base:
+    __mapper_args__ = {"eager_defaults": True}
+
     def asdict(self) -> AttrDict:
         return getattr(self, "_asdict", AttrDict)()
 
@@ -47,17 +49,11 @@ DbDataColumn = lambda: Column(NestedMutableJson, nullable=False, index=False, de
 
 
 class DbPkidMixin:
-    __mapper_args__ = {
-        "eager_defaults": True,
-    }
-
     pkid = Column(Integer, nullable=False, unique=True, primary_key=True, autoincrement=True, index=True)
     # pkid = Column(Integer, Sequence("pkid_seq", metadata=Base.metadata), nullable=False, unique=True, primary_key=True, index=True)
 
 
 class DbDateMixin:
-    __mapper_args__ = {"eager_defaults": True}
-
     date_create = Column(DateTime, default=func.now(), nullable=False, index=False)
     date_update = Column(DateTime, onupdate=func.now(), index=True)
 

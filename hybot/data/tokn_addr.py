@@ -20,7 +20,6 @@ class ToknAddr(Base):
     __table_args__ = (
         UniqueConstraint("tokn_pk", "addr_pk", name="_tokn_addr_uc"),
     )
-    __mapper_args__ = {"eager_defaults": True}
 
     tokn_pk = Column(Integer, ForeignKey("tokn.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
