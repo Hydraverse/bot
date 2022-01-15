@@ -42,10 +42,10 @@ class HydraBot(Bot):
 
         return cls._
 
-    def __init__(self, rpc: HydraRPC):
+    def __init__(self, rpc: HydraRPC, db_: DB):
         self.rpc = rpc
         self.conf = Config.get(HydraBot, defaults=True)
-        self.db = DB.default(self.rpc)
+        self.db = db_
 
         token = self.conf.token
 
@@ -77,8 +77,8 @@ class HydraBot(Bot):
         super().__init__(token, parse_mode="HTML")
 
     @staticmethod
-    def main(rpc: HydraRPC):
-        return HydraBot(rpc).run()
+    def main(rpc: HydraRPC, db_: DB):
+        return HydraBot(rpc, db_).run()
 
     @staticmethod
     @dp.message(commands={"echo"})
