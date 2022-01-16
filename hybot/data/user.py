@@ -10,20 +10,17 @@ from sqlalchemy.orm import relationship, lazyload
 from .base import *
 from .db import DB
 from .addr import Addr, Smac, Tokn
-from .user_pkid import UserPkid, DbUserPkidMixin
+from .user_uniq import UserUniq, DbUserUniqMixin
 from .user_addr import UserAddr
 from .user_addr_tx import UserAddrTX
 from .tokn_addr import ToknAddr
 
-__all__ = "User", "UserPkid", "UserAddr", "UserAddrTX"
+__all__ = "User", "UserUniq", "UserAddr", "UserAddrTX"
 
 
-@dictattrs("pkid", "name", "user_id", "date_create", "date_update", "info", "data")
-class User(DbUserPkidMixin, DbDateMixin, Base):
+@dictattrs("pkid", "uniq", "user_id", "info", "data")
+class User(DbUserUniqMixin, Base):
     __tablename__ = "user"
-
-    pkid = DbUserPkidMixin.pkid()
-    name = DbUserPkidMixin.name()
 
     user_id = Column(Integer, nullable=False, unique=True, primary_key=False, index=True)
 
@@ -63,7 +60,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
     )
 
     def __str__(self):
-        return f"{self.pkid} [{self.name}] {self.user_id}"
+        return f"{self.pkid} [{self.uniq.name}] {self.user_id}"
 
     def asdict(self, full=False) -> AttrDict:
         user_dict = super().asdict()
@@ -117,10 +114,10 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
             return None
 
         while True:
-            pkid = UserPkid()
+            uniq = UserUniq(db)
 
             try:
-                db.Session.add(pkid)
+                db.Session.add(uniq)
                 db.Session.commit()
                 break
             except IntegrityError:
@@ -129,8 +126,7 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
                 continue
 
         user_ = User(
-            pkid=pkid.pkid,
-            name=pkid.name,
+            uniq=uniq,
             user_id=user_id,
         )
 

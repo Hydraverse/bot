@@ -20,7 +20,7 @@ async def hello(bot: HydraBot, msg: types.Message):
     )
 
     response_uid = (
-        f"Your unique Hydraverse ID and name:\n  <b><pre>{u.pkid}: {u.name}</pre></b>\n\n"
+        f"Your unique Hydraverse ID and name:\n  <b><pre>{u.pkid}: {u.uniq.name}</pre></b>\n\n"
     )
 
     # noinspection PyGlobalUndefined
