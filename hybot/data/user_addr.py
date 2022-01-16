@@ -25,8 +25,8 @@ class UserAddr(Base):
     user_pk = Column(Integer, ForeignKey("user.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
 
-    user = relationship("User", back_populates="user_addrs", passive_deletes=True)
-    addr = relationship("Addr", back_populates="addr_users", foreign_keys=(addr_pk,), passive_deletes=True)
+    user = relationship("User", back_populates="user_addrs")
+    addr = relationship("Addr", back_populates="addr_users", foreign_keys=[addr_pk])
 
     user_addr_txes = relationship(
         "UserAddrTX",

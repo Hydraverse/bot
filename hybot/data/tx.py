@@ -25,7 +25,9 @@ class TX(DbPkidMixin, DbUserDataMixin, Base):
     user_data = DbUserDataMixin.user_data()
 
     block = relationship(
-        "Block", back_populates="txes", passive_deletes=True)
+        "Block",
+        back_populates="txes"
+    )
 
     addr_txes = relationship(
         "AddrTX",

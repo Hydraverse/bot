@@ -38,9 +38,10 @@ class Tokn(Smac):
 
     def balance_of(self, db: DB, addr: Addr) -> Optional[int]:
         try:
-            for qbal in addr.info.get("qrc20Balances", {}):
-                if qbal.get("addressHex", ...) == self.addr_hx:
-                    return qbal["balance"]
+            # NOTE: Currently removed by Addr.update_balances()
+            # for qbal in addr.info.get("qrc20Balances", {}):
+            #     if qbal.get("addressHex", ...) == self.addr_hx:
+            #         return qbal["balance"]
 
             return self.__balance_of_rpc(db, addr)
         except BaseRPC.Exception as exc:

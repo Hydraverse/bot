@@ -48,4 +48,4 @@ class DbUserUniqMixin:
 
     @declared_attr
     def uniq(self):
-        return relationship("UserUniq", passive_deletes="all")
+        return relationship("UserUniq")

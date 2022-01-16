@@ -23,8 +23,8 @@ class AddrTX(DbPkidMixin, Base):
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=False, index=True)
     tx_pk = Column(Integer, ForeignKey("tx.pkid", ondelete="CASCADE"), nullable=False, primary_key=False, index=True)
 
-    addr = relationship("Addr", back_populates="addr_txes", passive_deletes=True)
-    tx = relationship("TX", back_populates="addr_txes", passive_deletes=True)
+    addr = relationship("Addr", back_populates="addr_txes")
+    tx = relationship("TX", back_populates="addr_txes")
 
     addr_tx_users = relationship(
         UserAddrTX,

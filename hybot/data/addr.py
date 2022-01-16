@@ -96,10 +96,12 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
         self.on_new_tx(db, tx)
 
         has_users = False
+        uatxes = []
 
         for addr_user in self.addr_users:
-            uatx = UserAddrTX(user=addr_user.user, addr_tx=addr_tx)
+            uatxes.append(UserAddrTX(user=addr_user.user, addr_tx=addr_tx))
 
+        for uatx in uatxes:
             if uatx.on_new_addr_tx(db):
                 has_users = True
 
@@ -123,10 +125,23 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
                 info = db.rpcx.get_address(self.addr_hy)
             else:
                 info = db.rpcx.get_contract(self.addr_hx)
+                del info["addressHex"]
+
+                # TODO: Determine why this is different on explorer and how to acquire!
+                #   e.g. 09188dbfe8e915e6a3c42842b079432007a3673f
+                #        -> e2vb5jpC2hodZuqRefGd7XVWPZQEbqd8uk (explorer api)
+                #        -> Ta8uUv4ha1krJeDB1kcLWGR42ShiA3Fpxy (fromhexaddress)
+                # del info["address"]
 
         except BaseRPC.Exception as exc:
             log.critical(f"Addr RPC error: {str(exc)}", exc_info=exc)
             return None
+
+        # NOTE: If loading token balances from Explorer, keep this data.
+        #       Current decision is to load directly from local blockchain db.
+        #       Leaves behind any qrc721 balances.
+        if "qrc20Balances" in info:
+            del info["qrc20Balances"]
 
         if "balance" in info:
             balanc = info.balance

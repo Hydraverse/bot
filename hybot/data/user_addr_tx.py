@@ -19,11 +19,10 @@ class UserAddrTX(Base):
     user_pk = Column(Integer, ForeignKey("user.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
     addr_tx_pk = Column(Integer, ForeignKey("addr_tx.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
 
-    user = relationship("User", back_populates="user_addr_txes", foreign_keys=[user_pk], passive_deletes=True)
+    user = relationship("User", back_populates="user_addr_txes", foreign_keys=[user_pk])
     addr_tx = relationship(
         "AddrTX",
-        back_populates="addr_tx_users",
-        passive_deletes=True,
+        back_populates="addr_tx_users"
     )
 
     def on_new_addr_tx(self, db: DB) -> bool:

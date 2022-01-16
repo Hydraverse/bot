@@ -28,6 +28,7 @@ class Smac(Addr):
 
     def on_new_block(self, db: DB, block: Block):
         # TODO: Optionally (?) also update name & Addr.validate_contract() info.
+        super().on_new_block(db, block)
 
         try:
             stor = db.rpc.getstorage(self.addr_hx, self.block_h)
@@ -35,10 +36,9 @@ class Smac(Addr):
             log.critical(f"Smac RPC error: {str(exc)}", exc_info=exc)
             pass
         else:
-            self.stor = stor
-            # db.Session.add ??
-
-        super().on_new_block(db, block)
+            if stor != self.stor:
+                self.stor = stor
+                db.Session.add(self)
 
     def update_balances(self, db, tx: Optional[TX]):
         # Contract HYDRA balance retrieved by Addr.

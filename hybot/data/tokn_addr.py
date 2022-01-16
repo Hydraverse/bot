@@ -23,11 +23,11 @@ class ToknAddr(Base):
 
     tokn_pk = Column(Integer, ForeignKey("tokn.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
-    block_h = Column(Integer, nullable=True, index=True)
+    block_h = Column(Integer, nullable=True)
     balance = Column(Integer, nullable=True)
 
-    tokn = relationship("Tokn", back_populates="tokn_addrs", foreign_keys=(tokn_pk,), passive_deletes=True)
-    addr = relationship("Addr", back_populates="addr_tokns", foreign_keys=(addr_pk,), passive_deletes=True)
+    tokn = relationship("Tokn", back_populates="tokn_addrs", foreign_keys=[tokn_pk])
+    addr = relationship("Addr", back_populates="addr_tokns", foreign_keys=[addr_pk])
 
     def asdict(self):
         return AttrDict({
@@ -44,12 +44,9 @@ class ToknAddr(Base):
         tokn._removed_user(db)
 
     def update_balance(self, db: DB, tx: Optional[TX] = None):
-        # height = tx.block.height if tx is not None else db.rpc.getblockcount()
         height = (
-            tx.block.height
-            if tx is not None else
-            self.addr.block_h
-            if self.addr.block_h is not None else
+            tx.block.height if tx is not None else
+            self.addr.block_h if self.addr.block_h else
             db.rpc.getblockcount()
         )
 
