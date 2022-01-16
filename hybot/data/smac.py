@@ -1,3 +1,7 @@
+from typing import Optional
+
+from hydra import log
+from hydra.rpc.base import BaseRPC
 from sqlalchemy import Column, Integer, ForeignKey, String
 
 from .base import DbDataColumn, dictattrs
@@ -24,13 +28,21 @@ class Smac(Addr):
 
     def on_new_block(self, db: DB, block: Block):
         # TODO: Optionally (?) also update name & Addr.validate_contract() info.
-        self.stor = db.rpc.getstorage(self.addr_hx, self.block_h)
+
+        try:
+            stor = db.rpc.getstorage(self.addr_hx, self.block_h)
+        except BaseRPC.Exception as exc:
+            log.critical(f"Smac RPC error: {str(exc)}", exc_info=exc)
+            pass
+        else:
+            self.stor = stor
+            # db.Session.add ??
+
         super().on_new_block(db, block)
 
-    def update_balances(self, db, tx: TX):
-        # TODO: Implement this -- get HYDRA balance of smart contract
-        #   (override super, do not call)
-        pass
+    def update_balances(self, db, tx: Optional[TX]):
+        # Contract HYDRA balance retrieved by Addr.
+        return super().update_balances(db, tx)
 
 
 from .tokn import Tokn

@@ -44,7 +44,14 @@ class ToknAddr(Base):
         tokn._removed_user(db)
 
     def update_balance(self, db: DB, tx: Optional[TX] = None):
-        height = tx.block.height if tx is not None else db.rpc.getblockcount()
+        # height = tx.block.height if tx is not None else db.rpc.getblockcount()
+        height = (
+            tx.block.height
+            if tx is not None else
+            self.addr.block_h
+            if self.addr.block_h is not None else
+            db.rpc.getblockcount()
+        )
 
         if self.block_h != height:
             self.block_h = height

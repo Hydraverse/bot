@@ -4,13 +4,13 @@ import os
 from typing import Dict
 
 import sqlalchemy.exc
-from hydra.rpc.base import BaseRPC
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 import asyncio
 
-from hydra.rpc import HydraRPC
+from hydra.rpc.base import BaseRPC
+from hydra.rpc import HydraRPC, ExplorerRPC
 from hydra import log
 
 
@@ -45,6 +45,7 @@ class DB(DbOperatorMixin):
         self.Session = scoped_session(sessionmaker(bind=self.engine))
         Base.metadata.create_all(self.engine)
         self.rpc = rpc
+        self.rpcx = ExplorerRPC(mainnet=rpc.mainnet)
         self.__init_wallet()
 
     def __hash__(self):
@@ -58,7 +59,7 @@ class DB(DbOperatorMixin):
                 log.info(f"Wallet '{DB.WALLET}' loaded.")
             except BaseRPC.Exception:
                 log.warning(f"Creating wallet '{DB.WALLET}'...")
-                self.rpc.createwallet(DB.WALLET, disable_private_keys=True, blank=True)
+                self.rpc.createwallet(DB.WALLET, disable_private_keys=False, blank=False)
                 log.warning(f"Wallet '{DB.WALLET}' created.")
 
     @staticmethod

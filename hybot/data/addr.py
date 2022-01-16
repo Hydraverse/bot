@@ -44,6 +44,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     addr_hy = Column(String(34), nullable=False, unique=True, index=True)
     block_h = Column(Integer, nullable=True, index=True)
     balance = Column(Integer, nullable=True)
+    info = DbInfoColumn()
 
     addr_users = relationship(
         "UserAddr",
@@ -105,19 +106,44 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
         return has_users
 
     def on_new_block(self, db: DB, block: Block):
-        pass
+        self.update_balances(db, tx=None)
 
     def on_new_tx(self, db: DB, tx: TX):
         self.update_balances(db, tx)
 
-    # noinspection PyUnusedLocal
-    def update_balances(self, db: DB, tx: TX):
-        balance = int(db.rpc.getbalanceofaddress(self.addr_hy) * 10**8)
+    def update_balances(self, db: DB, tx: Optional[TX]):
+        if tx is not None:
+            return  # Only update info & balance once per new block.
 
-        if self.balance != balance:
-            self.balance = balance
+        add = False
+        balanc = ...
+
+        try:
+            if self.addr_tp == Addr.Type.H:
+                info = db.rpcx.get_address(self.addr_hy)
+            else:
+                info = db.rpcx.get_contract(self.addr_hx)
+
+        except BaseRPC.Exception as exc:
+            log.critical(f"Addr RPC error: {str(exc)}", exc_info=exc)
+            return None
+
+        if "balance" in info:
+            balanc = info.balance
+            del info.balance
+
+        if info != self.info:
+            self.info = info
+            add = True
+
+        if balanc is not ... and self.balance != balanc:
+            self.balance = balanc
+            add = True
+
+        if add:
             db.Session.add(self)
 
+    # noinspection PyUnusedLocal
     def __ensure_imported(self, db: DB):
         if self.addr_tp == Addr.Type.H:
             if self.addr_hy not in db.rpc.listlabels():
@@ -125,9 +151,9 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
                 db.rpc.importaddress(self.addr_hy, self.addr_hy)
 
     def __on_new_addr(self, db: DB):
+        self.update_balances(db, tx=None)
         db.Session.add(self)
         db.Session.commit()  # <-- TODO: Ensure that this is necessary.
-        self.__ensure_imported(db)
         Block._on_new_addr(db, self)
 
     def _removed_user(self, db: DB):
@@ -188,29 +214,34 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
         if addr_tp is None:
             raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (bad length)")
 
-        if addr_tp == Addr.Type.H:
+        try:
+            if addr_tp == Addr.Type.H:
 
-            valid = Addr.validate(db, address)
+                valid = Addr.validate(db, address)
 
-            if not valid.isvalid:
-                raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (validation failed)")
+                if not valid.isvalid:
+                    raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (validation failed)")
 
-            addr_hy = valid.address
-            addr_hx = db.rpc.gethexaddress(address)
+                addr_hy = valid.address
+                addr_hx = db.rpc.gethexaddress(address)
 
-        elif addr_tp == Addr.Type.S:
+            elif addr_tp == Addr.Type.S:
 
-            try:
-                addr_hx = hex(int(address, 16))[2:].rjust(40, "0")  # ValueError on int() fail
-            except ValueError:
-                raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (conversion failed)")
+                try:
+                    addr_hx = hex(int(address, 16))[2:].rjust(40, "0")  # ValueError on int() fail
+                except ValueError:
+                    raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (conversion failed)")
 
-            addr_hy = db.rpc.fromhexaddress(addr_hx)
+                addr_hy = db.rpc.fromhexaddress(addr_hx)
 
-            addr_tp, attrs = Addr.__validate_contract(db, addr_hx)
+                addr_tp, attrs = Addr.__validate_contract(db, addr_hx)
 
-        else:
-            raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (bad type)")
+            else:
+                raise ValueError(f"Invalid HYDRA or smart contract address '{address}' (bad type)")
+
+        except BaseRPC.Exception as exc:
+            log.critical(f"Addr normalize RPC error: {str(exc)}", exc_info=exc)
+            raise
 
         return addr_tp, addr_hx, addr_hy, attrs
 
