@@ -15,6 +15,7 @@ from .base import *
 from .db import DB
 from .block import Block, TX
 from .addr_tx import AddrTX
+from .user_addr_tx import UserAddrTX
 
 __all__ = "Addr", "AddrTX", "Smac", "Tokn"
 
@@ -85,13 +86,23 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     def __str__(self):
         return self.addr_hy
 
-    def on_new_addr_tx(self, db: DB, addr_tx: AddrTX):
+    def on_new_addr_tx(self, db: DB, addr_tx: AddrTX) -> bool:
         tx = addr_tx.tx
         if self.block_h != tx.block.height:
             self.block_h = tx.block.height
             self.on_new_block(db, tx.block)
 
         self.on_new_tx(db, tx)
+
+        has_users = False
+
+        for addr_user in self.addr_users:
+            uatx = UserAddrTX(user=addr_user.user, addr_tx=addr_tx)
+
+            if uatx.on_new_addr_tx(db):
+                has_users = True
+
+        return has_users
 
     def on_new_block(self, db: DB, block: Block):
         pass

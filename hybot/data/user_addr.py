@@ -26,8 +26,17 @@ class UserAddr(Base):
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
 
     user = relationship("User", back_populates="user_addrs", passive_deletes=True)
-
     addr = relationship("Addr", back_populates="addr_users", foreign_keys=(addr_pk,), passive_deletes=True)
+
+    user_addr_txes = relationship(
+        "UserAddrTX",
+        viewonly=True,
+        primaryjoin="""and_(
+            UserAddrTX.user_pk == UserAddr.user_pk,
+            UserAddrTX.addr_tx_pk == AddrTX.pkid,
+            AddrTX.addr_pk == UserAddr.addr_pk,
+        )"""
+    )
 
     def asdict(self) -> AttrDict:
         d = super().asdict()
@@ -49,6 +58,10 @@ class UserAddr(Base):
         return isinstance(self.addr, Tokn)
 
     def _remove(self, db: DB, user_addrs):
+
+        for user_addr_tx in self.user_addr_txes:
+            user_addr_tx._remove(db, self.user.user_addr_txes)
+
         addr = self.addr
         user_addrs.remove(self)
         addr._removed_user(db)

@@ -37,7 +37,7 @@ class TX(DbPkidMixin, DbUserDataMixin, Base):
     def _removed_addr(self, db: DB):
         if not len(self.addr_txes):
             if not len(self.user_data):
-                log.info(f"Deleting TX #{self.block_txno} from block #{self.block.height}.")
+                log.info(f"Removing TX #{self.block_txno} from block #{self.block.height}.")
                 block = self.block
                 block.txes.remove(self)
                 block._delete_if_unused(db)
@@ -45,8 +45,11 @@ class TX(DbPkidMixin, DbUserDataMixin, Base):
                 log.info(f"Keeping TX #{self.block_txno} from block #{self.block.height} with non-empty user data.")
 
     def on_new_block(self, db: DB) -> bool:
+        block = self.block
+
         if not AddrTX.on_new_block_tx(db, self):
-            log.debug(f"Not adding TX #{self.block_txno} from block #{self.block.height} with no current subscribers.")
+            log.debug(f"Not adding TX #{self.block_txno} from block #{block.height} with no current subscribers.")
+            db.Session.delete(self)
             return False
 
         log.info(f"Adding TX #{self.block_txno} from block #{self.block.height} with {len(self.addr_txes)} subscriber(s).")

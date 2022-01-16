@@ -54,7 +54,7 @@ class Tokn(Smac):
     def update_balances(self, db: DB, tx: TX):
         super().update_balances(db, tx)
 
-        for tx_addr in filter(lambda txa: txa.addr.addr_tp == Addr.Type.H, tx.addr_txes):
+        for tx_addr in filter(lambda txa: txa.addr, tx.addr_txes):
             tokn_addr = ToknAddr.get_for(db, self, tx_addr.addr, create=True)
             tokn_addr.update_balance(db, tx)
 

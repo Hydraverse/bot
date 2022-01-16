@@ -2,35 +2,56 @@ from __future__ import annotations
 
 from typing import List
 
-from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, Index, or_, event
+from hydra import log
+from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, Index, or_, and_
 from sqlalchemy.orm import relationship
 
 from .base import *
 from .db import DB
 from .tx import TX
+from .user_addr_tx import UserAddrTX
 
 __all__ = "AddrTX",
 
 
-class AddrTX(Base):
+class AddrTX(DbPkidMixin, Base):
     __tablename__ = "addr_tx"
     __table_args__ = (
         UniqueConstraint("addr_pk", "tx_pk", name="_addr_tx_uc"),
     )
 
-    addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
-    tx_pk = Column(Integer, ForeignKey("tx.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
+    addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=False, index=True)
+    tx_pk = Column(Integer, ForeignKey("tx.pkid", ondelete="CASCADE"), nullable=False, primary_key=False, index=True)
 
     addr = relationship("Addr", back_populates="addr_txes", passive_deletes=True)
     tx = relationship("TX", back_populates="addr_txes", passive_deletes=True)
+
+    addr_tx_users = relationship(
+        UserAddrTX,
+        back_populates="addr_tx",
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
+    def _removed_user(self, db: DB):
+        if not len(self.addr_tx_users):
+            log.info(f"Deleting Block {self.tx.block.height} TX {self.tx.block_txno} for addr {str(self.addr)} with no users.")
+            self._remove(db, self.addr.addr_txes)
 
     def _remove(self, db: DB, addr_txes):
         tx = self.tx
         addr_txes.remove(self)
         tx._removed_addr(db)
 
-    def on_new_addr_tx(self, db: DB):
-        self.addr.on_new_addr_tx(db, self)
+    def on_new_addr_tx(self, db: DB) -> bool:
+        tx = self.tx
+
+        if not self.addr.on_new_addr_tx(db, self):
+            tx.addr_txes.remove(self)
+            tx._removed_addr(db)
+            return False
+
+        return True
 
     @staticmethod
     def on_new_block_tx(db: DB, tx: TX) -> bool:
@@ -69,28 +90,46 @@ class AddrTX(Base):
         addrs: List[Addr] = db.Session.query(
             Addr,
         ).where(
-            or_(
-                Addr.addr_hy.in_(addresses_hy),
-                Addr.addr_hx.in_(addresses_hx),
+            and_(
+                # Addr.addr_tp == Addr.Type.H,
+                or_(
+                    Addr.addr_hy.in_(addresses_hy),
+                    Addr.addr_hx.in_(addresses_hx),
+                )
             )
         ).all()
 
-        added = False
+        added = 0
+        removed = 0
 
-        uatxes = []
+        addr_txes = []
 
         for addr in addrs:
             # noinspection PyArgumentList
-            uatx = AddrTX(addr=addr, tx=tx)
-            uatxes.append(uatx)
-            db.Session.add(uatx)
-            added = True
+            addr_tx = AddrTX(addr=addr, tx=tx)
+            db.Session.add(addr_tx)
+            added += 1
+            addr_txes.append(addr_tx)
 
-        # Call after list is fully formed
-        for uatx in uatxes:
-            uatx.on_new_addr_tx(db)
+        if added > 0:
+            # db.Session.commit()
 
-        return added
+            # addr_txes: List[AddrTX] = db.Session.query(
+            #     AddrTX,
+            # ).where(AddrTX.tx_pk == tx.pkid).all()
+
+            # Call after list is fully formed
+            for addr_tx in addr_txes:
+                if not addr_tx.on_new_addr_tx(db):
+                    removed += 1
+
+        if removed > 0:
+            # db.Session.commit()
+            pass
+
+        added -= removed
+
+        return added > 0
 
 
 Index(AddrTX.__tablename__ + "_idx", AddrTX.addr_pk, AddrTX.tx_pk)

@@ -12,9 +12,10 @@ from .db import DB
 from .addr import Addr, Smac, Tokn
 from .user_pkid import UserPkid, DbUserPkidMixin
 from .user_addr import UserAddr
+from .user_addr_tx import UserAddrTX
 from .tokn_addr import ToknAddr
 
-__all__ = "User", "UserPkid", "UserAddr",
+__all__ = "User", "UserPkid", "UserAddr", "UserAddrTX"
 
 
 @dictattrs("pkid", "name", "user_id", "date_create", "date_update", "info", "data")
@@ -52,6 +53,13 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
             Addr.addr_tp == 'T'
         )""",
         overlaps="user_addrs",
+    )
+
+    user_addr_txes = relationship(
+        "UserAddrTX",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        single_parent=True
     )
 
     def __str__(self):
@@ -131,6 +139,10 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
 
         return user_.asdict(full=full)
 
+    def on_new_addr_tx(self, db: DB, user_addr_tx: UserAddrTX) -> bool:
+        # TODO: Also process and notify for all token TXes if user chooses
+        return user_addr_tx.addr_tx.addr.addr_tp == Addr.Type.H
+
     @staticmethod
     async def update_info(db: DB, user_pk: int, info: dict, data: dict = None, over: bool = False) -> None:
         if (info is None and data is None) or (over and (not info or not data)):
@@ -173,6 +185,9 @@ class User(DbUserPkidMixin, DbDateMixin, Base):
             return u.___delete(db)
         
     def ___delete(self, db: DB):
+        for user_addr_tx in list(self.user_addr_txes):
+            user_addr_tx._remove(db, self.user_addr_txes)
+
         for user_addr_tokn in list(self.user_tokns):
             user_addr_tokn._remove(db, self.user_tokns)
 

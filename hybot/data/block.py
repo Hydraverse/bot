@@ -6,7 +6,7 @@ from typing import Optional
 
 from attrdict import AttrDict
 from hydra import log
-from sqlalchemy import Column, String, Integer, desc, UniqueConstraint
+from sqlalchemy import Column, String, Integer, desc, UniqueConstraint, and_
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import relationship
 
@@ -63,7 +63,10 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
             return False
 
         vo_filt = lambda vo: hasattr(vo, "scriptPubKey") and hasattr(vo.scriptPubKey, "addresses")
-        added = False
+
+        txes = []
+        add = 0
+        rem = 0
 
         for txno, votx in enumerate(list(self.info["tx"])):
             votx.n = txno  # Preserve ordering info after deletion.
@@ -91,16 +94,20 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
                         logs=logs
                     )
 
-                    if not tx.on_new_block(db):
-                        self.txes.remove(tx)
-                    else:
-                        self.info["tx"].remove(votx)  # Leave behind the unprocessed TXes
-                        added = True
+                    txes.append((votx, tx))
 
-        if added:
-            db.Session.add(self)
+                    add += 1
 
-        return added
+        if add > 0:
+            for votx, tx in txes:
+                if not tx.on_new_block(db):
+                    rem += 1
+                else:
+                    self.info["tx"].remove(votx)  # Leave behind the unprocessed TXes
+
+            add -= rem
+
+        return add > 0
 
     def __remove_log(self, lo):
         _lg = AttrDict(lo)
@@ -139,9 +146,12 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
             logs=db.rpc.searchlogs(height, height)
         )
 
+        db.Session.add(new_block)
+
         if new_block.on_new_block(db):
-            log.info(f"Added block with {len(new_block.txes)} TX(es) at height {new_block.height}")
             db.Session.commit()
+            new_block = db.Session.query(Block).where(and_(Block.height == height, Block.hash == bhash)).one()
+            log.info(f"Added block with {len(new_block.txes)} TX(es) at height {new_block.height}")
             return new_block
 
         log.debug(f"Discarding block without TXes at height {new_block.height}")
