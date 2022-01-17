@@ -47,7 +47,7 @@ class Base:
 Base = declarative_base(cls=Base)
 
 DbInfoColumn = lambda: Column(mutable_json_type(dbtype=JSONB, nested=True), nullable=False, default={})
-DbDataColumn = lambda: Column(mutable_json_type(dbtype=JSONB, nested=True), nullable=False,  default={})
+DbDataColumn = lambda: Column(mutable_json_type(dbtype=JSONB, nested=True), nullable=True)
 
 
 def DbInfoColumnIndex(table_name: str, column_name: str = "info"):
