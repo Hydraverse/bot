@@ -49,7 +49,7 @@ class NFT(Tokn):
                 self.addr_hx,
                 Smac.ContractMethodID.tokenOfOwnerByIndex
                 + addr.addr_hx.rjust(64, "0")
-                + str(token_no).rjust(64, "0")
+                + hex(token_no)[2:].rjust(64, "0")
             )
 
             if r.executionResult.excepted != "None":
@@ -61,7 +61,7 @@ class NFT(Tokn):
                 r = db.rpc.callcontract(
                     self.addr_hx,
                     Smac.ContractMethodID.tokenURI
-                    + str(hex(token_id)[2:]).rjust(64, "0")
+                    + hex(token_id)[2:].rjust(64, "0")
                 )
 
                 if r.executionResult.excepted != "None":
