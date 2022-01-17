@@ -24,7 +24,7 @@ class LocalState:
     hash = ""
 
 
-class Block(DbPkidMixin, DbUserDataMixin, Base):
+class Block(DbPkidMixin, Base):
     __tablename__ = "block"
     __table_args__ = (
         UniqueConstraint("height", "hash"),
@@ -44,16 +44,15 @@ class Block(DbPkidMixin, DbUserDataMixin, Base):
 
     info = DbInfoColumn()
     logs = DbInfoColumn()
-    user_data = DbUserDataMixin.user_data()
 
     def _delete_if_unused(self, db: DB) -> bool:
         if not len(self.txes):
-            if not len(self.user_data):
-                log.info(f"Deleting block #{self.height} with no TXes and empty data.")
-                db.Session.delete(self)
-                return True
-            else:
-                log.info(f"Keeping block #{self.height} with no TXes and non-empty data.")
+            # if not len(self.user_data):
+            log.info(f"Deleting block #{self.height} with no TXes.")
+            db.Session.delete(self)
+            return True
+            # else:
+            #     log.info(f"Keeping block #{self.height} with no TXes and non-empty data.")
 
         return False
 
