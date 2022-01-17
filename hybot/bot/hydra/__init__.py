@@ -3,17 +3,11 @@ Support: @TheHydraverse
 """
 from __future__ import annotations
 
-import asyncio
-import threading
-import time
-
 from aiogram import Bot, Dispatcher, types
 from attrdict import AttrDict
-from hydra import log
 
-from hydra.rpc import HydraRPC
 from hybot.data import *
-from hybot.conf import Config
+from hybot.util.conf import Config
 from hybot.data.block import Block
 
 

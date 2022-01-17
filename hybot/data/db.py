@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Dict, Optional
+from typing import Dict
 
 import sqlalchemy.exc
 from sqlalchemy import create_engine
@@ -13,7 +13,7 @@ from hydra.rpc.base import BaseRPC
 from hydra.rpc import HydraRPC, ExplorerRPC
 from hydra import log
 
-from ..conf import Config
+from hybot.util.conf import Config
 
 
 class DbOperatorMixin:
@@ -91,13 +91,9 @@ if DB.WALLET is not None:
 from .base import __all__ as __base_all__
 from .base import *
 from .user import __all__ as __user_all__
-from .user import *
 from .addr import __all__ as __addr_all__
-from .addr import *
 from .block import __all__ as __block_all__
-from .block import *
 from .tx import __all__ as __tx_all__
-from .tx import *
 
 __all__ = ("DB",) + \
           __base_all__ + \

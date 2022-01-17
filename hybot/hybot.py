@@ -3,12 +3,11 @@
 from argparse import ArgumentParser
 
 from hydra.app import HydraApp
-from hydra.rpc import HydraRPC
 from hydra.test import Test
 
 from .data import *
 from .bot.hydra import HydraBot
-from .conf import Config
+from hybot.util.conf import Config
 
 VERSION = "0.0.1"
 
