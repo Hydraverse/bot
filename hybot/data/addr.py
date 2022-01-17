@@ -46,7 +46,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     addr_tp = Column(Enum(Type, validate_strings=True), nullable=False, index=True)
     addr_hx = Column(String(40), nullable=False, unique=True, index=True)
     addr_hy = Column(String(34), nullable=False, unique=True, index=True)
-    block_h = Column(Integer, nullable=True, index=True)
+    block_h = Column(Integer, nullable=True)
     balance = Column(BigInteger, nullable=True)
     info = DbInfoColumn()
 

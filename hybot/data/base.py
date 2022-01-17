@@ -60,7 +60,7 @@ def DbInfoColumnIndex(table_name: str, column_name: str = "info"):
 
 class DbPkidMixin:
     # pkid = Column(Integer, nullable=False, unique=True, primary_key=True, autoincrement=True, index=True)
-    pkid = Column(Integer, Sequence("pkid_seq", metadata=Base.metadata), nullable=False, unique=True, primary_key=True, index=True)
+    pkid = Column(Integer, Sequence("pkid_seq", metadata=Base.metadata), nullable=False, primary_key=True)
 
 
 class DbDateMixin:

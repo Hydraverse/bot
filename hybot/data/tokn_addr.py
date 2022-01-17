@@ -19,12 +19,9 @@ __all__ = "ToknAddr",
 @dictattrs("tokn", "addr", "balance", "nft_uri")
 class ToknAddr(Base):
     __tablename__ = "tokn_addr"
-    __table_args__ = (
-        UniqueConstraint("tokn_pk", "addr_pk"),
-    )
 
-    tokn_pk = Column(Integer, ForeignKey("tokn.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
-    addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
+    tokn_pk = Column(Integer, ForeignKey("tokn.pkid", ondelete="CASCADE"), nullable=False, primary_key=True)
+    addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=True)
     block_h = Column(Integer, nullable=True)
     balance = Column(BigInteger, nullable=True)
     nft_uri = DbDataColumn()

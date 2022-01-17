@@ -12,9 +12,6 @@ __all__ = "UserAddrTX",
 @dictattrs("user", "addr_tx")
 class UserAddrTX(Base):
     __tablename__ = "user_addr_tx"
-    __table_args__ = (
-        UniqueConstraint("user_pk", "addr_tx_pk"),
-    )
 
     user_pk = Column(Integer, ForeignKey("user.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
     addr_tx_pk = Column(Integer, ForeignKey("addr_tx.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
