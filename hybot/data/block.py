@@ -151,7 +151,7 @@ class Block(DbPkidMixin, Base):
 
         if new_block.on_new_block(db):
             db.Session.commit()
-            new_block = db.Session.query(Block).where(and_(Block.height == height, Block.hash == bhash)).one()
+            db.Session.refresh(new_block)
             log.info(f"Added block with {len(new_block.txes)} TX(es) at height {new_block.height}")
             return new_block
 
