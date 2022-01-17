@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship, lazyload
 
 from .base import *
 from .db import DB
-from .addr import Addr, Smac, Tokn
+from .addr import Addr, Smac, Tokn, NFT
 from .user_uniq import UserUniq, DbUserUniqMixin
 from .user_addr import UserAddr
 from .user_addr_tx import UserAddrTX
@@ -47,7 +47,10 @@ class User(DbUserUniqMixin, Base):
         primaryjoin="""and_(
             UserAddr.user_pk == User.pkid,
             UserAddr.addr_pk == Addr.pkid,
-            Addr.addr_tp == 'T'
+            or_(
+                Addr.addr_tp == 'T',
+                Addr.addr_tp == 'N',
+            ),
         )""",
         overlaps="user_addrs",
     )
@@ -58,6 +61,12 @@ class User(DbUserUniqMixin, Base):
         cascade="all, delete-orphan",
         single_parent=True
     )
+
+    def user_addrs_by_type(self, addr_tp: Addr.Type):
+        return (
+            self.user_addrs if addr_tp == Addr.Type.H else
+            self.user_tokns
+        )
 
     def __str__(self):
         return f"{self.pkid} [{self.uniq.name}] {self.user_id}"
@@ -212,12 +221,12 @@ class User(DbUserUniqMixin, Base):
         return user_addr.asdict()
 
     def __addr_add(self, db, address: str) -> UserAddr:
-        addr: [Addr, Smac, Tokn] = Addr.get(db, address, create=True)
+        addr: [Addr, Smac, Tokn, NFT] = Addr.get(db, address, create=True)
 
         ua = UserAddr(user=self, addr=addr)
         db.Session.add(ua)
 
-        if isinstance(addr, Tokn):
+        if isinstance(addr, Tokn):  # Includes NFT
             self.__on_new_user_tokn(db, ua)
         else:
             self.__on_new_user_addr(db, ua)
@@ -238,7 +247,7 @@ class User(DbUserUniqMixin, Base):
 
     @staticmethod
     def _addr_del(db: DB, user_pk: int, address: str) -> Optional[AttrDict]:
-        addr: [Addr, Smac, Tokn] = Addr.get(db, address, create=False)
+        addr: [Addr, Smac, Tokn, NFT] = Addr.get(db, address, create=False)
 
         if addr is not None:
             ua: UserAddr = db.Session.query(
@@ -252,7 +261,7 @@ class User(DbUserUniqMixin, Base):
 
             if ua is not None:
                 ua_dict = ua.asdict()
-                ua._remove(db, ua.user.user_addrs)
+                ua._remove(db, ua.user.user_addrs_by_type(addr.addr_tp))
                 db.Session.commit()
                 return ua_dict
 

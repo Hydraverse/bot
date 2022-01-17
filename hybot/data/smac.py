@@ -1,15 +1,17 @@
 from typing import Optional
 
+from sqlalchemy import Column, Integer, ForeignKey, String
+
 from hydra import log
 from hydra.rpc.base import BaseRPC
-from sqlalchemy import Column, Integer, ForeignKey, String
+from hydra.app.call import Call
 
 from .base import DbDataColumn, dictattrs
 from .db import DB
 from .addr import Addr
 from .block import Block, TX
 
-__all__ = "Smac", "Tokn"
+__all__ = "Smac", "Tokn", "NFT"
 
 
 @dictattrs("name")
@@ -18,6 +20,19 @@ class Smac(Addr):
     __mapper_args__ = {
         "polymorphic_identity": Addr.Type.S,
     }
+
+    class ContractMethodID:
+        name = Call.method_id_from_sig("name()")
+        symbol = Call.method_id_from_sig("symbol()")
+        decimals = Call.method_id_from_sig("decimals()")
+        totalSupply = Call.method_id_from_sig("totalSupply()")
+        balanceOf = Call.method_id_from_sig("balanceOf(address)")
+        supportsInterface = Call.method_id_from_sig("supportsInterface(bytes4)")
+        tokenURI = Call.method_id_from_sig("tokenURI(uint256)")
+        ownerOf = Call.method_id_from_sig("ownerOf(uint256)")
+        tokenOfOwnerByIndex = Call.method_id_from_sig("tokenOfOwnerByIndex(address,uint256)")
+        tokenByIndex = Call.method_id_from_sig("tokenByIndex(uint256)")
+        isMinter = Call.method_id_from_sig("isMinter(address)")
 
     pkid = Column(Integer, ForeignKey("addr.pkid"), nullable=False, primary_key=True)
     name = Column(String, nullable=False)
@@ -46,3 +61,4 @@ class Smac(Addr):
 
 
 from .tokn import Tokn
+from .nft import NFT

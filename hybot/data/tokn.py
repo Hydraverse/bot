@@ -1,9 +1,10 @@
 from typing import Optional
 
-from hydra import log
-from hydra.rpc.base import BaseRPC
 from sqlalchemy import Column, Integer, ForeignKey, String
 from sqlalchemy.orm import relationship
+
+from hydra import log
+from hydra.rpc.base import BaseRPC
 
 from .base import dictattrs
 from .db import DB
@@ -23,8 +24,8 @@ class Tokn(Smac):
 
     pkid = Column(Integer, ForeignKey("smac.pkid"), nullable=False, primary_key=True)
     symb = Column(String, nullable=False)
-    deci = Column(Integer, nullable=False)
     supt = Column(Integer, nullable=False)
+    deci = Column(Integer, nullable=True)
 
     tokn_addrs = relationship(
         "ToknAddr",
@@ -49,7 +50,10 @@ class Tokn(Smac):
             return None
 
     def __balance_of_rpc(self, db: DB, addr: Addr) -> Optional[int]:
-        r = db.rpc.callcontract(self.addr_hx, "70a08231" + addr.addr_hx.rjust(64, "0"))  # balanceOf(address)
+        r = db.rpc.callcontract(
+            self.addr_hx,
+            Smac.ContractMethodID.balanceOf + addr.addr_hx.rjust(64, "0")
+        )
 
         if r.executionResult.excepted != "None":
             log.warning(f"Contract call failed: {r.executionResult.excepted}")
@@ -59,11 +63,10 @@ class Tokn(Smac):
         return int(r.executionResult.output, 16)
 
     def apply_deci(self, balance: int) -> str:
-        return str(balance / 10**self.deci)  # TODO: Apply decimal manually or use library.
+        if self.deci is None:
+            return str(balance)
 
-    def populate_balances(self, db: DB):
-        for tokn_addr in self.tokn_addrs:
-            tokn_addr.update_balance(db)
+        return str(balance / 10**self.deci)  # TODO: Apply decimal manually or use library.
 
     def update_balances(self, db: DB, tx: Optional[TX]):
         super().update_balances(db, tx)

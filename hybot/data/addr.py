@@ -17,7 +17,7 @@ from .block import Block, TX
 from .addr_tx import AddrTX
 from .user_addr_tx import UserAddrTX
 
-__all__ = "Addr", "AddrTX", "Smac", "Tokn"
+__all__ = "Addr", "AddrTX", "Smac", "Tokn", "NFT"
 
 
 @dictattrs("pkid", "date_create", "date_update", "addr_tp", "addr_hx", "addr_hy", "block_h", "balance")
@@ -27,6 +27,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     class Type(enum.Enum):
         H = "HYDRA"
         S = "smart contract"
+        N = "NFT"
         T = "token"
 
         @staticmethod
@@ -74,14 +75,17 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     }
 
     @staticmethod
-    def __make(addr_tp: Type, addr_hx: str, addr_hy: str, **kwds) -> [Addr, Smac, Tokn]:
+    def __make(addr_tp: Type, addr_hx: str, addr_hy: str, **kwds) -> [Addr, Smac, Tokn, NFT]:
         if addr_tp == Addr.Type.H:
             return Addr(addr_hx=addr_hx, addr_hy=addr_hy, **kwds)
         elif addr_tp == Addr.Type.S:
             return Smac(addr_hx=addr_hx, addr_hy=addr_hy, **kwds)
         elif addr_tp == Addr.Type.T:
             return Tokn(addr_hx=addr_hx, addr_hy=addr_hy, **kwds)
+        elif addr_tp == Addr.Type.N:
+            return NFT(addr_hx=addr_hx, addr_hy=addr_hy, **kwds)
         else:
+            log.warning(f"Unrecognized Addr.Type '{addr_tp}'")
             return Addr(addr_tp=addr_tp, addr_hx=addr_hx, addr_hy=addr_hy, **kwds)
 
     def __str__(self):
@@ -183,7 +187,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             db.Session.delete(self)
 
     @staticmethod
-    def get(db: DB, address: str, create=True) -> [Addr, Smac, Tokn]:
+    def get(db: DB, address: str, create=True) -> [Addr, Smac, Tokn, NFT]:
         addr_tp, addr_hx, addr_hy, addr_attr = Addr.normalize(db, address)
 
         try:
@@ -191,11 +195,16 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
                 q: Tokn = db.Session.query(Tokn).where(
                     Tokn.addr_hx == addr_hx
                 )
+            elif addr_tp == Addr.Type.N:
+                q: NFT = db.Session.query(NFT).where(
+                    NFT.addr_hx == addr_hx
+                )
             elif addr_tp == Addr.Type.S:
                 q: Smac = db.Session.query(Smac).where(
                     Smac.addr_hx == addr_hx
                 )
             else:
+                log.warning(f"Unknown Addr.normalize() type '{addr_tp}'")
                 q: Addr = db.Session.query(Addr).where(
                     Addr.addr_hx == addr_hx,
                     Addr.addr_tp == addr_tp
@@ -207,7 +216,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
             return q.one()
 
         except NoResultFound:
-            addr: [Addr, Smac, Tokn] = Addr.__make(addr_tp, addr_hx, addr_hy, **addr_attr)
+            addr: [Addr, Smac, Tokn< NFT] = Addr.__make(addr_tp, addr_hx, addr_hy, **addr_attr)
             addr.__on_new_addr(db)
             return addr
 
@@ -268,7 +277,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
 
         try:
             # Raises BaseRPC.Exception if address does not exist
-            r = db.rpc.callcontract(addr_hx, "06fdde03")  # name()
+            r = db.rpc.callcontract(addr_hx, Smac.ContractMethodID.name)
         except BaseRPC.Exception:
             # Safest assumption is that this is actually a HYDRA hex address
             return Addr.Type.H, sci
@@ -278,25 +287,26 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
                 r.executionResult.output[128:]
             )
 
-        r = db.rpc.callcontract(addr_hx, "95d89b41")  # symbol()
+        r = db.rpc.callcontract(addr_hx, Smac.ContractMethodID.symbol)
 
         if r.executionResult.excepted == "None":
-            symb = Addr.__sc_out_str(
+            sci.symb = Addr.__sc_out_str(
                 r.executionResult.output[128:]
             )
 
-            r = db.rpc.callcontract(addr_hx, "313ce567")  # decimals()
+            r = db.rpc.callcontract(addr_hx, Smac.ContractMethodID.totalSupply)
 
             if r.executionResult.excepted == "None":
-                deci = int(r.executionResult.output, 16)
+                sci.supt = int(r.executionResult.output, 16)
 
-                r = db.rpc.callcontract(addr_hx, "18160ddd")  # totalSupply()
+                r = db.rpc.callcontract(addr_hx, Smac.ContractMethodID.decimals)
 
                 if r.executionResult.excepted == "None":
-                    sci.symb = symb
-                    sci.deci = deci
-                    sci.supt = int(r.executionResult.output, 16)
+                    sci.deci = int(r.executionResult.output, 16)
                     addr_tp = Addr.Type.T
+                else:
+                    # NFT contracts have no decimals()
+                    addr_tp = Addr.Type.N
 
         return addr_tp, sci
 
@@ -305,6 +315,4 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
         return binascii.unhexlify(val).replace(b"\x00", b"").decode("utf-8")
 
 
-from .smac import Smac, Tokn
-
-__addrs__ = select()
+from .smac import Smac, Tokn, NFT
