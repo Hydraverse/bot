@@ -1,4 +1,6 @@
 # local:
+/alembic/versions/
+alembic.ini
 /tmp/
 /.env/
 /local/
