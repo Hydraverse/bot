@@ -35,7 +35,7 @@ class Smac(Addr):
         isMinter = Call.method_id_from_sig("isMinter(address)")
 
     pkid = Column(Integer, ForeignKey("addr.pkid"), nullable=False, primary_key=True)
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=False, index=True)
     stor = DbDataColumn()
 
     def __str__(self):

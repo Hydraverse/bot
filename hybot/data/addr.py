@@ -7,7 +7,7 @@ import binascii
 from attrdict import AttrDict
 from hydra import log
 from hydra.rpc.hydra_rpc import BaseRPC, HydraRPC
-from sqlalchemy import Column, String, Enum, Integer, ForeignKey, select
+from sqlalchemy import Column, String, Enum, Integer, ForeignKey, select, BigInteger
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import relationship, lazyload
 
@@ -23,6 +23,9 @@ __all__ = "Addr", "AddrTX", "Smac", "Tokn", "NFT"
 @dictattrs("pkid", "date_create", "date_update", "addr_tp", "addr_hx", "addr_hy", "block_h", "balance")
 class Addr(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "addr"
+    __table_args__ = (
+        DbInfoColumnIndex(__tablename__),
+    )
 
     class Type(enum.Enum):
         H = "HYDRA"
@@ -44,7 +47,7 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
     addr_hx = Column(String(40), nullable=False, unique=True, index=True)
     addr_hy = Column(String(34), nullable=False, unique=True, index=True)
     block_h = Column(Integer, nullable=True, index=True)
-    balance = Column(Integer, nullable=True)
+    balance = Column(BigInteger, nullable=True)
     info = DbInfoColumn()
 
     addr_users = relationship(
@@ -204,7 +207,9 @@ class Addr(DbPkidMixin, DbDateMixin, Base):
                     Smac.addr_hx == addr_hx
                 )
             else:
-                log.warning(f"Unknown Addr.normalize() type '{addr_tp}'")
+                if addr_tp != Addr.Type.H:
+                    log.warning(f"Unknown Addr.normalize() type '{addr_tp}'")
+
                 q: Addr = db.Session.query(Addr).where(
                     Addr.addr_hx == addr_hx,
                     Addr.addr_tp == addr_tp

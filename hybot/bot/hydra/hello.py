@@ -44,6 +44,7 @@ async def hello(bot: HydraBot, msg: types.Message):
         await User.update_info(bot.db, u.pkid, {
             "lang": msg.from_user.language_code,
             "tz": "UTC",
+            "at": msg.from_user.username
         })
 
     else:

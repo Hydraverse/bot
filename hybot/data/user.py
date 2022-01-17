@@ -3,7 +3,7 @@ from typing import Optional, Generator
 
 from attrdict import AttrDict
 from hydra import log
-from sqlalchemy import Column, Integer, and_
+from sqlalchemy import Column, Integer, String, and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship, lazyload
 
@@ -18,11 +18,14 @@ from .tokn_addr import ToknAddr
 __all__ = "User", "UserUniq", "UserAddr", "UserAddrTX"
 
 
-@dictattrs("pkid", "uniq", "user_id", "info", "data")
+@dictattrs("pkid", "uniq", "tg_user_id", "info", "data")
 class User(DbUserUniqMixin, Base):
     __tablename__ = "user"
+    __table_args__ = (
+        DbInfoColumnIndex(__tablename__),
+    )
 
-    user_id = Column(Integer, nullable=False, unique=True, primary_key=False, index=True)
+    tg_user_id = Column(Integer, nullable=False, unique=True, primary_key=False, index=True)
 
     info = DbInfoColumn()
     data = DbDataColumn()
@@ -69,7 +72,7 @@ class User(DbUserUniqMixin, Base):
         )
 
     def __str__(self):
-        return f"{self.pkid} [{self.uniq.name}] {self.user_id}"
+        return f"{self.pkid} [{self.uniq.name}] {self.tg_user_id}"
 
     def asdict(self, full=False) -> AttrDict:
         user_dict = super().asdict()
@@ -97,7 +100,7 @@ class User(DbUserUniqMixin, Base):
             db.Session.query(
                 User.pkid
             ).filter(
-                User.user_id == user_id
+                User.tg_user_id == user_id
             ).one_or_none()
         )
 
@@ -113,7 +116,7 @@ class User(DbUserUniqMixin, Base):
         u: User = db.Session.query(
             User
         ).filter(
-            User.user_id == user_id
+            User.tg_user_id == user_id
         ).one_or_none()
 
         if u is not None:
@@ -136,7 +139,7 @@ class User(DbUserUniqMixin, Base):
 
         user_ = User(
             uniq=uniq,
-            user_id=user_id,
+            tg_user_id=user_id,
         )
 
         db.Session.add(user_)
@@ -183,7 +186,7 @@ class User(DbUserUniqMixin, Base):
     @staticmethod
     def __delete(db: DB, user_id: int) -> None:
         u: User = db.Session.query(User).where(
-            User.user_id == user_id,
+            User.tg_user_id == user_id,
         ).one_or_none()
 
         if u is not None:

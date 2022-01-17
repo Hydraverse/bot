@@ -47,7 +47,7 @@ class Hybot(HydraApp):
                 f"No bot class specified in: {Config.APP_CONF}")
             exit(-2)
 
-        self.db = DB.default(self.rpc)
+        self.db = DB(self.rpc)
 
         if self.args.shell:
             return self.shell()

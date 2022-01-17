@@ -24,6 +24,8 @@ setup(
         "halo-hypy",
         "sqlalchemy",
         "sqlalchemy-json",
+        "psycopg2-binary",
+        "alembic[tz]",
         "pyyaml",
         "fuzzywuzzy",
         "python-Levenshtein",

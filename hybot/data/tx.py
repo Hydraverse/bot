@@ -10,10 +10,10 @@ from .db import DB
 __all__ = "TX",
 
 
-class TX(DbPkidMixin, DbUserDataMixin, Base):
+class TX(DbPkidMixin, Base):
     __tablename__ = "tx"
     __table_args__ = (
-        UniqueConstraint("block_pkid", "block_txno", name="_tx_block_pkid_txno_uc"),
+        UniqueConstraint("block_pkid", "block_txno"),
     )
 
     block_pkid = Column(Integer, ForeignKey("block.pkid", ondelete="CASCADE"), nullable=False)
@@ -22,7 +22,6 @@ class TX(DbPkidMixin, DbUserDataMixin, Base):
     vouts_inp = DbDataColumn()
     vouts_out = DbDataColumn()
     logs = DbDataColumn()
-    user_data = DbUserDataMixin.user_data()
 
     block = relationship(
         "Block",
@@ -38,13 +37,13 @@ class TX(DbPkidMixin, DbUserDataMixin, Base):
 
     def _removed_addr(self, db: DB):
         if not len(self.addr_txes):
-            if not len(self.user_data):
-                log.info(f"Removing TX #{self.block_txno} from block #{self.block.height}.")
-                block = self.block
-                block.txes.remove(self)
-                block._delete_if_unused(db)
-            else:
-                log.info(f"Keeping TX #{self.block_txno} from block #{self.block.height} with non-empty user data.")
+            # if not len(self.user_data):
+            log.info(f"Removing TX #{self.block_txno} from block #{self.block.height}.")
+            block = self.block
+            block.txes.remove(self)
+            block._delete_if_unused(db)
+            # else:
+            #     log.info(f"Keeping TX #{self.block_txno} from block #{self.block.height} with non-empty user data.")
 
     def on_new_block(self, db: DB) -> bool:
         block = self.block

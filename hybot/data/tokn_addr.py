@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from attrdict import AttrDict
-from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, Index, and_
+from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, Index, BigInteger
 from sqlalchemy.orm import relationship
 
 from .base import *
@@ -20,13 +20,13 @@ __all__ = "ToknAddr",
 class ToknAddr(Base):
     __tablename__ = "tokn_addr"
     __table_args__ = (
-        UniqueConstraint("tokn_pk", "addr_pk", name="_tokn_addr_uc"),
+        UniqueConstraint("tokn_pk", "addr_pk"),
     )
 
     tokn_pk = Column(Integer, ForeignKey("tokn.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=True, index=True)
     block_h = Column(Integer, nullable=True)
-    balance = Column(Integer, nullable=True)
+    balance = Column(BigInteger, nullable=True)
     nft_uri = DbDataColumn()
 
     tokn = relationship("Tokn", back_populates="tokn_addrs", foreign_keys=[tokn_pk])

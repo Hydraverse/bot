@@ -17,7 +17,8 @@ __all__ = "AddrTX",
 class AddrTX(DbPkidMixin, Base):
     __tablename__ = "addr_tx"
     __table_args__ = (
-        UniqueConstraint("addr_pk", "tx_pk", name="_addr_tx_uc"),
+        UniqueConstraint("addr_pk", "tx_pk"),
+        Index(__tablename__ + "_idx", "addr_pk", "tx_pk")
     )
 
     addr_pk = Column(Integer, ForeignKey("addr.pkid", ondelete="CASCADE"), nullable=False, primary_key=False, index=True)
@@ -130,6 +131,3 @@ class AddrTX(DbPkidMixin, Base):
         added -= removed
 
         return added > 0
-
-
-Index(AddrTX.__tablename__ + "_idx", AddrTX.addr_pk, AddrTX.tx_pk)

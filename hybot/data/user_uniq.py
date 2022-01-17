@@ -13,15 +13,18 @@ __all__ = "UserUniq",
 @dictattrs("pkid", "date_create", "date_update", "name", "time", "nano", "info", "data")
 class UserUniq(DbPkidMixin, DbDateMixin, Base):
     __tablename__ = "user_uniq"
+    __table_args__ = (
+        DbInfoColumnIndex(__tablename__),
+    )
 
     name = Column(String, nullable=False, unique=True)
     time = Column(BigInteger, nullable=False, unique=True)
     nano = Column(BigInteger, nullable=False, unique=False)
 
-    # addr_shr_hy = Column(String(34), nullable=False, unique=True)
-    # addr_shr_pk = Column(String(52), nullable=False, unique=True)
-    # addr_loc_hy = Column(String(34), nullable=False, unique=True)
-    # addr_loc_pk = Column(String(52), nullable=False, unique=True)
+    addr_shr_hy = Column(String(34), nullable=True, unique=True, index=False)
+    addr_shr_pk = Column(String(52), nullable=True, unique=False, index=False)
+    addr_loc_hy = Column(String(34), nullable=True, unique=True, index=False)
+    addr_loc_pk = Column(String(52), nullable=True, unique=False, index=False)
 
     info = DbInfoColumn()
     data = DbDataColumn()

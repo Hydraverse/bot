@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Dict
+from typing import Dict, Optional
 
 import sqlalchemy.exc
 from sqlalchemy import create_engine
@@ -12,6 +12,8 @@ import asyncio
 from hydra.rpc.base import BaseRPC
 from hydra.rpc import HydraRPC, ExplorerRPC
 from hydra import log
+
+from ..conf import Config
 
 
 class DbOperatorMixin:
@@ -26,22 +28,30 @@ class DbOperatorMixin:
         raise NotImplementedError
 
 
-# noinspection PyProtectedMember
+@Config.defaults
 class DB(DbOperatorMixin):
     _: Dict[HydraRPC, DB] = {}
     engine = None
     Session = None  # type: scoped_session
     rpc: HydraRPC = None
-
-    FILE_DIR = "local"
-    FILE_NAME = "hybot"
-    FILE_PATH = os.path.abspath(os.path.join(os.getcwd(), f"{FILE_DIR}/{FILE_NAME}.sqlite3"))
+    url: str = None
 
     WALLET = "hybot"
 
-    def __init__(self, rpc: HydraRPC, url: str, *args, **kwds):
-        log.debug(f"db: open url='{url}'")
-        self.engine = create_engine(url, *args, **kwds)
+    CONF = {
+        "url": f"sqlite:///{os.path.join(Config.APP_BASE, 'hybot.sqlite3')}"
+    }
+
+    def __new__(cls, rpc: HydraRPC):
+        if rpc not in DB._:
+            DB._[rpc] = super().__new__(cls)
+
+        return DB._[rpc]
+
+    def __init__(self, rpc: HydraRPC):
+        self.url = Config.get(DB).url
+        log.debug(f"db: open url='{self.url}'")
+        self.engine = create_engine(self.url)
         self.Session = scoped_session(sessionmaker(bind=self.engine))
         Base.metadata.create_all(self.engine)
         self.rpc = rpc
@@ -49,7 +59,7 @@ class DB(DbOperatorMixin):
         self.__init_wallet()
 
     def __hash__(self):
-        return hash(self.FILE_PATH + self.rpc.url)
+        return hash(self.url + self.rpc.url)
 
     def __init_wallet(self):
         if DB.WALLET is not None and DB.WALLET not in self.rpc.listwallets():
@@ -61,13 +71,6 @@ class DB(DbOperatorMixin):
                 log.warning(f"Creating wallet '{DB.WALLET}'...")
                 self.rpc.createwallet(DB.WALLET, disable_private_keys=False, blank=False)
                 log.warning(f"Wallet '{DB.WALLET}' created.")
-
-    @staticmethod
-    def default(rpc: HydraRPC):
-        if rpc not in DB._:
-            return DB._.setdefault(rpc, DB(rpc, f"sqlite:///{DB.FILE_PATH}"))  # , echo=log.level() <= log.INFO)
-
-        return DB._[rpc]
 
     def _run_in_executor_session(self, fn, *args):
         self.Session()

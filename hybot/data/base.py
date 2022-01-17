@@ -1,12 +1,14 @@
 from attrdict import AttrDict
-from sqlalchemy import Column, DateTime, func, Integer, Sequence
+from sqlalchemy import Column, DateTime, func, Integer, Sequence, Index
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import declarative_base
-from sqlalchemy_json import NestedMutableJson
+from sqlalchemy_json import  mutable_json_type
 
 __all__ = (
     "Base", "dictattrs",
     "DbPkidMixin", "DbDateMixin",
     "DbInfoColumn", "DbDataColumn",
+    "DbInfoColumnIndex",
     "DbUserDataMixin",
 )
 
@@ -44,13 +46,21 @@ class Base:
 
 Base = declarative_base(cls=Base)
 
-DbInfoColumn = lambda: Column(NestedMutableJson, nullable=False, index=True, default={})
-DbDataColumn = lambda: Column(NestedMutableJson, nullable=False, index=False, default={})
+DbInfoColumn = lambda: Column(mutable_json_type(dbtype=JSONB, nested=True), nullable=False, default={})
+DbDataColumn = lambda: Column(mutable_json_type(dbtype=JSONB, nested=True), nullable=False,  default={})
+
+
+def DbInfoColumnIndex(table_name: str, column_name: str = "info"):
+    return Index(
+        f"{table_name}_{column_name}_idx",
+        column_name,
+        postgresql_using="gin"
+    )
 
 
 class DbPkidMixin:
-    pkid = Column(Integer, nullable=False, unique=True, primary_key=True, autoincrement=True, index=True)
-    # pkid = Column(Integer, Sequence("pkid_seq", metadata=Base.metadata), nullable=False, unique=True, primary_key=True, index=True)
+    # pkid = Column(Integer, nullable=False, unique=True, primary_key=True, autoincrement=True, index=True)
+    pkid = Column(Integer, Sequence("pkid_seq", metadata=Base.metadata), nullable=False, unique=True, primary_key=True, index=True)
 
 
 class DbDateMixin:

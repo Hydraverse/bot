@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import Column, Integer, ForeignKey, String
+from sqlalchemy import Column, Integer, ForeignKey, String, BigInteger
 from sqlalchemy.orm import relationship
 
 from hydra import log
@@ -24,7 +24,7 @@ class Tokn(Smac):
 
     pkid = Column(Integer, ForeignKey("smac.pkid"), nullable=False, primary_key=True)
     symb = Column(String, nullable=False)
-    supt = Column(Integer, nullable=False)
+    supt = Column(BigInteger, nullable=False)
     deci = Column(Integer, nullable=True)
 
     tokn_addrs = relationship(

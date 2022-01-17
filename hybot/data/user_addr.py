@@ -19,7 +19,7 @@ __all__ = "UserAddr",
 class UserAddr(Base):
     __tablename__ = "user_addr"
     __table_args__ = (
-        UniqueConstraint("user_pk", "addr_pk", name="_user_addr_uc"),
+        UniqueConstraint("user_pk", "addr_pk"),
     )
 
     user_pk = Column(Integer, ForeignKey("user.pkid", ondelete="CASCADE"), primary_key=True, index=True, nullable=False)
@@ -27,6 +27,7 @@ class UserAddr(Base):
 
     user = relationship("User", back_populates="user_addrs")
     addr = relationship("Addr", back_populates="addr_users", foreign_keys=[addr_pk])
+
 
     user_addr_txes = relationship(
         "UserAddrTX",

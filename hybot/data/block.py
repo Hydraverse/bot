@@ -27,7 +27,9 @@ class LocalState:
 class Block(DbPkidMixin, DbUserDataMixin, Base):
     __tablename__ = "block"
     __table_args__ = (
-        UniqueConstraint("height", "hash", name="_block_height_hash_uc"),
+        UniqueConstraint("height", "hash"),
+        DbInfoColumnIndex(__tablename__, "info"),
+        DbInfoColumnIndex(__tablename__, "logs"),
     )
 
     height = Column(Integer, nullable=False, unique=False, primary_key=False, index=True)
