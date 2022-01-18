@@ -6,13 +6,13 @@ from hydra import log
 
 
 class Config:
-    ENV_BASE = "HYBOT_HOME"
-    APP_NAME = "hybot"
-    APP_FILE = "conf.yml"
+    ENV_BASE = "HYVE_HOME"
+    APPS_GRP = "hyve"
+    APP_FILE = "bot.yml"
     DIR_APPS = ".local"
 
     DIR_BASE = os.path.abspath(os.getenv(ENV_BASE, os.getenv("HOME", os.getcwd())))
-    APP_BASE = os.path.join(DIR_BASE, DIR_APPS, APP_NAME)
+    APP_BASE = os.path.join(DIR_BASE, DIR_APPS, APPS_GRP)
     APP_CONF = os.path.join(APP_BASE, APP_FILE)
 
     DEFAULT = AttrDict()

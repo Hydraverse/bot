@@ -8,7 +8,7 @@ import hybot
 
 
 # noinspection Assert
-assert sys.version_info[0] == 3 and sys.version_info[1] >= 8, "rpc_proxy requires Python 3.8 or newer"
+assert sys.version_info[0] == 3 and sys.version_info[1] >= 8, "This package requires Python 3.8 or newer"
 
 setup(
     name="hybot",
