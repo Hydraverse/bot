@@ -4,11 +4,14 @@ Support: @TheHydraverse
 from __future__ import annotations
 
 from aiogram import Bot, Dispatcher, types
+import asyncio
 from attrdict import AttrDict
 
-from hybot.data import *
+from hydra import log
+
+from hydb.api.client import HyDbClient, schemas
+
 from hybot.util.conf import Config
-from hybot.data.block import Block
 
 
 @Config.defaults
@@ -16,9 +19,8 @@ class HydraBot(Bot):
     _: HydraBot = None
     dp = Dispatcher()
 
-    rpc: HydraRPC = None
     conf: AttrDict = None
-    db: DB = None
+    db: HyDbClient = None
 
     CONF = {
         "token": "(bot token from @BotFather)",
@@ -30,16 +32,15 @@ class HydraBot(Bot):
     def bot(*self) -> HydraBot:
         return HydraBot._
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, db: HyDbClient, *args, **kwds):
         if cls._ is None:
-            cls._ = super(HydraBot, cls).__new__(cls, *args, **kwargs)
+            cls._ = super(HydraBot, cls).__new__(cls, *args, **kwds)
 
         return cls._
 
-    def __init__(self, rpc: HydraRPC, db_: DB):
-        self.rpc = rpc
+    def __init__(self, db: HyDbClient):
+        self.db = db
         self.conf = Config.get(HydraBot, defaults=True)
-        self.db = db_
 
         token = self.conf.token
 
@@ -71,8 +72,8 @@ class HydraBot(Bot):
         super().__init__(token, parse_mode="HTML")
 
     @staticmethod
-    def main(rpc: HydraRPC, db_: DB):
-        return HydraBot(rpc, db_).run()
+    def main(db: HyDbClient):
+        return HydraBot(db).run()
 
     @staticmethod
     @dp.message(commands={"echo"})
@@ -83,7 +84,8 @@ class HydraBot(Bot):
     @dp.startup()
     async def __on_startup():
         bot = HydraBot.bot()
-        asyncio.create_task(Block.update_task(bot.db))
+        # TODO: Set up SSE for AddrHist events.
+        # asyncio.create_task(...)
 
     def run(self):
         return self.dp.run_polling(self)

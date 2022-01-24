@@ -5,12 +5,11 @@ from aiogram import types
 from . import __doc__
 from . import HydraBot
 
-from ...data import User
-from .data import HydraBotData
+from .data import HydraBotData, schemas
 
 
 async def hello(bot: HydraBot, msg: types.Message):
-    u = await HydraBotData.user_load(bot.db, msg, create=True, full=False)
+    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
 
     response_tz = (
         "Manage addresses with <b>/addr</b>.\n\n"
@@ -20,7 +19,7 @@ async def hello(bot: HydraBot, msg: types.Message):
     )
 
     response_uid = (
-        f"Your unique Hydraverse ID and name:\n  <b><pre>{u.pkid}: {u.uniq.name}</pre></b>\n\n"
+        f"Your unique Hydraverse ID and name:\n  <b><pre>{u.uniq.pkid}: {u.uniq.name}</pre></b>\n\n"
     )
 
     # noinspection PyGlobalUndefined
@@ -34,18 +33,22 @@ async def hello(bot: HydraBot, msg: types.Message):
             "Thank You!!\n\n"
             f"<pre>{bot.conf.donations}</pre>\n" + __doc__)
 
-    if getattr(u.info, "tz", False) is False:
+    if u.info.get("tz", ...) is ...:
         await msg.answer(
             response_uid +
             response_tz +
             response_donate
         )
 
-        await User.update_info(bot.db, u.pkid, {
-            "lang": msg.from_user.language_code,
-            "tz": "UTC",
-            "at": msg.from_user.username
-        })
+        await HydraBotData._run_in_executor(
+            bot.db.user_info_put,
+            u,
+            {
+                "lang": msg.from_user.language_code,
+                "tz": "UTC",
+                "at": msg.from_user.username
+            }
+        )
 
     else:
         await msg.answer(

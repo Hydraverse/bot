@@ -4,11 +4,11 @@ from fuzzywuzzy import fuzz
 import pytz
 
 from . import HydraBot
-from .data import HydraBotData, User
+from .data import HydraBotData, schemas
 
 
 async def tz(bot: HydraBot, msg: types.Message):
-    u = await HydraBotData.user_load(bot.db, msg, create=True, full=False)
+    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
 
     try:
         tz_cur = u.info.get("tz", "UTC")
@@ -60,15 +60,16 @@ async def tz(bot: HydraBot, msg: types.Message):
 
         tz_new_loc = pytz.timezone(tz_new).localize(datetime.now(), is_dst=None).tzname()
 
-        await User.update_info(bot.db, u.pkid, {
-            "tz": tz_new,
-        })
+        await HydraBotData._run_in_executor(
+            bot.db.user_info_put,
+            u,
+            {
+                "tz": tz_new,
+            }
+        )
 
         await msg.answer(f"Time zone changed to <b>{tz_new} ({tz_new_loc})</b>\n\n")
 
     except pytz.UnknownTimeZoneError as error:
-        await msg.answer(f"Sorry, that timezone is not valid.\n\n<b>{repr(error)}</b>")
+        await msg.answer(f"Sorry, that timezone is not valid.\n\n<b><pre>{repr(error)}</pre></b>")
 
-    except Exception as error:
-        await msg.answer(f"Sorry, something went wrong.\n\n<b>{error}</b>")
-        raise

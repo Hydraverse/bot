@@ -22,10 +22,6 @@ setup(
     packages=find_packages(),
     install_requires=[
         "halo-hypy",
-        "sqlalchemy",
-        "sqlalchemy-json",
-        "psycopg2-binary",
-        "alembic[tz]",
         "pyyaml",
         "fuzzywuzzy",
         "python-Levenshtein",

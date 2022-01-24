@@ -1,19 +1,25 @@
 from aiogram import types
 
 from . import HydraBot
-from .data import User
+from .data import HydraBotData, schemas
 
 
 async def delete(bot: HydraBot, msg: types.Message):
+    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=False)
 
-    delete_cmd = f"/DELETE {msg.from_user.id}"
+    if u is None:
+        return await msg.answer(
+            "You don't currently have an account."
+        )
+
+    delete_cmd = f"/DELETE {u.tg_user_id}"
 
     if str(msg.text).strip() != delete_cmd:
         return await msg.answer(
             f"Permanently delete your account with <b>{delete_cmd}</b>"
         )
 
-    await User.delete(bot.db, msg.from_user.id)
+    await HydraBotData._run_in_executor(bot.db.user_del, u)
 
     await msg.answer(
         "All account and user data removed.\n\n"
