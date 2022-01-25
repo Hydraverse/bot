@@ -19,7 +19,7 @@ async def delete(bot: HydraBot, msg: types.Message):
             f"Permanently delete your account with <b>{delete_cmd}</b>"
         )
 
-    await HydraBotData._run_in_executor(bot.db.user_del, u)
+    await bot.db.asyncc.user_del(u)
 
     await msg.answer(
         "All account and user data removed.\n\n"

@@ -16,10 +16,8 @@ class HydraBotData:
             raise RuntimeError("Currently creating user account!")
 
         try:
-            return await HydraBotData._run_in_executor(
-                db.user_get_tg,
-                msg.from_user.id
-            )
+            return await db.asyncc.user_get_tg(msg.from_user.id)
+
         except BaseRPC.Exception as exc:
             if exc.response.status_code == 404:
                 if create:
@@ -34,17 +32,10 @@ class HydraBotData:
                             "One moment while I set things up..."
                         )
 
-                        return await HydraBotData._run_in_executor(
-                            db.user_add,
-                            msg.from_user.id
-                        )
+                        return await db.asyncc.user_add(msg.from_user.id)
                     finally:
                         HydraBotData.__CREATING__.remove(msg.from_user.id)
                 else:
                     return None
 
             raise
-
-    @staticmethod
-    async def _run_in_executor(fn, *args):
-        return await asyncio.get_event_loop().run_in_executor(None, fn, *args)

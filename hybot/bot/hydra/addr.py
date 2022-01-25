@@ -36,7 +36,7 @@ async def addr(bot: HydraBot, msg: types.Message):
 
         for ua in u.user_addrs:
             if str(ua.addr) == address:
-                delete_result: schemas.DeleteResult = await HydraBotData._run_in_executor(bot.db.user_addr_del, u, ua)
+                delete_result: schemas.DeleteResult = await bot.db.asyncc.user_addr_del(u, ua)
                 if delete_result.deleted:
                     return await msg.answer("Address removed.\n")
                 break
@@ -50,7 +50,7 @@ async def addr(bot: HydraBot, msg: types.Message):
                 "List: <b>/addr list</b>"
             )
 
-    user_addr = await HydraBotData._run_in_executor(bot.db.user_addr_add, u, address)
+    user_addr = await bot.db.asyncc.user_addr_add(u, address)
     addr_: schemas.Addr = user_addr.addr
 
     tp_str = (

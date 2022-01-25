@@ -40,8 +40,7 @@ async def hello(bot: HydraBot, msg: types.Message):
             response_donate
         )
 
-        await HydraBotData._run_in_executor(
-            bot.db.user_info_put,
+        await bot.db.asyncc.user_info_put(
             u,
             {
                 "lang": msg.from_user.language_code,

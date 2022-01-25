@@ -60,8 +60,7 @@ async def tz(bot: HydraBot, msg: types.Message):
 
         tz_new_loc = pytz.timezone(tz_new).localize(datetime.now(), is_dst=None).tzname()
 
-        await HydraBotData._run_in_executor(
-            bot.db.user_info_put,
+        await bot.db.asyncc.user_info_put(
             u,
             {
                 "tz": tz_new,
