@@ -7,11 +7,14 @@ from aiogram import Bot, Dispatcher, types
 import asyncio
 from attrdict import AttrDict
 
+from hydra.rpc.explorer import ExplorerRPC
 from hydra import log
 
 from hydb.api.client import HyDbClient, schemas
 
 from hybot.util.conf import Config
+
+from .data import HydraBotData
 
 
 @Config.defaults
@@ -19,8 +22,9 @@ class HydraBot(Bot):
     _: HydraBot = None
     dp = Dispatcher()
 
-    conf: AttrDict = None
-    db: HyDbClient = None
+    conf: AttrDict
+    db: HyDbClient
+    rpcx: ExplorerRPC
 
     CONF = {
         "token": "(bot token from @BotFather)",
@@ -46,6 +50,10 @@ class HydraBot(Bot):
 
         if not token:
             raise ValueError("Invalid or no token found in config")
+
+        await HydraBotData.init(self.db)
+
+        self.rpcx = ExplorerRPC(mainnet=HydraBotData.SERVER_INFO.mainnet)
 
         from . import \
             hello as cmd_hello,\
@@ -83,9 +91,16 @@ class HydraBot(Bot):
     @staticmethod
     @dp.startup()
     async def __on_startup():
-        bot = HydraBot.bot()
-        # TODO: Set up SSE for AddrHist events.
-        # asyncio.create_task(...)
+        bot: HydraBot = HydraBot.bot()
+        asyncio.create_task(bot._sse_block_task())
+
+    async def _sse_block_task(self):
+        # TODO: Exception handling
+        await self.db.sse_block_async(self.__sse_block_event, asyncio.get_event_loop())
+
+    # noinspection PyMethodMayBeStatic
+    async def __sse_block_event(self, block_sse_result: schemas.BlockSSEResult):
+        print("SSE Block Event! #", block_sse_result.block.pkid)
 
     def run(self):
         return self.dp.run_polling(self)

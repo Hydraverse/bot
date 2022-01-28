@@ -1,4 +1,3 @@
-import asyncio
 from typing import Optional
 
 from aiogram.types import Message
@@ -9,6 +8,12 @@ from hydb.api.client import HyDbClient, schemas
 
 class HydraBotData:
     __CREATING__ = []
+
+    SERVER_INFO: schemas.ServerInfo
+
+    @staticmethod
+    async def init(db: HyDbClient):
+        HydraBotData.SERVER_INFO = await db.asyncc.server_info()
 
     @staticmethod
     async def user_load(db: HyDbClient, msg: Message, create: bool = True) -> Optional[schemas.User]:
