@@ -20,9 +20,11 @@ async def addr(bot: HydraBot, msg: types.Message):
         result = []
 
         if len(u.user_addrs):
-            result += [f"Addresses:\n"]
+            result += [f"Addresses:"]
             result += [
-                f"<pre>{str(ua.addr)}</pre>"
+                f"\n<pre>{ua.name}</pre>:\n"
+                + f'<a href="{bot.rpcx.human_link("address" if ua.addr.addr_tp.value.value == schemas.Addr.Type.H else "contract", str(ua.addr))}">'
+                + f"{str(ua.addr)}</a>"
                 for ua in u.user_addrs
             ] + ["\n"]
 
@@ -50,7 +52,7 @@ async def addr(bot: HydraBot, msg: types.Message):
                 "List: <b>/addr list</b>"
             )
 
-    user_addr = await bot.db.asyncc.user_addr_add(u, address)
+    user_addr: schemas.UserAddr = await bot.db.asyncc.user_addr_add(u, address)
     addr_: schemas.Addr = user_addr.addr
 
     tp_str = (
@@ -63,5 +65,5 @@ async def addr(bot: HydraBot, msg: types.Message):
 
     addr_str = str(addr_)
 
-    return await msg.answer(f"Added {tp_str} address:\n<pre>{addr_str}</pre>")
+    return await msg.answer(f"Added {tp_str} address with label '{user_addr.name}'\n<pre>{addr_str}</pre>")
 

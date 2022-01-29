@@ -2,7 +2,10 @@
 Support: @TheHydraverse
 """
 from __future__ import annotations
+from decimal import *
+from typing import Union
 
+import requests.exceptions
 from aiogram import Bot, Dispatcher, types
 import asyncio
 from attrdict import AttrDict
@@ -13,6 +16,8 @@ from hydra import log
 from hydb.api.client import HyDbClient, schemas
 
 from hybot.util.conf import Config
+from hybot.util import misc
+from num2words import num2words
 
 from .data import HydraBotData
 
@@ -51,7 +56,7 @@ class HydraBot(Bot):
         if not token:
             raise ValueError("Invalid or no token found in config")
 
-        await HydraBotData.init(self.db)
+        HydraBotData.init(self.db)
 
         self.rpcx = ExplorerRPC(mainnet=HydraBotData.SERVER_INFO.mainnet)
 
@@ -86,7 +91,12 @@ class HydraBot(Bot):
     @staticmethod
     @dp.message(commands={"echo"})
     async def echo(msg: types.Message):
-        return await msg.answer(msg.text)
+        # return await msg.answer(msg.text)
+
+        await HydraBot.bot().send_message(
+            chat_id=msg.from_user.id,
+            text=msg.text,
+        )
 
     @staticmethod
     @dp.startup()
@@ -95,12 +105,154 @@ class HydraBot(Bot):
         asyncio.create_task(bot._sse_block_task())
 
     async def _sse_block_task(self):
-        # TODO: Exception handling
-        await self.db.sse_block_async(self.__sse_block_event, asyncio.get_event_loop())
+        while 1:
+            try:
+                await self.db.sse_block_async(self.__sse_block_event, asyncio.get_event_loop())
+            except requests.exceptions.ConnectionError as exc:
+                log.debug("SSE block event connection error", exc_info=exc)
+            except requests.exceptions.ChunkedEncodingError as exc:
+                log.debug("SSE block event connection interrupted", exc_info=exc)
+            except (requests.exceptions.RequestException, requests.exceptions.BaseHTTPError) as exc:
+                log.debug("SSE block event request error", exc_info=exc)
+            except BaseException as exc:
+                log.debug("SSE block event other error", exc_info=exc)
+
+            await asyncio.sleep(15)
 
     # noinspection PyMethodMayBeStatic
     async def __sse_block_event(self, block_sse_result: schemas.BlockSSEResult):
         print("SSE Block Event! #", block_sse_result.block.pkid)
+
+        for addr_hist in block_sse_result.hist:
+            for addr_hist_user in addr_hist.addr_hist_user:
+                await self.__sse_block_event_user_proc(block_sse_result, addr_hist, addr_hist_user)
+
+    async def __sse_block_event_user_proc(self, block_sse_result: schemas.BlockSSEResult, addr_hist: schemas.AddrHistResult, addr_hist_user: schemas.UserAddrHistResult):
+        if block_sse_result.event == schemas.SSEBlockEvent.create:
+            if addr_hist.mined:
+                await self.__sse_block_event_user_mined(block_sse_result.block, addr_hist, addr_hist_user)
+        elif block_sse_result.event == schemas.SSEBlockEvent.mature:
+            if addr_hist.mined:
+                await self.__sse_block_event_user_mined_matured(block_sse_result.block, addr_hist, addr_hist_user)
+
+    async def __sse_block_event_user_mined(self, block: schemas.Block, addr_hist: schemas.AddrHistResult, addr_hist_user: schemas.UserAddrHistResult):
+        user_addr: schemas.UserAddrResult = addr_hist_user.user_addr
+        user: schemas.UserBase = user_addr.user
+
+        staking = int(addr_hist.info_new["staking"])
+        staking_delta = staking - int(addr_hist.info_old["staking"])
+
+        staking_delta_dec = HydraBot.__decimalize(staking_delta, prec=4)
+
+        staking_delta_dec = f"+{str(staking_delta_dec)}" if staking_delta_dec > 0 else str(staking_delta_dec)
+
+        staking_tot = ""
+
+        if staking != staking_delta:
+            staking_tot = f" (total {HydraBot.__decimalize(staking, prec=8)})"
+
+        utxo_inp_cnt = 0
+        utxo_out_cnt = 0
+        utxo_out_tot = 0
+
+        block_tx = block.tx[1]
+
+        for inp in filter(lambda inp_: inp_.get("address") == addr_hist.addr.addr_hy, block_tx["inputs"]):
+            value = int(inp.get("value", 0))
+
+            if value:
+                utxo_inp_cnt += 1
+
+        for out in filter(lambda out_: out_.get("address") == addr_hist.addr.addr_hy, block_tx["outputs"]):
+            value = int(out.get("value", 0))
+
+            if value:
+                utxo_out_cnt += 1
+                utxo_out_tot += value
+
+        utxo_out_tot = HydraBot.__decimalize(utxo_out_tot, prec=8)
+
+        utxo_str = "Merged" if utxo_inp_cnt > utxo_out_cnt else "Updated" if utxo_inp_cnt == utxo_out_cnt else "Split"
+        utxo_str += f" {num2words(utxo_inp_cnt)} UTXO{'s' if utxo_inp_cnt != 1 else ''}"
+
+        if utxo_inp_cnt != utxo_out_cnt:
+            utxo_str += f" into {num2words(utxo_out_cnt)}"
+
+        utxo_str += f" with a total output of {utxo_out_tot} HYDRA."
+
+        message = [
+            f'<b>{user.uniq.name} :: <a href="{self.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a></b>'
+            + f' :: <a href="{self.rpcx.human_link("block", block.hash)}">#{block.height}</a>',
+            "",
+            f"Your {'very first' if user.block_c == 1 else num2words(user.block_c, ordinal=True)} Hydraverse block has arrived!",
+            f'Reward: <a href="{self.rpcx.human_link("tx", block_tx["id"])}">+{HydraBot.__block_reward_str(block)}</a> HYDRA',
+            f"Staked: {staking_delta_dec} HYDRA{staking_tot}",
+            "",
+            utxo_str,
+            "",
+            f"Hydraverse blocks mined by {user_addr.name}: {user_addr.block_c} ({addr_hist.info_new.get('blocksMined', 0)} total)",
+            "",
+            f"Total blocks created in the Hydraverse: {block.pkid}"
+        ]
+
+        await self.send_message(
+            chat_id=user.tg_user_id,
+            text="\n".join(message),
+            parse_mode="HTML"
+        )
+
+    async def __sse_block_event_user_mined_matured(self, block: schemas.Block, addr_hist: schemas.AddrHistResult, addr_hist_user: schemas.UserAddrHistResult):
+        user_addr: schemas.UserAddrResult = addr_hist_user.user_addr
+        user: schemas.UserBase = user_addr.user
+
+        matured = HydraBot.__decimalize(
+            int(addr_hist.info_new["mature"]) -
+            int(addr_hist.info_old["mature"])
+        )
+
+        staking = HydraBot.__decimalize(addr_hist.info_new["staking"], prec=4)
+
+        utxo_out_tot = 0
+
+        block_tx = block.tx[1]
+
+        for out in filter(lambda out_: out_.get("address") == addr_hist.addr.addr_hy, block_tx["outputs"]):
+            value = int(out.get("value", 0))
+
+            if value:
+                utxo_out_tot += value
+
+        utxo_out_tot = HydraBot.__decimalize(utxo_out_tot, prec=4)
+
+        message = [
+            f'<b>{user.uniq.name} :: <a href="{self.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a></b>',
+            "",
+            f'Block <a href="{self.rpcx.human_link("block", block.hash)}">#{block.height}</a> has matured!',
+            f"Reward: +{HydraBot.__block_reward_str(block)} HYDRA",
+            f"Matured: +{utxo_out_tot} (total change: +{matured})",
+        ]
+
+        if staking > 0:
+            message += [
+                f"Staking: {str(staking)} HYDRA",
+            ]
+
+        await self.send_message(
+            chat_id=user.tg_user_id,
+            text="\n".join(message),
+            parse_mode="HTML"
+        )
+
+        self.db.user_addr_hist_del(user=user, user_addr_hist=addr_hist_user)
+
+    @staticmethod
+    def __block_reward_str(block: schemas.Block) -> str:
+        return str(HydraBot.__decimalize(block.info["reward"], prec=4))
+
+    @staticmethod
+    def __decimalize(value: Union[int, str], decimals: int = 8, prec: int = 16) -> Decimal:
+        getcontext().prec = prec
+        return Decimal(value) / Decimal(10**decimals)
 
     def run(self):
         return self.dp.run_polling(self)
@@ -111,7 +263,7 @@ class HydraBot(Bot):
             return await fn(self, msg, *args, **kwds)
         except BaseException as error:
             await msg.answer(
-                f"Sorry, something went wrong. <b><pre>{str(error)}</pre></b>"
+                f"Sorry, something went wrong. <b><pre>{error}</pre></b>"
             )
 
             if log.level() <= log.INFO:
