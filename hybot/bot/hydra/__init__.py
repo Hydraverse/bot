@@ -9,6 +9,7 @@ import requests.exceptions
 from aiogram import Bot, Dispatcher, types
 import asyncio
 from attrdict import AttrDict
+from datetime import datetime, timedelta, timezone
 
 from hydra.rpc.explorer import ExplorerRPC
 from hydra import log
@@ -88,6 +89,21 @@ class HydraBot(Bot):
     def main(db: HyDbClient):
         return HydraBot(db).run()
 
+    def run(self):
+        return self.dp.run_polling(self)
+
+    async def command(self, msg, fn, *args, **kwds):
+        # noinspection PyBroadException
+        try:
+            return await fn(self, msg, *args, **kwds)
+        except BaseException as error:
+            await msg.answer(
+                f"Sorry, something went wrong. <b><pre>{error}</pre></b>"
+            )
+
+            if log.level() <= log.INFO:
+                raise
+
     @staticmethod
     @dp.message(commands={"echo"})
     async def echo(msg: types.Message):
@@ -121,7 +137,7 @@ class HydraBot(Bot):
 
     # noinspection PyMethodMayBeStatic
     async def __sse_block_event(self, block_sse_result: schemas.BlockSSEResult):
-        print("SSE Block Event! #", block_sse_result.block.pkid)
+        log.debug("SSE Block Event! #", block_sse_result.block.pkid, block_sse_result.event.value)
 
         for addr_hist in block_sse_result.hist:
             for addr_hist_user in addr_hist.addr_hist_user:
@@ -142,14 +158,14 @@ class HydraBot(Bot):
         staking = int(addr_hist.info_new["staking"])
         staking_delta = staking - int(addr_hist.info_old["staking"])
 
-        staking_delta_dec = HydraBot.__decimalize(staking_delta, prec=4)
+        staking_delta_dec = HydraBot.__decimalize(staking_delta)
 
-        staking_delta_dec = f"+{str(staking_delta_dec)}" if staking_delta_dec > 0 else str(staking_delta_dec)
+        if staking_delta_dec != 0:
+            staking_delta_dec = f" ({'+' if staking_delta_dec > 0 else ''}{str(staking_delta_dec)})"
+        else:
+            staking_delta_dec = ""
 
-        staking_tot = ""
-
-        if staking != staking_delta:
-            staking_tot = f" (total {HydraBot.__decimalize(staking, prec=8)})"
+        staking_tot = f"{HydraBot.__decimalize(staking)} HYDRA{staking_delta_dec}"
 
         utxo_inp_cnt = 0
         utxo_out_cnt = 0
@@ -170,7 +186,7 @@ class HydraBot(Bot):
                 utxo_out_cnt += 1
                 utxo_out_tot += value
 
-        utxo_out_tot = HydraBot.__decimalize(utxo_out_tot, prec=8)
+        utxo_out_tot = HydraBot.__decimalize(utxo_out_tot, prec=5)
 
         utxo_str = "Merged" if utxo_inp_cnt > utxo_out_cnt else "Updated" if utxo_inp_cnt == utxo_out_cnt else "Split"
         utxo_str += f" {num2words(utxo_inp_cnt)} UTXO{'s' if utxo_inp_cnt != 1 else ''}"
@@ -178,22 +194,30 @@ class HydraBot(Bot):
         if utxo_inp_cnt != utxo_out_cnt:
             utxo_str += f" into {num2words(utxo_out_cnt)}"
 
-        utxo_str += f" with a total output of {utxo_out_tot} HYDRA."
+        utxo_str += f" with a total output of about {utxo_out_tot} HYDRA."
 
         message = [
-            f'<b>{user.uniq.name} :: <a href="{self.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a></b>'
-            + f' :: <a href="{self.rpcx.human_link("block", block.hash)}">#{block.height}</a>',
-            "",
-            f"Your {'very first' if user.block_c == 1 else num2words(user.block_c, ordinal=True)} Hydraverse block has arrived!",
+            f'<b><a href="{self.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a> '
+            + f'mined a new <a href="{self.rpcx.human_link("block", block.height)}">block</a>!</b>',
             f'Reward: <a href="{self.rpcx.human_link("tx", block_tx["id"])}">+{HydraBot.__block_reward_str(block)}</a> HYDRA',
-            f"Staked: {staking_delta_dec} HYDRA{staking_tot}",
+            f"Staking: {staking_tot}",
             "",
             utxo_str,
-            "",
-            f"Hydraverse blocks mined by {user_addr.name}: {user_addr.block_c} ({addr_hist.info_new.get('blocksMined', 0)} total)",
-            "",
-            f"Total blocks created in the Hydraverse: {block.pkid}"
         ]
+
+        if addr_hist_user.block_t is not None:
+            td: timedelta = datetime.utcnow() - addr_hist_user.block_t
+            td_msg = HydraBot.__timedelta_str(td)
+
+            message += [
+                "",
+                f"Last block created {td_msg} ago."
+            ]
+
+        # if user.block_c != user_addr.block_c:
+        #     message.append(
+        #         f"Hydraverse blocks mined by {user.uniq.name}: {user.block_c}"
+        #     )
 
         await self.send_message(
             chat_id=user.tg_user_id,
@@ -210,7 +234,7 @@ class HydraBot(Bot):
             int(addr_hist.info_old["mature"])
         )
 
-        staking = HydraBot.__decimalize(addr_hist.info_new["staking"], prec=4)
+        staking = HydraBot.__decimalize(addr_hist.info_new["staking"])
 
         utxo_out_tot = 0
 
@@ -222,14 +246,14 @@ class HydraBot(Bot):
             if value:
                 utxo_out_tot += value
 
-        utxo_out_tot = HydraBot.__decimalize(utxo_out_tot, prec=4)
+        utxo_out_tot = HydraBot.__decimalize(utxo_out_tot)
 
         message = [
             f'<b>{user.uniq.name} :: <a href="{self.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a></b>',
             "",
             f'Block <a href="{self.rpcx.human_link("block", block.hash)}">#{block.height}</a> has matured!',
             f"Reward: +{HydraBot.__block_reward_str(block)} HYDRA",
-            f"Matured: +{utxo_out_tot} (total change: +{matured})",
+            f"Matured: +{utxo_out_tot} (total change: {'+' if matured > 0 else ''}{matured})",
         ]
 
         if staking > 0:
@@ -243,7 +267,34 @@ class HydraBot(Bot):
             parse_mode="HTML"
         )
 
-        self.db.user_addr_hist_del(user=user, user_addr_hist=addr_hist_user)
+    @staticmethod
+    def __timedelta_str(td: timedelta) -> str:
+        td_msg = AttrDict()
+
+        if td.days > 0:
+            td_msg.days = str(td.days) + "d"
+
+        seconds = td.seconds
+
+        if seconds >= 3600:
+            hours = seconds // 3600
+            seconds -= hours * 3600
+            td_msg.hours = str(hours) + "h"
+
+        if seconds >= 60:
+            minutes = seconds // 60
+            seconds -= minutes * 60
+            td_msg.minutes = str(minutes) + "m"
+
+        if not len(td_msg):
+            td_msg.seconds = str(seconds) + "s"
+
+        return (
+                td_msg.get('days', '') +
+                td_msg.get('hours', '') +
+                td_msg.get('minutes', '') +
+                td_msg.get('seconds', '')
+        )
 
     @staticmethod
     def __block_reward_str(block: schemas.Block) -> str:
@@ -254,17 +305,3 @@ class HydraBot(Bot):
         getcontext().prec = prec
         return Decimal(value) / Decimal(10**decimals)
 
-    def run(self):
-        return self.dp.run_polling(self)
-
-    async def command(self, msg, fn, *args, **kwds):
-        # noinspection PyBroadException
-        try:
-            return await fn(self, msg, *args, **kwds)
-        except BaseException as error:
-            await msg.answer(
-                f"Sorry, something went wrong. <b><pre>{error}</pre></b>"
-            )
-
-            if log.level() <= log.INFO:
-                raise
