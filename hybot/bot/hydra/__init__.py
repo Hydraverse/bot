@@ -137,19 +137,25 @@ class HydraBot(Bot):
 
     # noinspection PyMethodMayBeStatic
     async def __sse_block_event(self, block_sse_result: schemas.BlockSSEResult):
-        log.debug("SSE Block Event! #", block_sse_result.block.pkid, block_sse_result.event.value)
+        users_notified = 0
 
         for addr_hist in block_sse_result.hist:
             for addr_hist_user in addr_hist.addr_hist_user:
-                await self.__sse_block_event_user_proc(block_sse_result, addr_hist, addr_hist_user)
+                users_notified += await self.__sse_block_event_user_proc(block_sse_result, addr_hist, addr_hist_user)
+
+        log.info(f"Block #{block_sse_result.block.height} {block_sse_result.event}: Notified {users_notified} user{'s' if users_notified != 1 else ''}.")
 
     async def __sse_block_event_user_proc(self, block_sse_result: schemas.BlockSSEResult, addr_hist: schemas.AddrHistResult, addr_hist_user: schemas.UserAddrHistResult):
         if block_sse_result.event == schemas.SSEBlockEvent.create:
             if addr_hist.mined:
                 await self.__sse_block_event_user_mined(block_sse_result.block, addr_hist, addr_hist_user)
+                return 1
         elif block_sse_result.event == schemas.SSEBlockEvent.mature:
             if addr_hist.mined:
                 await self.__sse_block_event_user_mined_matured(block_sse_result.block, addr_hist, addr_hist_user)
+                return 1
+
+        return 0
 
     async def __sse_block_event_user_mined(self, block: schemas.Block, addr_hist: schemas.AddrHistResult, addr_hist_user: schemas.UserAddrHistResult):
         user_addr: schemas.UserAddrResult = addr_hist_user.user_addr
@@ -234,6 +240,11 @@ class HydraBot(Bot):
             int(addr_hist.info_old["mature"])
         )
 
+        matured_str = ""
+
+        if matured != 0:
+            matured_str = f" ({'+' if matured > 0 else ''}{matured})"
+
         staking = HydraBot.__decimalize(addr_hist.info_new["staking"])
 
         utxo_out_tot = 0
@@ -253,12 +264,12 @@ class HydraBot(Bot):
             "",
             f'Block <a href="{self.rpcx.human_link("block", block.hash)}">#{block.height}</a> has matured!',
             f"Reward: +{HydraBot.__block_reward_str(block)} HYDRA",
-            f"Matured: +{utxo_out_tot} (total change: {'+' if matured > 0 else ''}{matured})",
+            f"Matured: +{utxo_out_tot}{matured_str}",
         ]
 
         if staking > 0:
             message += [
-                f"Staking: {str(staking)} HYDRA",
+                f"Staking: {staking} HYDRA",
             ]
 
         await self.send_message(
