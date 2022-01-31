@@ -2,14 +2,12 @@
 Support: @TheHydraverse
 """
 from __future__ import annotations
-from decimal import *
-from typing import Union
 
 import requests.exceptions
 from aiogram import Bot, Dispatcher, types
 import asyncio
 from attrdict import AttrDict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from hydra.rpc.explorer import ExplorerRPC
 from hydra import log
@@ -17,7 +15,6 @@ from hydra import log
 from hydb.api.client import HyDbClient, schemas
 
 from hybot.util.conf import Config
-from hybot.util import misc
 from num2words import num2words
 
 from .data import HydraBotData
@@ -171,7 +168,7 @@ class HydraBot(Bot):
         else:
             staking_delta_dec = ""
 
-        staking_tot = f"{schemas.Addr.decimal(staking)} HYDRA{staking_delta_dec}"
+        staking_tot = f"{'{:,}'.format(schemas.Addr.decimal(staking))} HYDRA{staking_delta_dec}"
 
         utxo_inp_cnt = 0
         utxo_out_cnt = 0

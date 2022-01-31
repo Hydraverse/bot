@@ -26,6 +26,7 @@ setup(
         "fuzzywuzzy",
         "python-Levenshtein",
         "num2words",
+        "emoji",
         "https://github.com/aiogram/aiogram/archive/refs/heads/dev-3.x.zip",
     ],
     entry_points={

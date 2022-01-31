@@ -1,6 +1,7 @@
 from datetime import timedelta, datetime
 
 from aiogram import types
+from emoji import UNICODE_EMOJI_ENGLISH
 
 from . import HydraBot
 from .data import HydraBotData, schemas
@@ -139,7 +140,7 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: schemas.User, ua: sche
                 name = "unconf"
 
             message.append(
-                f"<pre>{name.capitalize()}:{tab if len(name) >= 7 else tab*2}{schemas.Addr.decimal(value)}"
+                f"<pre>{name.capitalize()}:{tab if len(name) >= 7 else tab*2}{'{:,}'.format(schemas.Addr.decimal(value))}"
                 + (" HYDRA" if name == "balance" else "")
                 + "</pre>"
             )
@@ -172,9 +173,14 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: schemas.User, ua: sche
 
             balance = tb.balance if tb.decimals == 0 else schemas.Addr.decimal(tb.balance, decimals=tb.decimals)
 
-            message.append(
-                f"<pre>{balance}</pre> <a href=\"{bot.rpcx.human_link('contract', tb.addressHex)}\">{tb.symbol}</a>"
-            )
+            if tb.symbol in UNICODE_EMOJI_ENGLISH:
+                message.append(
+                    f"<b><a href=\"{bot.rpcx.human_link('contract', tb.addressHex)}\">{tb.symbol}</a> <pre>{'{:,}'.format(balance)}</pre></b>"
+                )
+            else:
+                message.append(
+                    f"<b><pre>{'{:,}'.format(balance)}</pre> <a href=\"{bot.rpcx.human_link('contract', tb.addressHex)}\">{tb.symbol}</a></b>"
+                )
 
     if message[-1] != "":
         message.append("")
