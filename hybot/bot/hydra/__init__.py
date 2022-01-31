@@ -164,14 +164,14 @@ class HydraBot(Bot):
         staking = int(addr_hist.info_new["staking"])
         staking_delta = staking - int(addr_hist.info_old["staking"])
 
-        staking_delta_dec = HydraBot.__decimalize(staking_delta)
+        staking_delta_dec = schemas.Addr.decimal(staking_delta)
 
         if staking_delta_dec != 0:
             staking_delta_dec = f" ({'+' if staking_delta_dec > 0 else ''}{str(staking_delta_dec)})"
         else:
             staking_delta_dec = ""
 
-        staking_tot = f"{HydraBot.__decimalize(staking)} HYDRA{staking_delta_dec}"
+        staking_tot = f"{schemas.Addr.decimal(staking)} HYDRA{staking_delta_dec}"
 
         utxo_inp_cnt = 0
         utxo_out_cnt = 0
@@ -192,7 +192,7 @@ class HydraBot(Bot):
                 utxo_out_cnt += 1
                 utxo_out_tot += value
 
-        utxo_out_tot = HydraBot.__decimalize(utxo_out_tot, prec=5)
+        utxo_out_tot = schemas.Addr.decimal(utxo_out_tot, prec=5)
 
         utxo_str = "Merged" if utxo_inp_cnt > utxo_out_cnt else "Updated" if utxo_inp_cnt == utxo_out_cnt else "Split"
         utxo_str += f" {num2words(utxo_inp_cnt)} UTXO{'s' if utxo_inp_cnt != 1 else ''}"
@@ -213,7 +213,7 @@ class HydraBot(Bot):
 
         if addr_hist_user.block_t is not None:
             td: timedelta = datetime.utcnow() - addr_hist_user.block_t
-            td_msg = HydraBot.__timedelta_str(td)
+            td_msg = schemas.timedelta_str(td)
 
             message += [
                 "",
@@ -235,7 +235,7 @@ class HydraBot(Bot):
         user_addr: schemas.UserAddrResult = addr_hist_user.user_addr
         user: schemas.UserBase = user_addr.user
 
-        matured = HydraBot.__decimalize(
+        matured = schemas.Addr.decimal(
             int(addr_hist.info_new["mature"]) -
             int(addr_hist.info_old["mature"])
         )
@@ -245,7 +245,7 @@ class HydraBot(Bot):
         if matured != 0:
             matured_str = f" ({'+' if matured > 0 else ''}{matured})"
 
-        staking = HydraBot.__decimalize(addr_hist.info_new["staking"])
+        staking = schemas.Addr.decimal(addr_hist.info_new["staking"])
 
         utxo_out_tot = 0
 
@@ -257,7 +257,7 @@ class HydraBot(Bot):
             if value:
                 utxo_out_tot += value
 
-        utxo_out_tot = HydraBot.__decimalize(utxo_out_tot)
+        utxo_out_tot = schemas.Addr.decimal(utxo_out_tot)
 
         message = [
             f'<b>{user.uniq.name} :: <a href="{self.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a></b>',
@@ -279,40 +279,7 @@ class HydraBot(Bot):
         )
 
     @staticmethod
-    def __timedelta_str(td: timedelta) -> str:
-        td_msg = AttrDict()
-
-        if td.days > 0:
-            td_msg.days = str(td.days) + "d"
-
-        seconds = td.seconds
-
-        if seconds >= 3600:
-            hours = seconds // 3600
-            seconds -= hours * 3600
-            td_msg.hours = str(hours) + "h"
-
-        if seconds >= 60:
-            minutes = seconds // 60
-            seconds -= minutes * 60
-            td_msg.minutes = str(minutes) + "m"
-
-        if not len(td_msg):
-            td_msg.seconds = str(seconds) + "s"
-
-        return (
-                td_msg.get('days', '') +
-                td_msg.get('hours', '') +
-                td_msg.get('minutes', '') +
-                td_msg.get('seconds', '')
-        )
-
-    @staticmethod
     def __block_reward_str(block: schemas.Block) -> str:
-        return str(HydraBot.__decimalize(block.info["reward"], prec=4))
+        return str(schemas.Addr.decimal(block.info["reward"], prec=4))
 
-    @staticmethod
-    def __decimalize(value: Union[int, str], decimals: int = 8, prec: int = 16) -> Decimal:
-        getcontext().prec = prec
-        return Decimal(value) / Decimal(10**decimals)
 

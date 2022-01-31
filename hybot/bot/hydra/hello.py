@@ -11,7 +11,7 @@ from .data import HydraBotData, schemas
 async def hello(bot: HydraBot, msg: types.Message):
     u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
 
-    response_tz = (
+    response_cmds = (
         "Manage addresses with <b>/addr</b>.\n\n"
         f"Your time zone is <b>{u.info.get('tz', 'UTC')}</b>.\n"
         "Change your time zone with <b>/tz [zone]</b>\n"
@@ -36,7 +36,7 @@ async def hello(bot: HydraBot, msg: types.Message):
     if u.info.get("tz", ...) is ...:
         await msg.answer(
             response_uid +
-            response_tz +
+            response_cmds +
             response_donate
         )
 
@@ -51,7 +51,7 @@ async def hello(bot: HydraBot, msg: types.Message):
 
     else:
         await msg.answer(
-            f"Hello, <b>{msg.from_user.username}</b>.\n\n" +
-            response_tz +
+            f"<pre>{u.uniq.pkid}: {u.uniq.name}</pre>\n\n" +
+            response_cmds +
             response_donate
         )
