@@ -179,6 +179,34 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: schemas.User, ua: sche
     if message[-1] != "":
         message.append("")
 
+    nft_counts = info.get("qrc721Balances", [])
+
+    if len(ua.token_l):
+        nft_counts = [nft for nft in nft_counts if nft.addressHex in ua.token_l]
+
+    nft_counts = [nft for nft in nft_counts if int(nft.count) > 0]
+
+    if len(nft_counts):
+        message += [
+            "NFTs:",
+        ]
+
+        for nft in nft_counts:
+            nft.count = int(nft.count)
+
+            message.append(
+                f"<pre>{nft.count}</pre> <a href=\"{bot.rpcx.human_link('contract', nft.addressHex)}\">{nft.symbol}</a>"
+            )
+
+            # for hx, uri in nft.get("uris", {}).items():
+            #     hx = hex(int(hx, 16))[2:].upper().zfill(2)
+            #     message.append(
+            #         f"<pre>{nft.symbol} #{hx}: \"{uri}\"</pre>"
+            #     )
+
+    if message[-1] != "":
+        message.append("")
+
     ranking = info.get("ranking", 0)
 
     if ranking:
