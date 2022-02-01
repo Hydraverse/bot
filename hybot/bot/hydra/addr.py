@@ -4,6 +4,7 @@ from typing import Optional, Union
 
 import pytz
 from aiogram import types
+from attrdict import AttrDict
 from emoji import UNICODE_EMOJI_ENGLISH
 
 from . import HydraBot
@@ -16,7 +17,7 @@ async def addr(bot: HydraBot, msg: types.Message):
     u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
 
     if str(msg.text).strip() == "/a":
-        if not await addr_show(bot, msg, u, ua=None):
+        if not await addr_show(bot, msg.chat.id, u, ua=None):
             address = None
         else:
             return
@@ -72,7 +73,7 @@ async def addr(bot: HydraBot, msg: types.Message):
     matched = False
 
     for ua in u.filter_likely_addr_matches(address):
-        await addr_show(bot, msg, u, ua)
+        await addr_show(bot, msg.chat.id, u, ua)
         matched = True
 
     if not matched:
@@ -98,7 +99,7 @@ async def addr_add(bot: HydraBot, msg: types.Message, u: schemas.User, address: 
         parse_mode="HTML"
     )
 
-    return await addr_show(bot, msg, u, user_addr)
+    return await addr_show(bot, msg.chat.id, u, user_addr)
 
 
 async def addr_rename(bot: HydraBot, msg: types.Message, u: schemas.User, address: str, name: str):
@@ -130,7 +131,7 @@ async def addr_del(bot: HydraBot, msg: types.Message, u: schemas.User, address: 
     return await msg.answer("Address not removed: not found.\n")
 
 
-async def addr_show(bot: HydraBot, msg: types.Message, u: Union[schemas.User, schemas.UserBase], ua: Optional[Union[schemas.UserAddrBase, schemas.UserAddrResult]], addr_: Optional[schemas.Addr] = None) -> bool:
+async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.UserBase], ua: Optional[Union[schemas.UserAddrBase, schemas.UserAddrResult]], addr_: Optional[schemas.Addr] = None) -> bool:
     if ua is None:
         if not isinstance(u, schemas.User):
             raise TypeError("Must provide User (not UserBase) when ua is None.")
@@ -153,7 +154,7 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: Union[schemas.User, sc
         addr_ = ua.addr
 
     ua_addr = str(addr_)
-    info = addr_.info
+    info = AttrDict(addr_.info)
 
     message = [
         f'<a href="{bot.rpcx.human_link(human_type(addr_), ua_addr)}">{ua.name}</a>',
@@ -201,7 +202,7 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: Union[schemas.User, sc
     if message[-1] != "":
         message.append("")
 
-    token_balances = info.get("qrc20Balances", [])
+    token_balances = [AttrDict(tb) for tb in info.get("qrc20Balances", [])]
 
     if len(ua.token_l):
         token_balances = [tb for tb in token_balances if tb.addressHex in ua.token_l]
@@ -231,7 +232,7 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: Union[schemas.User, sc
     if message[-1] != "":
         message.append("")
 
-    nft_counts = info.get("qrc721Balances", [])
+    nft_counts = [AttrDict(nft) for nft in info.get("qrc721Balances", [])]
 
     if len(ua.token_l):
         nft_counts = [nft for nft in nft_counts if nft.addressHex in ua.token_l]
@@ -278,27 +279,24 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: Union[schemas.User, sc
             f"Total mined blocks: {blocks_mined}"
         )
 
-    if message[-1] != "":
-        message.append("")
-
     if ua.block_t is not None:
+        if message[-1] != "":
+            message.append("")
+
         td: timedelta = datetime.utcnow() - ua.block_t
         td_msg = schemas.timedelta_str(td)
 
-        tz_name = u.info.get("tz", "UTC")
-        tz_from = pytz.timezone("UTC")
-        tz_user = pytz.timezone(tz_name)
-        tz_time = tz_from.localize(ua.block_t, is_dst=None).astimezone(tz_user)
+        tz_time = u.user_time(ua.block_t)
         tz_name = tz_time.tzname()
         tz_time = tz_time.ctime()
 
         message += [
-            "",
-            f"Last block created {td_msg} ago\non {tz_time} {tz_name}."
+            f"Last block created {td_msg} ago:\n{tz_time} {tz_name}"
         ]
 
-    await msg.answer(
-        "\n".join(message),
+    await bot.send_message(
+        chat_id=chat_id,
+        text="\n".join(message),
         parse_mode="HTML",
     )
 

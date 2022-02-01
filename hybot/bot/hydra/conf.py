@@ -41,6 +41,8 @@ async def conf(bot: HydraBot, msg: types.Message):
         conf_block_bal = f"Current: {conf_block_bal}" if conf_block_bal is not None else "Default: hide"
         conf_block_stake = conf_cur.get('block', {}).get('stake', None)
         conf_block_stake = f"Current: {conf_block_stake}" if conf_block_stake is not None else "Default: full"
+        conf_block_utxo = conf_cur.get('block', {}).get('utxo', None)
+        conf_block_utxo = f"Current: {conf_block_utxo}" if conf_block_utxo is not None else "Default: show"
         conf_block_mature = conf_cur.get('block', {}).get('mature', None)
         conf_block_mature = f"Current: {conf_block_mature}" if conf_block_mature is not None else "Default: show"
 
@@ -50,13 +52,16 @@ async def conf(bot: HydraBot, msg: types.Message):
             "Syntax: /conf [conf] [name] [value]\n\n"
             "Address-specific:\n"
             "/conf [addr]: [conf] [name] [value]\n\n\n"
-            "Block:\n\n"
+            "Block config:\n\n"
             f"Show balance or status on new blocks:\n"
             f"/conf block bal [show|hide|full]\n"
             f"{conf_block_bal}\n\n"
             f"Show staking info on new blocks:\n"
             f"/conf block stake [show|hide|full]\n"
             f"{conf_block_stake}\n\n"
+            f"Show UTXO split info on new blocks:\n"
+            f"/conf block utxo [show|hide|full]\n"
+            f"{conf_block_utxo}\n\n"
             f"Notify on block mature:\n"
             f"/conf block mature [show|hide|full]\n"
             f"{conf_block_mature}\n\n"
@@ -66,7 +71,7 @@ async def conf(bot: HydraBot, msg: types.Message):
 
     cmds = conf_cmd.lower().split()
 
-    if len(cmds) != 3 or cmds[0] != "block" or cmds[1] not in ("bal", "stake", "mature") or cmds[2] not in ("show", "hide", "full"):
+    if len(cmds) != 3 or cmds[0] != "block" or cmds[1] not in ("bal", "stake", "mature", "utxo") or cmds[2] not in ("show", "hide", "full"):
         return await msg.answer("Invalid command or config value.")
 
     conf_cur.setdefault(cmds[0], {})[cmds[1]] = cmds[2]

@@ -53,8 +53,7 @@ class EventManager:
                 return 1
         elif block_sse_result.event == SSEBlockEvent.mature:
             if addr_hist.mined:
-                await self.__sse_block_event_user_mined_matured(block_sse_result.block, addr_hist, addr_hist_user)
-                return 1
+                return await self.__sse_block_event_user_mined_matured(block_sse_result.block, addr_hist, addr_hist_user)
 
         log.warning(f"Unprocessed BlockSSEResult for user {addr_hist_user.user_addr.user.uniq.name}: {block_sse_result.dict()}")
         return 0
@@ -68,6 +67,7 @@ class EventManager:
 
         conf_block_stake = ua_conf.get("block", {}).get("stake", conf.get("block", {}).get("stake", "full"))
         conf_block_bal = ua_conf.get("block", {}).get("bal", conf.get("block", {}).get("bal", "hide"))
+        conf_block_utxo = ua_conf.get("block", {}).get("utxo", conf.get("block", {}).get("utxo", "show"))
 
         balance_str = None
 
@@ -100,34 +100,37 @@ class EventManager:
         else:
             staking_tot = None
 
-        utxo_inp_cnt = 0
-        utxo_out_cnt = 0
-        utxo_out_tot = 0
-
         block_tx = block.tx[1]
 
-        for inp in filter(lambda inp_: inp_.get("address") == addr_hist.addr.addr_hy, block_tx["inputs"]):
-            value = int(inp.get("value", 0))
+        utxo_str = None
 
-            if value:
-                utxo_inp_cnt += 1
+        if conf_block_utxo != "hide":
+            utxo_inp_cnt = 0
+            utxo_out_cnt = 0
+            utxo_out_tot = 0
 
-        for out in filter(lambda out_: out_.get("address") == addr_hist.addr.addr_hy, block_tx["outputs"]):
-            value = int(out.get("value", 0))
+            for inp in filter(lambda inp_: inp_.get("address") == addr_hist.addr.addr_hy, block_tx["inputs"]):
+                value = int(inp.get("value", 0))
 
-            if value:
-                utxo_out_cnt += 1
-                utxo_out_tot += value
+                if value:
+                    utxo_inp_cnt += 1
 
-        utxo_out_tot = Addr.decimal(utxo_out_tot, prec=5)
+            for out in filter(lambda out_: out_.get("address") == addr_hist.addr.addr_hy, block_tx["outputs"]):
+                value = int(out.get("value", 0))
 
-        utxo_str = "Merged" if utxo_inp_cnt > utxo_out_cnt else "Updated" if utxo_inp_cnt == utxo_out_cnt else "Split"
-        utxo_str += f" {num2words(utxo_inp_cnt)} UTXO{'s' if utxo_inp_cnt != 1 else ''}"
+                if value:
+                    utxo_out_cnt += 1
+                    utxo_out_tot += value
 
-        if utxo_inp_cnt != utxo_out_cnt:
-            utxo_str += f" into {num2words(utxo_out_cnt)}"
+            utxo_out_tot = Addr.decimal(utxo_out_tot, prec=5)
 
-        utxo_str += f" with a total output of about {utxo_out_tot} HYDRA."
+            utxo_str = "Merged" if utxo_inp_cnt > utxo_out_cnt else "Updated" if utxo_inp_cnt == utxo_out_cnt else "Split"
+            utxo_str += f" {num2words(utxo_inp_cnt)} UTXO{'s' if utxo_inp_cnt != 1 else ''}"
+
+            if utxo_inp_cnt != utxo_out_cnt:
+                utxo_str += f" into {num2words(utxo_out_cnt)}"
+
+            utxo_str += f" with a total output of about {utxo_out_tot} HYDRA."
 
         reward = block.info["reward"]
         currency = user.info.get("fiat", "USD")
@@ -137,7 +140,7 @@ class EventManager:
 
         message = [
             f'<b><a href="{self.bot.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a> '
-            + f'mined a new <a href="{self.bot.rpcx.human_link("block", block.height)}">block</a>!</b>\n',
+            + f'mined block <a href="{self.bot.rpcx.human_link("block", block.height)}">#{block.height}</a>!</b>\n',
             f'Reward: <a href="{self.bot.rpcx.human_link("tx", block_tx["id"])}">+{reward}</a> HYDRA',
             f"Value: {value} @ {price}",
         ]
@@ -150,25 +153,37 @@ class EventManager:
                 f"Stake: {staking_tot}",
             ]
 
-        message += [
-            "",
-            utxo_str,
-        ]
-
-        if addr_hist_user.block_t is not None:
-            td: timedelta = datetime.utcnow() - addr_hist_user.block_t
-            td_msg = timedelta_str(td)
-
-            tz_name = user.info.get("tz", "UTC")
-            tz_from = pytz.timezone("UTC")
-            tz_user = pytz.timezone(tz_name)
-            tz_time = tz_from.localize(addr_hist_user.block_t, is_dst=None).astimezone(tz_user)
-            tz_name = tz_time.tzname()
-            tz_time = tz_time.ctime()
+        if utxo_str:
+            if message[-1] != "":
+                message.append("")
 
             message += [
-                "",
-                f"Last block created {td_msg} ago\non {tz_time} {tz_name}."
+                utxo_str,
+            ]
+
+        block_time = user.user_time(
+            datetime.utcfromtimestamp(block.info.get("timestamp", datetime.now()))
+        )
+
+        if message[-1] != "":
+            message.append("")
+
+        message.append(
+            f"{block_time.ctime()} {block_time.tzname()}"
+        )
+
+        if addr_hist_user.block_t is not None:
+            if message[-1] != "":
+                message.append("")
+
+            tz_time = user.user_time(addr_hist_user.block_t)
+            tz_time = tz_time.ctime()
+
+            td: timedelta = block_time - tz_time
+            td_msg = timedelta_str(td)
+
+            message += [
+                f"Last block created {td_msg} ago:\n{tz_time}."
             ]
 
         # if user.block_c != user_addr.block_c:
@@ -176,7 +191,7 @@ class EventManager:
         #         f"Hydraverse blocks mined by {user.uniq.name}: {user.block_c}"
         #     )
 
-        msg = await self.bot.send_message(
+        await self.bot.send_message(
             chat_id=user.tg_user_id,
             text="\n".join(message),
             parse_mode="HTML"
@@ -188,9 +203,9 @@ class EventManager:
                 **AttrDict(addr_hist.addr.dict())
             )
 
-            await addr_show(self.bot, msg, user, user_addr, addr)
+            await addr_show(self.bot, user.tg_user_id, user, user_addr, addr)
 
-    async def __sse_block_event_user_mined_matured(self, block: Block, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult) -> bool:
+    async def __sse_block_event_user_mined_matured(self, block: Block, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult) -> int:
         user_addr: UserAddrResult = addr_hist_user.user_addr
         user: UserBase = user_addr.user
 
@@ -200,7 +215,7 @@ class EventManager:
         conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "show"))
 
         if conf_block_mature == "hide":
-            return False
+            return 0
 
         staking = Addr.decimal(addr_hist.info_new["staking"])
 
@@ -242,7 +257,7 @@ class EventManager:
                 f"Staking: {staking} HYDRA",
             ]
 
-        msg = await self.bot.send_message(
+        await self.bot.send_message(
             chat_id=user.tg_user_id,
             text="\n".join(message),
             parse_mode="HTML"
@@ -254,6 +269,6 @@ class EventManager:
                 **AttrDict(addr_hist.addr.dict())
             )
 
-            await addr_show(self.bot, msg, user, user_addr, addr)
+            await addr_show(self.bot, user.tg_user_id, user, user_addr, addr)
 
-        return True
+        return 1
