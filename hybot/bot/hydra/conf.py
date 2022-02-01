@@ -34,7 +34,8 @@ async def conf(bot: HydraBot, msg: types.Message):
 
             addr_link_str = f" for <a href=\"{bot.rpcx.human_link(human_type(ua.addr), str(ua.addr))}\">{ua.name}</a>"
         else:
-            return await msg.answer("Unable to locate that address.")
+            await msg.answer("Unable to locate that address.")
+            conf_cmd = ""
 
     if not conf_cmd:
         conf_block_bal = conf_cur.get('block', {}).get('bal', None)

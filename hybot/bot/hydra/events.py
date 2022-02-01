@@ -79,7 +79,7 @@ class EventManager:
                 # fiat_value = self.bot.hydra_fiat_value(currency, balance, with_name=False)
 
                 balance_str = (
-                    f"Balance: {'{:,}'.format(round(Addr.decimal(balance), 2))} HYDRA"
+                    f"<b>Balance:</b> {'{:,}'.format(round(Addr.decimal(balance), 2))} HYDRA"
                 )
 
         if conf_block_stake == "full":
@@ -125,16 +125,16 @@ class EventManager:
             utxo_out_tot = round(Addr.decimal(utxo_out_tot), 2)
 
             if conf_block_utxo == "full":
-                utxo_str = "\n"
+                utxo_str = "\n<b>"
                 utxo_str += "Merged" if utxo_inp_cnt > utxo_out_cnt else "Updated" if utxo_inp_cnt == utxo_out_cnt else "Split"
-                utxo_str += f" {num2words(utxo_inp_cnt)} UTXO{'s' if utxo_inp_cnt != 1 else ''}"
+                utxo_str += f"</b> {num2words(utxo_inp_cnt)} UTXO{'s' if utxo_inp_cnt != 1 else ''}"
 
                 if utxo_inp_cnt != utxo_out_cnt:
                     utxo_str += f" into {num2words(utxo_out_cnt)}"
 
                 utxo_str += f" with a total output of about {utxo_out_tot} HYDRA."
             else:  # == "show"
-                utxo_str = f"UTXOs: +{utxo_out_tot} ({utxo_inp_cnt} ➔ {utxo_out_cnt})"
+                utxo_str = f"<b>UTXOs:</b> +{utxo_out_tot} ({utxo_inp_cnt} ➔ {utxo_out_cnt})"
 
         reward = block.info["reward"]
         currency = user.info.get("fiat", "USD")
@@ -151,13 +151,13 @@ class EventManager:
             message.append(balance_str)
 
         message += [
-            f'Reward: <a href="{self.bot.rpcx.human_link("tx", block_tx["id"])}">+{reward}</a> HYDRA',
-            f"Value: {value} @ {price}",
+            f'<b>Reward:</b> <a href="{self.bot.rpcx.human_link("tx", block_tx["id"])}">+{reward}</a> HYDRA',
+            f"<b>Value:</b> {value} @ <b>{price}</b>",
         ]
 
         if staking_tot is not None:
             message += [
-                f"Staking: {staking_tot}",
+                f"<b>Staking:</b> {staking_tot}",
             ]
 
         if utxo_str:
@@ -179,11 +179,11 @@ class EventManager:
             tz_time = tz_time.ctime()
 
             message += [
-                f"Last block mined {td_msg} ago:\n{tz_time}"
+                f"Last block mined <b>{td_msg}</b> ago:\n<b>{tz_time}</b>"
             ]
 
         message.append(
-            f"{block_time.ctime()} {block_time.tzname()}"
+            f"<b>{block_time.ctime()} {block_time.tzname()}</b>"
         )
 
         # if user.block_c != user_addr.block_c:

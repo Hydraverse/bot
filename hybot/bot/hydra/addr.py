@@ -191,7 +191,7 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
         fiat_price = await bot.hydra_fiat_value(currency, 1 * 10**8, with_name=False)
 
         message.append(
-            f"<b>Value:</b> {fiat_value} @ {fiat_price}"
+            f"<b>Value:</b> {fiat_value} @ <b>{fiat_price}</b>"
         )
 
     if message[-1] != "":
@@ -215,7 +215,7 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
 
     if len(token_balances):
         message += [
-            "Token balances:",
+            "<b>Token balances:</b>",
         ]
 
         for tb in token_balances:
@@ -223,6 +223,9 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
             tb.decimals = int(tb.decimals)
 
             balance = tb.balance if tb.decimals == 0 else round(schemas.Addr.decimal(tb.balance, decimals=tb.decimals), 2)
+
+            if int(balance) == balance:
+                balance = int(balance)
 
             if tb.symbol in UNICODE_EMOJI_ENGLISH:
                 message.append(
@@ -245,7 +248,7 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
 
     if len(nft_counts):
         message += [
-            "NFTs:",
+            "<b>NFTs:</b>",
         ]
 
         for nft in nft_counts:
@@ -268,19 +271,19 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
 
     if ranking:
         message.append(
-            f"Explorer ranking: {ranking}"
+            f"<b>Explorer ranking:</b> {ranking}"
         )
 
     if ua.block_c:
         message.append(
-            f"Hydraverse blocks: {ua.block_c}"
+            f"<b>Hydraverse blocks:</b> {ua.block_c}"
         )
 
     blocks_mined = info.get("blocksMined", 0)
 
     if blocks_mined:
         message.append(
-            f"Total blocks minted: {blocks_mined}"
+            f"<b>Total blocks minted:</b> {blocks_mined}"
         )
 
     if message[-1] != "":
@@ -296,13 +299,13 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
         tz_time = u.user_time(ua.block_t).ctime()
 
         message += [
-            f"Last block was {td_msg} ago:\n{tz_time}"
+            f"Last block was <b>{td_msg}</b> ago:\n<b>{tz_time}</b>"
         ]
 
     user_now = u.user_time(datetime.utcnow())
 
     message.append(
-        f"{user_now.ctime()} {user_now.tzname()}"
+        f"<b>{user_now.ctime()} {user_now.tzname()}</b>"
     )
 
     await bot.send_message(
