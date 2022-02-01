@@ -1,4 +1,6 @@
 from datetime import timedelta, datetime
+from decimal import Decimal
+from typing import Optional
 
 from aiogram import types
 from emoji import UNICODE_EMOJI_ENGLISH
@@ -6,22 +8,31 @@ from emoji import UNICODE_EMOJI_ENGLISH
 from . import HydraBot
 from .data import HydraBotData, schemas
 
+_ADDR_SHOW_PREV = {}
+
 
 async def addr(bot: HydraBot, msg: types.Message):
-    address = str(msg.text).replace("/addr", "", 1).strip()
+    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
+
+    if str(msg.text).strip() == "/a":
+        if not await addr_show(bot, msg, u, ua=None):
+            address = None
+        else:
+            return
+    else:
+        address = str(msg.text).replace("/addr", "", 1).strip()
 
     if not address:
         return await msg.answer(
             "<pre>"
             "Add:    <b>/addr [addr]</b>\n"
             "Info:   <b>/addr [search]</b>\n"
+            "List:   <b>/addr list</b>\n"
+            "Recent: <b>/a</b>\n"
             "Rename: <b>/addr [name]: [new]</b>\n"
             "Remove: <b>/addr [name] -</b>\n"
-            "List:   <b>/addr list</b>"
             "</pre>"
         )
-
-    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
 
     if address == "list":
         result = []
@@ -29,10 +40,10 @@ async def addr(bot: HydraBot, msg: types.Message):
         if len(u.user_addrs):
             result += [f"Addresses:"]
             result += [
-                f"\n<a href=\"{bot.rpcx.human_link(_human_type(ua.addr), str(ua.addr))}\">{ua.name}</a>\n"
-                + f"<pre>{str(ua.addr)}</pre>"
-                for ua in u.user_addrs
-            ] + ["\n"]
+                          f"\n<a href=\"{bot.rpcx.human_link(_human_type(ua.addr), str(ua.addr))}\">{ua.name}</a>\n"
+                          + f"<pre>{str(ua.addr)}</pre>"
+                          for ua in u.user_addrs
+                      ] + ["\n"]
 
         if not len(result):
             result = ["No addresses yet."]
@@ -119,9 +130,20 @@ async def addr_del(bot: HydraBot, msg: types.Message, u: schemas.User, address: 
     return await msg.answer("Address not removed: not found.\n")
 
 
-async def addr_show(bot: HydraBot, msg: types.Message, u: schemas.User, ua: schemas.UserAddr):
-    ua_addr = str(ua.addr)
+async def addr_show(bot: HydraBot, msg: types.Message, u: schemas.User, ua: Optional[schemas.UserAddr]) -> bool:
+    if ua is None:
+        ua_pk = _ADDR_SHOW_PREV.get(u.uniq.pkid, None)
 
+        for ua in u.user_addrs:
+            if ua_pk is None or ua.pkid == ua_pk:
+                break
+
+        if ua is None:
+            return False
+
+    _ADDR_SHOW_PREV[u.uniq.pkid] = ua.pkid
+
+    ua_addr = str(ua.addr)
     info = ua.addr.info
 
     message = [
@@ -146,6 +168,21 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: schemas.User, ua: sche
             )
 
     info_add_dec("balance")
+
+    balance = int(info.get("balance", 0))
+
+    if balance:
+        currency = u.info.get("fiat", "USD")
+        fiat_value = bot.hydra_fiat_value(currency, balance)
+        fiat_price = bot.hydra_fiat_value(currency, 1 * 10**8, with_name=False)
+
+        message.append(
+            f"<pre>Value:\t\t\t<pre>{fiat_value}</pre> @ <pre>{fiat_price}</pre></pre>"
+        )
+
+    if message[-1] != "":
+        message.append("")
+
     info_add_dec("staking")
     info_add_dec("unconfirmed")
 
@@ -247,6 +284,8 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: schemas.User, ua: sche
         "\n".join(message),
         parse_mode="HTML",
     )
+
+    return True
 
 
 def _human_type(addr_: schemas.AddrBase) -> str:

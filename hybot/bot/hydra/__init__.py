@@ -3,6 +3,8 @@ Support: @TheHydraverse
 """
 from __future__ import annotations
 
+from decimal import Decimal
+
 import requests.exceptions
 from aiogram import Bot, Dispatcher, types
 import asyncio
@@ -13,6 +15,7 @@ from hydra.rpc.explorer import ExplorerRPC
 from hydra import log
 
 from hydb.api.client import HyDbClient, schemas
+from hydra.kc.prices import PriceClient
 
 from hybot.util.conf import Config
 from num2words import num2words
@@ -28,11 +31,16 @@ class HydraBot(Bot):
     conf: AttrDict
     db: HyDbClient
     rpcx: ExplorerRPC
+    prices: PriceClient
+    coin: dict
 
     CONF = {
         "token": "(bot token from @BotFather)",
         "admin": -1,
         "donations": "HUo97u33iEdkEWBiLZEitAsGRXHUcmdfHQ",
+        "kc_key": "(KuCoin API key)",
+        "kc_sec": "(KuCoin API secret)",
+        "kc_psp": "(KuCoin API passphrase)",
     }
 
     # noinspection PyUnusedLocal,PyMethodMayBeStatic
@@ -45,9 +53,22 @@ class HydraBot(Bot):
 
         return cls._
 
+    def __hash__(self):
+        return hash(self.conf.token)
+
     def __init__(self, db: HyDbClient):
         self.db = db
         self.conf = Config.get(HydraBot, defaults=True)
+
+        self.prices = PriceClient(
+            api_key=self.conf.kc_key,
+            api_secret=self.conf.kc_sec,
+            passphrase=self.conf.kc_psp
+        )
+
+        self.prices._cache.expiry = timedelta(minutes=1)
+
+        self.coin = self.prices.kuku.get_currency(self.prices.coin)
 
         token = self.conf.token
 
@@ -62,13 +83,14 @@ class HydraBot(Bot):
             hello as cmd_hello,\
             tz as cmd_tz,\
             addr as cmd_addr,\
-            delete as cmd_delete
+            delete as cmd_delete, \
+            fiat as cmd_fiat
 
         @HydraBot.dp.message(commands={"hello", "start", "hi", "help"})
         async def hello(msg: types.Message):
             return await self.command(msg, cmd_hello.hello)
 
-        @HydraBot.dp.message(commands={"tz", "timezone"})
+        @HydraBot.dp.message(commands={"tz"})
         async def tz(msg: types.Message):
             return await self.command(msg, cmd_tz.tz)
 
@@ -80,11 +102,29 @@ class HydraBot(Bot):
         async def delete(msg: types.Message):
             return await self.command(msg, cmd_delete.delete)
 
+        @HydraBot.dp.message(commands={"fiat", "price"})
+        async def delete(msg: types.Message):
+            return await self.command(msg, cmd_fiat.fiat)
+
         super().__init__(token, parse_mode="HTML")
 
     @staticmethod
     def main(db: HyDbClient):
         return HydraBot(db).run()
+
+    def hydra_fiat_value(self, currency: str, value, *, with_name=True):
+        fiat_value = round(
+            Decimal(self.prices.price(currency, raw=True))
+            * schemas.Addr.decimal(value),
+            2
+        )
+
+        # noinspection StrFormat
+        return self.prices.format(
+            currency,
+            '{:,}'.format(fiat_value),
+            with_name=with_name
+        )
 
     def run(self):
         return self.dp.run_polling(self)
@@ -100,16 +140,6 @@ class HydraBot(Bot):
 
             if log.level() <= log.INFO:
                 raise
-
-    @staticmethod
-    @dp.message(commands={"echo"})
-    async def echo(msg: types.Message):
-        # return await msg.answer(msg.text)
-
-        await HydraBot.bot().send_message(
-            chat_id=msg.from_user.id,
-            text=msg.text,
-        )
 
     @staticmethod
     @dp.startup()
@@ -152,6 +182,7 @@ class HydraBot(Bot):
                 await self.__sse_block_event_user_mined_matured(block_sse_result.block, addr_hist, addr_hist_user)
                 return 1
 
+        log.warning(f"Unprocessed BlockSSEResult for user {addr_hist_user.user_addr.user.uniq.name}: {block_sse_result.dict()}")
         return 0
 
     async def __sse_block_event_user_mined(self, block: schemas.Block, addr_hist: schemas.AddrHistResult, addr_hist_user: schemas.UserAddrHistResult):
@@ -163,10 +194,10 @@ class HydraBot(Bot):
 
         staking_delta_dec = schemas.Addr.decimal(staking_delta)
 
-        if staking_delta_dec != 0:
+        if staking_delta_dec != 0 and staking_delta != staking:
             staking_delta_dec = f" ({'+' if staking_delta_dec > 0 else ''}{str(staking_delta_dec)})"
         else:
-            staking_delta_dec = ""
+            staking_delta_dec = " +" if staking_delta == staking else ""
 
         staking_tot = f"{'{:,}'.format(schemas.Addr.decimal(staking))} HYDRA{staking_delta_dec}"
 
@@ -199,11 +230,18 @@ class HydraBot(Bot):
 
         utxo_str += f" with a total output of about {utxo_out_tot} HYDRA."
 
+        reward = block.info["reward"]
+        currency = user.info.get("fiat", "USD")
+        value = self.hydra_fiat_value(currency, reward)
+        reward = schemas.Addr.decimal(reward, prec=4)
+        price = self.hydra_fiat_value(currency, 1 * 10**8, with_name=False)
+
         message = [
             f'<b><a href="{self.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a> '
-            + f'mined a new <a href="{self.rpcx.human_link("block", block.height)}">block</a>!</b>',
-            f'Reward: <a href="{self.rpcx.human_link("tx", block_tx["id"])}">+{HydraBot.__block_reward_str(block)}</a> HYDRA',
-            f"Staking: {staking_tot}",
+            + f'mined a new <a href="{self.rpcx.human_link("block", block.height)}">block</a>!</b>\n',
+            f'Reward: <a href="{self.rpcx.human_link("tx", block_tx["id"])}">+{reward}</a> HYDRA',
+            f"Value:  {value} @ {price}",
+            f"Stake:  {staking_tot}",
             "",
             utxo_str,
         ]
@@ -232,16 +270,6 @@ class HydraBot(Bot):
         user_addr: schemas.UserAddrResult = addr_hist_user.user_addr
         user: schemas.UserBase = user_addr.user
 
-        matured = schemas.Addr.decimal(
-            int(addr_hist.info_new["mature"]) -
-            int(addr_hist.info_old["mature"])
-        )
-
-        matured_str = ""
-
-        if matured != 0:
-            matured_str = f" ({'+' if matured > 0 else ''}{matured})"
-
         staking = schemas.Addr.decimal(addr_hist.info_new["staking"])
 
         utxo_out_tot = 0
@@ -254,13 +282,26 @@ class HydraBot(Bot):
             if value:
                 utxo_out_tot += value
 
+        matured = (
+            int(addr_hist.info_new["mature"]) -
+            int(addr_hist.info_old["mature"])
+        )
+
+        matured_str = ""
+
+        if matured != 0 and matured != utxo_out_tot:
+            matured = schemas.Addr.decimal(matured)
+            matured_str = f" ({'+' if matured > 0 else ''}{matured})"
+
         utxo_out_tot = schemas.Addr.decimal(utxo_out_tot)
+
+        reward = schemas.Addr.decimal(block.info["reward"], prec=4)
 
         message = [
             f'<b>{user.uniq.name} :: <a href="{self.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a></b>',
             "",
             f'Block <a href="{self.rpcx.human_link("block", block.hash)}">#{block.height}</a> has matured!',
-            f"Reward: +{HydraBot.__block_reward_str(block)} HYDRA",
+            f"Reward: +{reward} HYDRA",
             f"Matured: +{utxo_out_tot}{matured_str}",
         ]
 
@@ -274,9 +315,4 @@ class HydraBot(Bot):
             text="\n".join(message),
             parse_mode="HTML"
         )
-
-    @staticmethod
-    def __block_reward_str(block: schemas.Block) -> str:
-        return str(schemas.Addr.decimal(block.info["reward"], prec=4))
-
 

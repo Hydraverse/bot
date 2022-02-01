@@ -13,6 +13,10 @@ async def hello(bot: HydraBot, msg: types.Message):
 
     response_cmds = (
         "Manage addresses with <b>/addr</b>.\n\n"
+        "Check HYDRA price with <b>/price</b>\n\n"
+        f"Your fiat currency is <b>{u.info.get('fiat', 'USD (default)')}</b>.\n"
+        "List currencies with <b>/fiat list</b>\n"
+        "Change currency with <b>/fiat [name]</b>\n\n"
         f"Your time zone is <b>{u.info.get('tz', 'UTC')}</b>.\n"
         "Change your time zone with <b>/tz [zone]</b>\n"
         "Find a timezone with <b>/tz find [search]</b>\n\n"
