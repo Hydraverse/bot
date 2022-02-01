@@ -161,7 +161,9 @@ class EventManager:
             tz_name = user.info.get("tz", "UTC")
             tz_from = pytz.timezone("UTC")
             tz_user = pytz.timezone(tz_name)
-            tz_time = tz_from.localize(addr_hist_user.block_t, is_dst=None).astimezone(tz_user).ctime()
+            tz_time = tz_from.localize(addr_hist_user.block_t, is_dst=None).astimezone(tz_user)
+            tz_name = tz_time.tzname()
+            tz_time = tz_time.ctime()
 
             message += [
                 "",

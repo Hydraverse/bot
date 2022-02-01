@@ -289,7 +289,9 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: Union[schemas.User, sc
         tz_name = u.info.get("tz", "UTC")
         tz_from = pytz.timezone("UTC")
         tz_user = pytz.timezone(tz_name)
-        tz_time = tz_from.localize(ua.block_t, is_dst=None).astimezone(tz_user).ctime()
+        tz_time = tz_from.localize(ua.block_t, is_dst=None).astimezone(tz_user)
+        tz_name = tz_time.tzname()
+        tz_time = tz_time.ctime()
 
         message += [
             "",
