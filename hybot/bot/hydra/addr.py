@@ -1,7 +1,8 @@
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, Union
 
+import pytz
 from aiogram import types
 from emoji import UNICODE_EMOJI_ENGLISH
 
@@ -130,8 +131,11 @@ async def addr_del(bot: HydraBot, msg: types.Message, u: schemas.User, address: 
     return await msg.answer("Address not removed: not found.\n")
 
 
-async def addr_show(bot: HydraBot, msg: types.Message, u: schemas.User, ua: Optional[schemas.UserAddr]) -> bool:
+async def addr_show(bot: HydraBot, msg: types.Message, u: Union[schemas.User, schemas.UserBase], ua: Optional[Union[schemas.UserAddrBase, schemas.UserAddrResult]], addr_: Optional[schemas.Addr] = None) -> bool:
     if ua is None:
+        if not isinstance(u, schemas.User):
+            raise TypeError("Must provide User (not UserBase) when ua is None.")
+
         ua_pk = _ADDR_SHOW_PREV.get(u.uniq.pkid, None)
 
         for ua in u.user_addrs:
@@ -143,11 +147,17 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: schemas.User, ua: Opti
 
     _ADDR_SHOW_PREV[u.uniq.pkid] = ua.pkid
 
-    ua_addr = str(ua.addr)
-    info = ua.addr.info
+    if addr_ is None:
+        if isinstance(ua, schemas.UserAddrResult):
+            raise TypeError("Must provide Addr when ua is UserAddrResult")
+
+        addr_ = ua.addr
+
+    ua_addr = str(addr_)
+    info = addr_.info
 
     message = [
-        f'<a href="{bot.rpcx.human_link(_human_type(ua.addr), str(ua_addr))}">{ua.name}</a>',
+        f'<a href="{bot.rpcx.human_link(_human_type(addr_), ua_addr)}">{ua.name}</a>',
         f"<pre>{ua_addr}</pre>",
         "",
     ]
@@ -276,8 +286,14 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: schemas.User, ua: Opti
         td: timedelta = datetime.utcnow() - ua.block_t
         td_msg = schemas.timedelta_str(td)
 
+        tz_name = u.info.get("tz", "UTC")
+        tz_from = pytz.timezone("UTC")
+        tz_user = pytz.timezone(tz_name)
+        tz_time = tz_from.localize(ua.block_t, is_dst=None).astimezone(tz_user).ctime()
+
         message += [
-            f"Last block created {td_msg} ago."
+            "",
+            f"Last block created {td_msg} ago\non {tz_time} {tz_name}."
         ]
 
     await msg.answer(

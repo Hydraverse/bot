@@ -1,4 +1,6 @@
 import asyncio
+
+import pytz
 import requests
 from num2words import num2words
 
@@ -6,6 +8,7 @@ from hydra import log
 from hydb.api.schemas import *
 
 from hybot.bot.hydra import HydraBot
+from hybot.bot.hydra.addr import addr_show
 
 
 class EventManager:
@@ -60,17 +63,41 @@ class EventManager:
         user_addr: UserAddrResult = addr_hist_user.user_addr
         user: UserBase = user_addr.user
 
-        staking = int(addr_hist.info_new["staking"])
-        staking_delta = staking - int(addr_hist.info_old["staking"])
+        conf = user.info.get("conf", {})
 
-        staking_delta_dec = Addr.decimal(staking_delta)
+        conf_block_stake = conf.get("block", {}).get("stake", "full")
+        conf_block_bal = conf.get("block", {}).get("bal", "hide")
 
-        if staking_delta_dec != 0 and staking_delta != staking:
-            staking_delta_dec = f" ({'+' if staking_delta_dec > 0 else ''}{str(staking_delta_dec)})"
+        balance_str = None
+
+        if conf_block_bal == "show":
+            balance = int(addr_hist.info_new.get("balance", 0))
+
+            if balance:
+                currency = user.info.get("fiat", "USD")
+                fiat_value = self.bot.hydra_fiat_value(currency, balance, with_name=False)
+
+                balance_str = (
+                    f"Balance: {'{:,}'.format(Addr.decimal(balance))} ({fiat_value})"
+                )
+
+        if conf_block_stake == "full":
+            staking = int(addr_hist.info_new["staking"])
+            staking_delta = staking - int(addr_hist.info_old["staking"])
+
+            staking_delta_dec = Addr.decimal(staking_delta)
+
+            if staking_delta_dec != 0 and staking_delta != staking:
+                staking_delta_dec = f" ({'+' if staking_delta_dec > 0 else ''}{str(staking_delta_dec)})"
+            else:
+                staking_delta_dec = " +" if staking_delta == staking else ""
+
+            staking_tot = f"{'{:,}'.format(Addr.decimal(staking))} HYDRA{staking_delta_dec}"
+
+        elif conf_block_stake == "show":
+            staking_tot = f"{'{:,}'.format(Addr.decimal(addr_hist.info_new['staking']))} HYDRA"
         else:
-            staking_delta_dec = " +" if staking_delta == staking else ""
-
-        staking_tot = f"{'{:,}'.format(Addr.decimal(staking))} HYDRA{staking_delta_dec}"
+            staking_tot = None
 
         utxo_inp_cnt = 0
         utxo_out_cnt = 0
@@ -111,19 +138,34 @@ class EventManager:
             f'<b><a href="{self.bot.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a> '
             + f'mined a new <a href="{self.bot.rpcx.human_link("block", block.height)}">block</a>!</b>\n',
             f'Reward: <a href="{self.bot.rpcx.human_link("tx", block_tx["id"])}">+{reward}</a> HYDRA',
-            f"Value:  {value} @ {price}",
-            f"Stake:  {staking_tot}",
+            f"Value: {value} @ {price}",
+        ]
+
+        if balance_str is not None:
+            message.append(balance_str)
+
+        if staking_tot is not None:
+            message += [
+                f"Stake: {staking_tot}",
+            ]
+
+        message += [
             "",
             utxo_str,
-            ]
+        ]
 
         if addr_hist_user.block_t is not None:
             td: timedelta = datetime.utcnow() - addr_hist_user.block_t
             td_msg = timedelta_str(td)
 
+            tz_name = user.info.get("tz", "UTC")
+            tz_from = pytz.timezone("UTC")
+            tz_user = pytz.timezone(tz_name)
+            tz_time = tz_from.localize(addr_hist_user.block_t, is_dst=None).astimezone(tz_user).ctime()
+
             message += [
                 "",
-                f"Last block created {td_msg} ago."
+                f"Last block created {td_msg} ago\non {tz_time} {tz_name}."
             ]
 
         # if user.block_c != user_addr.block_c:
@@ -131,11 +173,19 @@ class EventManager:
         #         f"Hydraverse blocks mined by {user.uniq.name}: {user.block_c}"
         #     )
 
-        await self.bot.send_message(
+        msg = await self.bot.send_message(
             chat_id=user.tg_user_id,
             text="\n".join(message),
             parse_mode="HTML"
         )
+
+        if conf_block_bal == "full":
+            addr = Addr(
+                info=addr_hist.info_new,
+                **addr_hist.addr.dict()
+            )
+
+            await addr_show(self.bot, msg, user, user_addr, addr)
 
     async def __sse_block_event_user_mined_matured(self, block: Block, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult):
         user_addr: UserAddrResult = addr_hist_user.user_addr
