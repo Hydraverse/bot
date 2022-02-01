@@ -40,11 +40,11 @@ async def conf(bot: HydraBot, msg: types.Message):
         conf_block_bal = conf_cur.get('block', {}).get('bal', None)
         conf_block_bal = f"Current: {conf_block_bal}" if conf_block_bal is not None else "Default: hide"
         conf_block_stake = conf_cur.get('block', {}).get('stake', None)
-        conf_block_stake = f"Current: {conf_block_stake}" if conf_block_stake is not None else "Default: full"
+        conf_block_stake = f"Current: {conf_block_stake}" if conf_block_stake is not None else "Default: hide"
         conf_block_utxo = conf_cur.get('block', {}).get('utxo', None)
         conf_block_utxo = f"Current: {conf_block_utxo}" if conf_block_utxo is not None else "Default: show"
         conf_block_mature = conf_cur.get('block', {}).get('mature', None)
-        conf_block_mature = f"Current: {conf_block_mature}" if conf_block_mature is not None else "Default: show"
+        conf_block_mature = f"Current: {conf_block_mature}" if conf_block_mature is not None else "Default: full"
 
         return await msg.answer(
             f"Configuration management{addr_link_str}.\n\n"
@@ -53,7 +53,7 @@ async def conf(bot: HydraBot, msg: types.Message):
             "Address-specific:\n"
             "/conf [addr]: [conf] [name] [value]\n\n\n"
             "Block config:\n\n"
-            f"Show balance or status on new blocks:\n"
+            f"Show balance/status on new blocks:\n"
             f"/conf block bal [show|hide|full]\n"
             f"{conf_block_bal}\n\n"
             f"Show staking info on new blocks:\n"

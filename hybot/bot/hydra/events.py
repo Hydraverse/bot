@@ -65,7 +65,7 @@ class EventManager:
         conf = user.info.get("conf", {})
         ua_conf = user_addr.info.get("conf", {})
 
-        conf_block_stake = ua_conf.get("block", {}).get("stake", conf.get("block", {}).get("stake", "full"))
+        conf_block_stake = ua_conf.get("block", {}).get("stake", conf.get("block", {}).get("stake", "hide"))
         conf_block_bal = ua_conf.get("block", {}).get("bal", conf.get("block", {}).get("bal", "hide"))
         conf_block_utxo = ua_conf.get("block", {}).get("utxo", conf.get("block", {}).get("utxo", "show"))
 
@@ -124,13 +124,17 @@ class EventManager:
 
             utxo_out_tot = Addr.decimal(utxo_out_tot, prec=5)
 
-            utxo_str = "Merged" if utxo_inp_cnt > utxo_out_cnt else "Updated" if utxo_inp_cnt == utxo_out_cnt else "Split"
-            utxo_str += f" {num2words(utxo_inp_cnt)} UTXO{'s' if utxo_inp_cnt != 1 else ''}"
+            if conf_block_utxo == "full":
+                utxo_str = "\n"
+                utxo_str += "Merged" if utxo_inp_cnt > utxo_out_cnt else "Updated" if utxo_inp_cnt == utxo_out_cnt else "Split"
+                utxo_str += f" {num2words(utxo_inp_cnt)} UTXO{'s' if utxo_inp_cnt != 1 else ''}"
 
-            if utxo_inp_cnt != utxo_out_cnt:
-                utxo_str += f" into {num2words(utxo_out_cnt)}"
+                if utxo_inp_cnt != utxo_out_cnt:
+                    utxo_str += f" into {num2words(utxo_out_cnt)}"
 
-            utxo_str += f" with a total output of about {utxo_out_tot} HYDRA."
+                utxo_str += f" with a total output of about {utxo_out_tot} HYDRA."
+            else:  # == "show"
+                utxo_str = f"UTXOs: +{utxo_out_tot} HYDRA ({utxo_inp_cnt} ➔ {utxo_out_cnt})"
 
         reward = block.info["reward"]
         currency = user.info.get("fiat", "USD")
@@ -154,12 +158,7 @@ class EventManager:
             ]
 
         if utxo_str:
-            if message[-1] != "":
-                message.append("")
-
-            message += [
-                utxo_str,
-            ]
+            message.append(utxo_str)
 
         block_time = user.user_time(
             datetime.utcfromtimestamp(block.info.get("timestamp", datetime.now()))
@@ -167,10 +166,6 @@ class EventManager:
 
         if message[-1] != "":
             message.append("")
-
-        message.append(
-            f"{block_time.ctime()} {block_time.tzname()}"
-        )
 
         if addr_hist_user.block_t is not None:
             tz_time = user.user_time(addr_hist_user.block_t)
@@ -183,6 +178,10 @@ class EventManager:
             message += [
                 f"Last block created {td_msg} ago:\n{tz_time}"
             ]
+
+        message.append(
+            f"{block_time.ctime()} {block_time.tzname()}"
+        )
 
         # if user.block_c != user_addr.block_c:
         #     message.append(
