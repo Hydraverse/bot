@@ -15,7 +15,7 @@ async def fiat(bot: HydraBot, msg: types.Message):
 
     if str(msg.text).startswith("/price"):
         return await msg.answer(
-            f"Current HYDRA price: {bot.hydra_fiat_value(fiat_cur, 1 * 10**8)}"
+            f"Current HYDRA price: {await bot.hydra_fiat_value(fiat_cur, 1 * 10**8)}"
         )
 
     fiat_new = str(msg.text).replace("/fiat", "", 1).strip()
@@ -25,7 +25,7 @@ async def fiat(bot: HydraBot, msg: types.Message):
             f"Your fiat currency is <b>{fiat_cur}{' (default)' if 'fiat' not in u.info else ''}</b>.\n\n"
             "List available currencies: <b>/fiat list</b>\n"
             "Change your currency with <b>/fiat [3-letter currency name]</b>\n\n"
-            f"Current HYDRA price: {bot.hydra_fiat_value(fiat_cur, 1 * 10**8)}"
+            f"Current HYDRA price: {await bot.hydra_fiat_value(fiat_cur, 1 * 10**8)}"
         )
 
     fiat_new = fiat_new.upper()

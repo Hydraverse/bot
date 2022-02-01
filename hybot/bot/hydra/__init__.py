@@ -3,6 +3,7 @@ Support: @TheHydraverse
 """
 from __future__ import annotations
 
+import asyncio
 from decimal import Decimal
 
 from aiogram import Bot, Dispatcher, types
@@ -119,9 +120,14 @@ class HydraBot(Bot):
     def main(db: HyDbClient):
         return HydraBot(db).run()
 
-    def hydra_fiat_value(self, currency: str, value, *, with_name=True):
+    async def hydra_fiat_value(self, currency: str, value, *, with_name=True):
+        price = await asyncio.get_event_loop().run_in_executor(
+            executor=None,
+            func=lambda: self.prices.price(currency, raw=True)
+        )
+
         fiat_value = round(
-            Decimal(self.prices.price(currency, raw=True))
+            Decimal(price)
             * schemas.Addr.decimal(value),
             2
         )

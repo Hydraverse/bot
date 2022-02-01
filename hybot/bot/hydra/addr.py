@@ -187,8 +187,8 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
 
     if balance:
         currency = u.info.get("fiat", "USD")
-        fiat_value = bot.hydra_fiat_value(currency, balance, with_name=True)
-        fiat_price = bot.hydra_fiat_value(currency, 1 * 10**8, with_name=False)
+        fiat_value = await bot.hydra_fiat_value(currency, balance, with_name=True)
+        fiat_price = await bot.hydra_fiat_value(currency, 1 * 10**8, with_name=False)
 
         message.append(
             f"<b>Value:</b> {fiat_value} @ {fiat_price}"

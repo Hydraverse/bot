@@ -138,9 +138,9 @@ class EventManager:
 
         reward = block.info["reward"]
         currency = user.info.get("fiat", "USD")
-        value = self.bot.hydra_fiat_value(currency, reward)
+        value = await self.bot.hydra_fiat_value(currency, reward)
         reward = round(Addr.decimal(reward), 2)
-        price = self.bot.hydra_fiat_value(currency, 1 * 10**8, with_name=False)
+        price = await self.bot.hydra_fiat_value(currency, 1 * 10**8, with_name=False)
 
         message = [
             f'<b><a href="{self.bot.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a> '
