@@ -173,17 +173,15 @@ class EventManager:
         )
 
         if addr_hist_user.block_t is not None:
-            if message[-1] != "":
-                message.append("")
-
             tz_time = user.user_time(addr_hist_user.block_t)
-            tz_time = tz_time.ctime()
 
             td: timedelta = block_time - tz_time
             td_msg = timedelta_str(td)
 
+            tz_time = tz_time.ctime()
+
             message += [
-                f"Last block created {td_msg} ago:\n{tz_time}."
+                f"Last block created {td_msg} ago:\n{tz_time}"
             ]
 
         # if user.block_c != user_addr.block_c:
