@@ -86,7 +86,8 @@ class HydraBot(Bot):
             tz as cmd_tz,\
             addr as cmd_addr,\
             delete as cmd_delete, \
-            fiat as cmd_fiat
+            fiat as cmd_fiat, \
+            conf as cmd_conf
 
         @HydraBot.dp.message(commands={"hello", "start", "hi", "help"})
         async def hello(msg: types.Message):
@@ -107,6 +108,10 @@ class HydraBot(Bot):
         @HydraBot.dp.message(commands={"fiat", "price"})
         async def delete(msg: types.Message):
             return await self.command(msg, cmd_fiat.fiat)
+
+        @HydraBot.dp.message(commands={"conf"})
+        async def delete(msg: types.Message):
+            return await self.command(msg, cmd_conf.conf)
 
         super().__init__(token, parse_mode="HTML")
 

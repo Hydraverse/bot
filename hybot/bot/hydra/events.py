@@ -64,9 +64,10 @@ class EventManager:
         user: UserBase = user_addr.user
 
         conf = user.info.get("conf", {})
+        ua_conf = user_addr.info.get("conf", {})
 
-        conf_block_stake = conf.get("block", {}).get("stake", "full")
-        conf_block_bal = conf.get("block", {}).get("bal", "hide")
+        conf_block_stake = ua_conf.get("block", {}).get("stake", conf.get("block", {}).get("stake", "full"))
+        conf_block_bal = ua_conf.get("block", {}).get("bal", conf.get("block", {}).get("bal", "hide"))
 
         balance_str = None
 
@@ -184,14 +185,22 @@ class EventManager:
         if conf_block_bal == "full":
             addr = Addr(
                 info=addr_hist.info_new,
-                **addr_hist.addr.dict()
+                **AttrDict(addr_hist.addr.dict())
             )
 
             await addr_show(self.bot, msg, user, user_addr, addr)
 
-    async def __sse_block_event_user_mined_matured(self, block: Block, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult):
+    async def __sse_block_event_user_mined_matured(self, block: Block, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult) -> bool:
         user_addr: UserAddrResult = addr_hist_user.user_addr
         user: UserBase = user_addr.user
+
+        conf = user.info.get("conf", {})
+        ua_conf = user_addr.info.get("conf", {})
+
+        conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "show"))
+
+        if conf_block_mature == "hide":
+            return False
 
         staking = Addr.decimal(addr_hist.info_new["staking"])
 
@@ -233,8 +242,18 @@ class EventManager:
                 f"Staking: {staking} HYDRA",
             ]
 
-        await self.bot.send_message(
+        msg = await self.bot.send_message(
             chat_id=user.tg_user_id,
             text="\n".join(message),
             parse_mode="HTML"
         )
+
+        if conf_block_mature == "full":
+            addr = Addr(
+                info=addr_hist.info_new,
+                **AttrDict(addr_hist.addr.dict())
+            )
+
+            await addr_show(self.bot, msg, user, user_addr, addr)
+
+        return True

@@ -41,7 +41,7 @@ async def addr(bot: HydraBot, msg: types.Message):
         if len(u.user_addrs):
             result += [f"Addresses:"]
             result += [
-                          f"\n<a href=\"{bot.rpcx.human_link(_human_type(ua.addr), str(ua.addr))}\">{ua.name}</a>\n"
+                          f"\n<a href=\"{bot.rpcx.human_link(human_type(ua.addr), str(ua.addr))}\">{ua.name}</a>\n"
                           + f"<pre>{str(ua.addr)}</pre>"
                           for ua in u.user_addrs
                       ] + ["\n"]
@@ -71,10 +71,9 @@ async def addr(bot: HydraBot, msg: types.Message):
 
     matched = False
 
-    for ua in u.user_addrs:
-        if str(ua.addr) == address or ua.name.lower().startswith(address.lower()) or str(ua.addr).startswith(address):
-            await addr_show(bot, msg, u, ua)
-            matched = True
+    for ua in u.filter_likely_addr_matches(address):
+        await addr_show(bot, msg, u, ua)
+        matched = True
 
     if not matched:
         return await msg.answer("Address not found or not valid.")
@@ -95,7 +94,7 @@ async def addr_add(bot: HydraBot, msg: types.Message, u: schemas.User, address: 
     addr_str = str(addr_)
 
     await msg.answer(
-        f"Added {tp_str} address with label <a href=\"{bot.rpcx.human_link(_human_type(user_addr.addr), addr_str)}\">{user_addr.name}</a>.",
+        f"Added {tp_str} address with label <a href=\"{bot.rpcx.human_link(human_type(user_addr.addr), addr_str)}\">{user_addr.name}</a>.",
         parse_mode="HTML"
     )
 
@@ -157,7 +156,7 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: Union[schemas.User, sc
     info = addr_.info
 
     message = [
-        f'<a href="{bot.rpcx.human_link(_human_type(addr_), ua_addr)}">{ua.name}</a>',
+        f'<a href="{bot.rpcx.human_link(human_type(addr_), ua_addr)}">{ua.name}</a>',
         f"<pre>{ua_addr}</pre>",
         "",
     ]
@@ -306,5 +305,5 @@ async def addr_show(bot: HydraBot, msg: types.Message, u: Union[schemas.User, sc
     return True
 
 
-def _human_type(addr_: schemas.AddrBase) -> str:
+def human_type(addr_: schemas.AddrBase) -> str:
     return "address" if addr_.addr_tp.value.value == schemas.Addr.Type.H else "contract"
