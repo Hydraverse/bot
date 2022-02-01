@@ -12,7 +12,8 @@ async def hello(bot: HydraBot, msg: types.Message):
     u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
 
     response_cmds = (
-        "Manage addresses: <b>/addr</b>\n\n"
+        "Manage addresses: <b>/addr</b>\n"
+        "Show last address: <b>/a</b>\n\n"
         "Configuration: <b>/conf</b>\n\n"
         "Check HYDRA price: <b>/price</b>\n\n"
         f"Your fiat currency is <b>{u.info.get('fiat', 'USD (default)')}</b>.\n"

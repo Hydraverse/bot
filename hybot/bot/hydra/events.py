@@ -75,28 +75,28 @@ class EventManager:
             balance = int(addr_hist.info_new.get("balance", 0))
 
             if balance:
-                currency = user.info.get("fiat", "USD")
-                fiat_value = self.bot.hydra_fiat_value(currency, balance, with_name=False)
+                # currency = user.info.get("fiat", "USD")
+                # fiat_value = self.bot.hydra_fiat_value(currency, balance, with_name=False)
 
                 balance_str = (
-                    f"Balance: {'{:,}'.format(Addr.decimal(balance))} ({fiat_value})"
+                    f"Balance: {'{:,}'.format(round(Addr.decimal(balance), 2))} HYDRA"
                 )
 
         if conf_block_stake == "full":
             staking = int(addr_hist.info_new["staking"])
             staking_delta = staking - int(addr_hist.info_old["staking"])
 
-            staking_delta_dec = Addr.decimal(staking_delta)
+            staking_delta_dec = round(Addr.decimal(staking_delta), 2)
 
             if staking_delta_dec != 0 and staking_delta != staking:
                 staking_delta_dec = f" ({'+' if staking_delta_dec > 0 else ''}{str(staking_delta_dec)})"
             else:
                 staking_delta_dec = " +" if staking_delta == staking else ""
 
-            staking_tot = f"{'{:,}'.format(Addr.decimal(staking))} HYDRA{staking_delta_dec}"
+            staking_tot = f"{'{:,}'.format(round(Addr.decimal(staking), 2))}{staking_delta_dec}"
 
         elif conf_block_stake == "show":
-            staking_tot = f"{'{:,}'.format(Addr.decimal(addr_hist.info_new['staking']))} HYDRA"
+            staking_tot = f"{'{:,}'.format(round(Addr.decimal(addr_hist.info_new['staking']), 2))}"
         else:
             staking_tot = None
 
@@ -122,7 +122,7 @@ class EventManager:
                     utxo_out_cnt += 1
                     utxo_out_tot += value
 
-            utxo_out_tot = Addr.decimal(utxo_out_tot, prec=5)
+            utxo_out_tot = round(Addr.decimal(utxo_out_tot), 2)
 
             if conf_block_utxo == "full":
                 utxo_str = "\n"
@@ -134,27 +134,30 @@ class EventManager:
 
                 utxo_str += f" with a total output of about {utxo_out_tot} HYDRA."
             else:  # == "show"
-                utxo_str = f"UTXOs: +{utxo_out_tot} HYDRA ({utxo_inp_cnt} ➔ {utxo_out_cnt})"
+                utxo_str = f"UTXOs: +{utxo_out_tot} ({utxo_inp_cnt} ➔ {utxo_out_cnt})"
 
         reward = block.info["reward"]
         currency = user.info.get("fiat", "USD")
         value = self.bot.hydra_fiat_value(currency, reward)
-        reward = Addr.decimal(reward, prec=4)
+        reward = round(Addr.decimal(reward), 2)
         price = self.bot.hydra_fiat_value(currency, 1 * 10**8, with_name=False)
 
         message = [
             f'<b><a href="{self.bot.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a> '
             + f'mined block <a href="{self.bot.rpcx.human_link("block", block.height)}">#{block.height}</a>!</b>\n',
-            f'Reward: <a href="{self.bot.rpcx.human_link("tx", block_tx["id"])}">+{reward}</a> HYDRA',
-            f"Value: {value} @ {price}",
         ]
 
         if balance_str is not None:
             message.append(balance_str)
 
+        message += [
+            f'Reward: <a href="{self.bot.rpcx.human_link("tx", block_tx["id"])}">+{reward}</a> HYDRA',
+            f"Value: {value} @ {price}",
+        ]
+
         if staking_tot is not None:
             message += [
-                f"Stake: {staking_tot}",
+                f"Staking: {staking_tot}",
             ]
 
         if utxo_str:
@@ -176,7 +179,7 @@ class EventManager:
             tz_time = tz_time.ctime()
 
             message += [
-                f"Last block created {td_msg} ago:\n{tz_time}"
+                f"Last block mined {td_msg} ago:\n{tz_time}"
             ]
 
         message.append(
@@ -239,7 +242,7 @@ class EventManager:
 
         utxo_out_tot = Addr.decimal(utxo_out_tot)
 
-        reward = Addr.decimal(block.info["reward"], prec=4)
+        reward = round(Addr.decimal(block.info["reward"]), 2)
 
         message = [
             f'<b>{user.uniq.name} :: <a href="{self.bot.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a></b>',
@@ -251,7 +254,7 @@ class EventManager:
 
         if staking > 0:
             message += [
-                f"Staking: {staking} HYDRA",
+                f"Staking: {staking}",
             ]
 
         await self.bot.send_message(

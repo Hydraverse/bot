@@ -16,11 +16,18 @@ _ADDR_SHOW_PREV = {}
 async def addr(bot: HydraBot, msg: types.Message):
     u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
 
-    if str(msg.text).strip() == "/a":
-        if not await addr_show(bot, msg.chat.id, u, ua=None):
-            address = None
+    msg_text = str(msg.text).strip()
+
+    if not msg_text.startswith("/addr"):
+        address = str(msg.text).replace("/a", "", 1).strip()
+
+        if not address:
+            if not await addr_show(bot, msg.chat.id, u, ua=None):
+                address = None
+            else:
+                return
         else:
-            return
+            pass
     else:
         address = str(msg.text).replace("/addr", "", 1).strip()
 
@@ -166,15 +173,12 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
         value = int(info.get(name, 0))
 
         if value:
-            tab = "\t"
-
             if name == "unconfirmed":
                 name = "unconf"
 
             message.append(
-                f"<pre>{name.capitalize()}:{tab if len(name) >= 7 else tab*2}{'{:,}'.format(schemas.Addr.decimal(value))}"
-                + (" HYDRA" if name == "balance" else "")
-                + "</pre>"
+                f"<b>{name.capitalize()}:</b> {'{:,}'.format(round(schemas.Addr.decimal(value), 2))}"
+                + " HYDRA"
             )
 
     info_add_dec("balance")
@@ -183,11 +187,11 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
 
     if balance:
         currency = u.info.get("fiat", "USD")
-        fiat_value = bot.hydra_fiat_value(currency, balance)
+        fiat_value = bot.hydra_fiat_value(currency, balance, with_name=True)
         fiat_price = bot.hydra_fiat_value(currency, 1 * 10**8, with_name=False)
 
         message.append(
-            f"<pre>Value:\t\t\t<pre>{fiat_value}</pre> @ <pre>{fiat_price}</pre></pre>"
+            f"<b>Value:</b> {fiat_value} @ {fiat_price}"
         )
 
     if message[-1] != "":
@@ -218,7 +222,7 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
             tb.balance = int(tb.balance)
             tb.decimals = int(tb.decimals)
 
-            balance = tb.balance if tb.decimals == 0 else schemas.Addr.decimal(tb.balance, decimals=tb.decimals)
+            balance = tb.balance if tb.decimals == 0 else round(schemas.Addr.decimal(tb.balance, decimals=tb.decimals), 2)
 
             if tb.symbol in UNICODE_EMOJI_ENGLISH:
                 message.append(
@@ -276,8 +280,11 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
 
     if blocks_mined:
         message.append(
-            f"Total mined blocks: {blocks_mined}"
+            f"Total blocks minted: {blocks_mined}"
         )
+
+    if message[-1] != "":
+        message.append("")
 
     if ua.block_t is not None:
         if message[-1] != "":
@@ -286,13 +293,17 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
         td: timedelta = datetime.utcnow() - ua.block_t
         td_msg = schemas.timedelta_str(td)
 
-        tz_time = u.user_time(ua.block_t)
-        tz_name = tz_time.tzname()
-        tz_time = tz_time.ctime()
+        tz_time = u.user_time(ua.block_t).ctime()
 
         message += [
-            f"Last block created {td_msg} ago:\n{tz_time} {tz_name}"
+            f"Last block was {td_msg} ago:\n{tz_time}"
         ]
+
+    user_now = u.user_time(datetime.utcnow())
+
+    message.append(
+        f"{user_now.ctime()} {user_now.tzname()}"
+    )
 
     await bot.send_message(
         chat_id=chat_id,
