@@ -1,11 +1,9 @@
-from datetime import timedelta, datetime, timezone
-from decimal import Decimal
+from datetime import timedelta, datetime
 from typing import Optional, Union
 
-import pytz
 from aiogram import types
 from attrdict import AttrDict
-from emoji import UNICODE_EMOJI_ENGLISH
+# from emoji import UNICODE_EMOJI_ENGLISH
 
 from . import HydraBot
 from .data import HydraBotData, schemas
@@ -19,7 +17,11 @@ async def addr(bot: HydraBot, msg: types.Message):
     msg_text = str(msg.text).strip()
 
     if not msg_text.startswith("/addr"):
-        address = str(msg.text).replace("/a", "", 1).strip()
+        if msg_text.startswith("/a"):
+            address = msg_text.replace("/a", "", 1).strip()
+        else:
+            # Filter should not allow any other /xx command here
+            address = msg_text
 
         if not address:
             if not await addr_show(bot, msg.chat.id, u, ua=None):

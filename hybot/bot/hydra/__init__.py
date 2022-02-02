@@ -107,6 +107,7 @@ class HydraBot(Bot):
         async def tz(msg: types.Message):
             return await self.command(msg, cmd_tz.tz)
 
+        @HydraBot.dp.message()
         @HydraBot.dp.message(commands={"addr", "a"})
         async def addr_(msg: types.Message):
             return await self.command(msg, cmd_addr.addr)
