@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 from decimal import Decimal
+from typing import Coroutine, Optional, Callable
 
 from aiogram import Bot, Dispatcher, types
 from attrdict import AttrDict
@@ -48,7 +49,7 @@ class HydraBot(Bot):
     def bot(*self) -> HydraBot:
         return HydraBot._
 
-    def __new__(cls, db: HyDbClient, *args, **kwds):
+    def __new__(cls, db, shell=None, *args, **kwds):
         if cls._ is None:
             cls._ = super(HydraBot, cls).__new__(cls, *args, **kwds)
 
@@ -57,7 +58,10 @@ class HydraBot(Bot):
     def __hash__(self):
         return hash(self.conf.token)
 
-    def __init__(self, db: HyDbClient):
+    def __repr__(self):
+        return f"{self.__class__.__name__}(id={self.id})"
+
+    def __init__(self, db: HyDbClient, shell: Optional[Coroutine] = None):
         self.db = db
         self.conf = Config.get(HydraBot, defaults=True)
 
@@ -80,7 +84,12 @@ class HydraBot(Bot):
 
         self.rpcx = ExplorerRPC(mainnet=HydraBotData.SERVER_INFO.mainnet)
 
-        self.evm = EventManager(self)
+        if shell is None:
+            self.evm = EventManager(self)
+        else:
+            @self.dp.startup()
+            async def startup():
+                await shell
 
         from . import \
             hello as cmd_hello,\

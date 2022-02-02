@@ -1,12 +1,20 @@
 """Hydra Bot Application.
 """
+import asyncio
 import os
 from argparse import ArgumentParser
+from asyncio import AbstractEventLoop
+from typing import List, Optional, Coroutine
+
+from aiogram import Bot
+from attrdict import AttrDict
 
 from hydra.app import HydraApp
 from hydra.test import Test
 
 from hydb.api.client import HyDbClient, schemas
+from hydra.util.asyncc import AsyncMethods
+
 from .bot.hydra import HydraBot
 from hybot.util.conf import Config
 
@@ -18,7 +26,10 @@ os.environ["HYPY_NO_RPC_ARGS"] = "1"
 @Config.defaults
 @HydraApp.register(name="hybot", desc="Halospace Hydra Bot", version=VERSION)
 class Hybot(HydraApp):
+    asyncc: AsyncMethods
     db: HyDbClient
+    bot: Optional[HydraBot]
+    conf: AttrDict
 
     CONF = {
         "bot": "HydraBot"
@@ -28,39 +39,69 @@ class Hybot(HydraApp):
     def parser(parser: ArgumentParser):
         parser.add_argument("-s", "--shell", action="store_true", help="Drop to an interactive shell with DB and RPC access.")
 
-    def run(self):
+    def __init__(self, *args, **kwds):
+        self.asyncc = AsyncMethods(self)
+        self.bot = None
+
         if not Config.exists():
             self.render_item("error", f"Default config created and needs editing at: {Config.APP_CONF}")
             Config.read(create=True)
             exit(-1)
 
-        hybot_conf = Config.get(Hybot)
+        self.conf = Config.get(Hybot)
 
-        bot = hybot_conf.get("bot", ...)
+        self.db = HyDbClient()
+
+        super().__init__(*args, **kwds)
+
+    def run(self):
+        # TO DO: make bot a list and fork for each.
+        #   Complicates shell scenario however,
+        #   so that will need to load differently.
+        #
+
+        bot = self.conf.get("bot", ...)
 
         if bot is ... or bot != "HydraBot":
             self.render(
                 name="error",
-                result=f"Unknown default bot class '{hybot_conf.bot}' specified in: {Config.APP_CONF}" if bot is not ... else
-                       f"No bot class specified in: {Config.APP_CONF}"
+                result=f"Unknown default bot class '{bot}' specified in: {Config.APP_CONF}" if bot is not ... else
+                f"No bot class specified in: {Config.APP_CONF}"
             )
 
             exit(-2)
 
-        self.db = HyDbClient()
-
-        if self.args.shell:
-            return self.shell()
-
         if bot == "HydraBot":
-            HydraBot.main(self.db)
+            self.bot = HydraBot(
+                db=self.db,
+                shell=self.asyncc.shell() if self.args.shell else None
+            )
 
-    # noinspection PyMethodMayBeStatic,PyUnresolvedReferences,PyBroadException
+        if self.bot:
+            self.bot.run()
+
     def shell(self):
-        import sys, traceback, code
+        import sys, traceback, code, asyncio
         db = self.db
+        bot = self.bot
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        def awaits(coro: Coroutine):
+            loopp = asyncio.get_event_loop()
+
+            if loopp.is_closed():
+                loopp = asyncio.new_event_loop()
+                asyncio.set_event_loop(loopp)
+
+            task = loopp.create_task(coro)
+            return loopp.run_until_complete(task)
+
+        run = awaits
+
         code.interact(
-            banner=f"Hydraverse Bot Shell:\n  db = {db}",
+            banner=f"Hydraverse Bot Shell:\n  db = {db}\n  bot = {bot}\n  run() to call with awaits.",
             exitmsg="",
             local=locals(),
         )
