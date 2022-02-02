@@ -218,6 +218,8 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
             "<b>Token balances:</b>",
         ]
 
+        max_bal_len = 0
+
         for tb in token_balances:
             tb.balance = int(tb.balance)
             tb.decimals = int(tb.decimals)
@@ -227,14 +229,17 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
             if int(balance) == balance:
                 balance = int(balance)
 
-            if tb.symbol in UNICODE_EMOJI_ENGLISH:
-                message.append(
-                    f"<b><a href=\"{bot.rpcx.human_link('contract', tb.addressHex)}\">{tb.symbol}</a> <pre>{'{:,}'.format(balance)}</pre></b>"
-                )
-            else:
-                message.append(
-                    f"<b><pre>{'{:,}'.format(balance)}</pre> <a href=\"{bot.rpcx.human_link('contract', tb.addressHex)}\">{tb.symbol}</a></b>"
-                )
+            tb.balance = '{:,}'.format(balance)
+            max_bal_len = max(len(tb.balance), max_bal_len)
+
+        print("max_bal_len =", max_bal_len)
+
+        for tb in sorted(token_balances, key=lambda tb_: float(tb_.balance.replace(",", "")), reverse=True):
+            message.append(
+                "<pre>" +
+                f"{tb.balance}".rjust(max_bal_len) +
+                f"</pre>  <a href=\"{bot.rpcx.human_link('contract', tb.addressHex)}\">{tb.symbol}</a>"
+            )
 
     if message[-1] != "":
         message.append("")
