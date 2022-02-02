@@ -78,7 +78,7 @@ async def conf(bot: HydraBot, msg: types.Message):
             f"/conf block total [show|hide|full]\n"
             f"{conf_block_total}\n\n"
             f"Notify in group for new blocks:\n"
-            f"/conf block notify [here|priv]\n"
+            f"/conf block notify [here|priv|both]\n"
             f"{conf_block_notify}\n\n"
             "\n"
             "</pre>"
@@ -89,12 +89,19 @@ async def conf(bot: HydraBot, msg: types.Message):
     if len(cmds) != 3 or cmds[0] != "block" or \
             cmds[1] not in ("bal", "stake", "mature", "utxo", "total", "notify") or \
             (cmds[1] != "notify" and cmds[2] not in ("show", "hide", "full", "-")) or \
-            (cmds[1] == "notify" and cmds[2] not in ("here", "priv", "-")):
+            (cmds[1] == "notify" and cmds[2] not in ("here", "priv", "both", "-")):
         return await msg.answer("Invalid command or config value.")
 
-    if cmds[1] == "notify" and cmds[2] == "here":
-        # noinspection PyTypeChecker
-        cmds[2] = msg.chat.id
+    if cmds[1] == "notify" and cmds[2] in ("here", "both"):
+        if msg.chat.id == msg.from_user.id:
+            return await msg.answer("This config must be set from a group chat.")
+
+        if cmds[2] == "both":
+            # noinspection PyTypeChecker
+            cmds[2] = -msg.chat.id
+        else:
+            # noinspection PyTypeChecker
+            cmds[2] = msg.chat.id
 
     if cmds[2] != "-":
         conf_cur.setdefault(cmds[0], {})[cmds[1]] = cmds[2]

@@ -50,8 +50,7 @@ class EventManager:
     async def __sse_block_event_user_proc(self, block_sse_result: BlockSSEResult, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult):
         if block_sse_result.event == SSEBlockEvent.create:
             if addr_hist.mined:
-                await self.__sse_block_event_user_mined(block_sse_result.block, addr_hist, addr_hist_user)
-                return 1
+                return await self.__sse_block_event_user_mined(block_sse_result.block, addr_hist, addr_hist_user)
         elif block_sse_result.event == SSEBlockEvent.mature:
             if addr_hist.mined:
                 return await self.__sse_block_event_user_mined_matured(block_sse_result.block, addr_hist, addr_hist_user)
@@ -59,7 +58,7 @@ class EventManager:
         log.warning(f"Unprocessed BlockSSEResult for user {addr_hist_user.user_addr.user.uniq.name}: {block_sse_result.dict()}")
         return 0
 
-    async def __sse_block_event_user_mined(self, block: Block, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult):
+    async def __sse_block_event_user_mined(self, block: Block, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult) -> int:
         user_addr: UserAddrResult = addr_hist_user.user_addr
         user: UserBase = user_addr.user
 
@@ -70,7 +69,13 @@ class EventManager:
         conf_block_bal = ua_conf.get("block", {}).get("bal", conf.get("block", {}).get("bal", "hide"))
         conf_block_utxo = ua_conf.get("block", {}).get("utxo", conf.get("block", {}).get("utxo", "show"))
         conf_block_total = ua_conf.get("block", {}).get("total", conf.get("block", {}).get("total", "hide"))
+
         conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "hide"))
+        conf_block_notify_both = False
+
+        if isinstance(conf_block_notify, int) and conf_block_notify > 0:
+            conf_block_notify = -conf_block_notify
+            conf_block_notify_both = True
 
         balance_str = None
 
@@ -221,11 +226,22 @@ class EventManager:
             f"<b>{block_time.ctime()} {block_time.tzname()}</b>"
         )
 
+        sent = 1
+
         await self.bot.send_message(
             chat_id=conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id,
             text="\n".join(message),
             parse_mode="HTML"
         )
+
+        if conf_block_notify_both:
+            sent += 1
+
+            await self.bot.send_message(
+                chat_id=user.tg_user_id,
+                text="\n".join(message),
+                parse_mode="HTML"
+            )
 
         if conf_block_bal == "full":
             addr = Addr(
@@ -234,6 +250,11 @@ class EventManager:
             )
 
             await addr_show(self.bot, conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id, user, user_addr, addr)
+
+            if conf_block_notify_both:
+                await addr_show(self.bot, user.tg_user_id, user, user_addr, addr)
+
+        return sent
 
     async def __sse_block_event_user_mined_matured(self, block: Block, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult) -> int:
         user_addr: UserAddrResult = addr_hist_user.user_addr
@@ -244,6 +265,12 @@ class EventManager:
 
         conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "show"))
         conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "hide"))
+
+        conf_block_notify_both = False
+
+        if isinstance(conf_block_notify, int) and conf_block_notify > 0:
+            conf_block_notify = -conf_block_notify
+            conf_block_notify_both = True
 
         if conf_block_mature == "hide":
             return 0
@@ -288,11 +315,22 @@ class EventManager:
                 f"Staking: {staking}",
             ]
 
+        sent = 1
+
         await self.bot.send_message(
             chat_id=conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id,
             text="\n".join(message),
             parse_mode="HTML"
         )
+
+        if conf_block_notify_both:
+            sent += 1
+
+            await self.bot.send_message(
+                chat_id=user.tg_user_id,
+                text="\n".join(message),
+                parse_mode="HTML"
+            )
 
         if conf_block_mature == "full":
             addr = Addr(
@@ -302,4 +340,7 @@ class EventManager:
 
             await addr_show(self.bot, conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id, user, user_addr, addr)
 
-        return 1
+            if conf_block_notify_both:
+                await addr_show(self.bot, user.tg_user_id, user, user_addr, addr)
+
+        return sent
