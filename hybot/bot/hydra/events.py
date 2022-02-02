@@ -49,15 +49,47 @@ class EventManager:
         log.info(f"Block #{block_sse_result.block.height} {block_sse_result.event}: Notified {users_notified} user{'s' if users_notified != 1 else ''}.")
 
     async def __sse_block_event_user_proc(self, block_sse_result: BlockSSEResult, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult):
+        block: Block = block_sse_result.block
+        addr: AddrBase = addr_hist.addr
+
+        sent = 0
+
         if block_sse_result.event == SSEBlockEvent.create:
             if addr_hist.mined:
                 return await self.__sse_block_event_user_mined(block_sse_result.block, addr_hist, addr_hist_user)
+            # else:
+            #     for tx in addr.filter_tx(block):
+
         elif block_sse_result.event == SSEBlockEvent.mature:
             if addr_hist.mined:
                 return await self.__sse_block_event_user_mined_matured(block_sse_result.block, addr_hist, addr_hist_user)
 
-        log.warning(f"Unprocessed BlockSSEResult for user {addr_hist_user.user_addr.user.uniq.name}: {block_sse_result.dict()}")
-        return 0
+        if not sent:
+            log.warning(f"Unprocessed BlockSSEResult for user {addr_hist_user.user_addr.user.tg_user_id} addr {str(addr)} block #{block.height}")
+
+        return sent
+
+    @staticmethod
+    def staking_fmt(conf_block_stake: str, addr_hist: AddrHistResult) -> Optional[str]:
+        if conf_block_stake == "full":
+            staking = int(addr_hist.info_new["staking"])
+            staking_delta = staking - int(addr_hist.info_old["staking"])
+
+            staking_delta_dec = round(Addr.decimal(staking_delta), 2)
+
+            if staking_delta_dec != 0 and staking_delta != staking:
+                staking_delta_dec = f" ({'+' if staking_delta_dec > 0 else ''}{str(staking_delta_dec)})"
+            else:
+                staking_delta_dec = " +" if staking_delta == staking else ""
+
+            staking_tot = f"{'{:,}'.format(round(Addr.decimal(staking), 2))}{staking_delta_dec}"
+
+        elif conf_block_stake == "show":
+            staking_tot = f"{'{:,}'.format(round(Addr.decimal(addr_hist.info_new['staking']), 2))}"
+        else:
+            staking_tot = None
+
+        return staking_tot
 
     async def __sse_block_event_user_mined(self, block: Block, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult) -> int:
         user_addr: UserAddrResult = addr_hist_user.user_addr
@@ -91,23 +123,7 @@ class EventManager:
                     f"<b>Balance:</b> {'{:,}'.format(round(Addr.decimal(balance), 2))} HYDRA"
                 )
 
-        if conf_block_stake == "full":
-            staking = int(addr_hist.info_new["staking"])
-            staking_delta = staking - int(addr_hist.info_old["staking"])
-
-            staking_delta_dec = round(Addr.decimal(staking_delta), 2)
-
-            if staking_delta_dec != 0 and staking_delta != staking:
-                staking_delta_dec = f" ({'+' if staking_delta_dec > 0 else ''}{str(staking_delta_dec)})"
-            else:
-                staking_delta_dec = " +" if staking_delta == staking else ""
-
-            staking_tot = f"{'{:,}'.format(round(Addr.decimal(staking), 2))}{staking_delta_dec}"
-
-        elif conf_block_stake == "show":
-            staking_tot = f"{'{:,}'.format(round(Addr.decimal(addr_hist.info_new['staking']), 2))}"
-        else:
-            staking_tot = None
+        staking_tot = EventManager.staking_fmt(conf_block_stake, addr_hist)
 
         block_tx = block.tx[1]
 
@@ -264,7 +280,8 @@ class EventManager:
         conf = user.info.get("conf", {})
         ua_conf = user_addr.info.get("conf", {})
 
-        conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "show"))
+        conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "full"))
+        conf_block_stake = "full"
         conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "hide"))
 
         conf_block_notify_both = False
@@ -276,7 +293,7 @@ class EventManager:
         if conf_block_mature == "hide":
             return 0
 
-        staking = Addr.decimal(addr_hist.info_new["staking"])
+        staking_tot = EventManager.staking_fmt(conf_block_stake, addr_hist)
 
         utxo_out_tot = 0
 
@@ -296,24 +313,23 @@ class EventManager:
         matured_str = ""
 
         if matured != 0 and matured != utxo_out_tot:
-            matured = Addr.decimal(matured)
+            matured = round(Addr.decimal(matured), 2)
             matured_str = f" ({'+' if matured > 0 else ''}{matured})"
 
-        utxo_out_tot = Addr.decimal(utxo_out_tot)
+        utxo_out_tot = round(Addr.decimal(utxo_out_tot), 2)
 
         reward = round(Addr.decimal(block.info["reward"]), 2)
 
         message = [
-            f'<b>{user.uniq.name} :: <a href="{self.bot.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a></b>',
-            "",
-            f'Block <a href="{self.bot.rpcx.human_link("block", block.hash)}">#{block.height}</a> has matured!',
-            f"Reward: +{reward} HYDRA",
+            f'<b><a href="{self.bot.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a> '
+            + f'block <a href="{self.bot.rpcx.human_link("block", block.height)}">#{block.height}</a> has matured!</b>\n',
+            f'<b>Reward:</b> <a href="{self.bot.rpcx.human_link("tx", block_tx["id"])}">+{reward}</a> HYDRA',
             f"Matured: +{utxo_out_tot}{matured_str}",
         ]
 
-        if staking > 0:
+        if staking_tot:
             message += [
-                f"Staking: {staking}",
+                f"Staking: {staking_tot}",
             ]
 
         sent = await try_send_notify(self.bot.send_message(

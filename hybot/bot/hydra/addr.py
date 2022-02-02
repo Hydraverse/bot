@@ -232,8 +232,6 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
             tb.balance = '{:,}'.format(balance)
             max_bal_len = max(len(tb.balance), max_bal_len)
 
-        print("max_bal_len =", max_bal_len)
-
         for tb in sorted(token_balances, key=lambda tb_: float(tb_.balance.replace(",", "")), reverse=True):
             message.append(
                 "<pre>" +
