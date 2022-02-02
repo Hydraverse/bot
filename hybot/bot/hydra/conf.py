@@ -96,6 +96,9 @@ async def conf(bot: HydraBot, msg: types.Message):
         if msg.chat.id == msg.from_user.id:
             return await msg.answer("This config must be set from a group chat.")
 
+        if msg.from_user.id not in [admin.user.id for admin in await bot.get_chat_administrators(msg.chat.id)]:
+            return await msg.answer("Only group admins can set this config.")
+
         if cmds[2] == "both":
             # noinspection PyTypeChecker
             cmds[2] = -msg.chat.id
