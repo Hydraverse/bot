@@ -1,5 +1,6 @@
 import asyncio
 
+import aiogram.exceptions
 import pytz
 import requests
 from num2words import num2words
@@ -226,22 +227,18 @@ class EventManager:
             f"<b>{block_time.ctime()} {block_time.tzname()}</b>"
         )
 
-        sent = 1
-
-        await self.bot.send_message(
+        sent = await try_send_notify(self.bot.send_message(
             chat_id=conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id,
             text="\n".join(message),
             parse_mode="HTML"
-        )
+        ))
 
         if conf_block_notify_both:
-            sent += 1
-
-            await self.bot.send_message(
+            sent += await try_send_notify(self.bot.send_message(
                 chat_id=user.tg_user_id,
                 text="\n".join(message),
                 parse_mode="HTML"
-            )
+            ))
 
         if conf_block_bal == "full":
             addr = Addr(
@@ -249,10 +246,14 @@ class EventManager:
                 **AttrDict(addr_hist.addr.dict())
             )
 
-            await addr_show(self.bot, conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id, user, user_addr, addr)
+            await try_send_notify(
+                addr_show(self.bot, conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id, user, user_addr, addr)
+            )
 
             if conf_block_notify_both:
-                await addr_show(self.bot, user.tg_user_id, user, user_addr, addr)
+                await try_send_notify(
+                    addr_show(self.bot, user.tg_user_id, user, user_addr, addr)
+                )
 
         return sent
 
@@ -315,22 +316,18 @@ class EventManager:
                 f"Staking: {staking}",
             ]
 
-        sent = 1
-
-        await self.bot.send_message(
+        sent = await try_send_notify(self.bot.send_message(
             chat_id=conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id,
             text="\n".join(message),
             parse_mode="HTML"
-        )
+        ))
 
         if conf_block_notify_both:
-            sent += 1
-
-            await self.bot.send_message(
+            sent += await try_send_notify(self.bot.send_message(
                 chat_id=user.tg_user_id,
                 text="\n".join(message),
                 parse_mode="HTML"
-            )
+            ))
 
         if conf_block_mature == "full":
             addr = Addr(
@@ -338,9 +335,23 @@ class EventManager:
                 **AttrDict(addr_hist.addr.dict())
             )
 
-            await addr_show(self.bot, conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id, user, user_addr, addr)
+            await try_send_notify(
+                addr_show(self.bot, conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id, user, user_addr, addr)
+            )
 
             if conf_block_notify_both:
-                await addr_show(self.bot, user.tg_user_id, user, user_addr, addr)
+                await try_send_notify(
+                    addr_show(self.bot, user.tg_user_id, user, user_addr, addr)
+                )
 
         return sent
+
+
+async def try_send_notify(coro) -> int:
+    try:
+        await coro
+        return 1
+    except aiogram.exceptions.AiogramError as exc:
+        log.warning(f"Unable to send notification: {exc}", exc_info=exc)
+
+    return 0
