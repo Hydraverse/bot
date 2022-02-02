@@ -9,6 +9,7 @@ from hydb.api.schemas import *
 
 from hybot.bot.hydra import HydraBot
 from hybot.bot.hydra.addr import addr_show
+from hybot.util.misc import ordinal
 
 
 class EventManager:
@@ -68,6 +69,8 @@ class EventManager:
         conf_block_stake = ua_conf.get("block", {}).get("stake", conf.get("block", {}).get("stake", "hide"))
         conf_block_bal = ua_conf.get("block", {}).get("bal", conf.get("block", {}).get("bal", "hide"))
         conf_block_utxo = ua_conf.get("block", {}).get("utxo", conf.get("block", {}).get("utxo", "show"))
+        conf_block_total = ua_conf.get("block", {}).get("total", conf.get("block", {}).get("total", "hide"))
+        conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "hide"))
 
         balance_str = None
 
@@ -163,6 +166,38 @@ class EventManager:
         if utxo_str:
             message.append(utxo_str)
 
+        blocks_mined = addr_hist.info_new.get("blocksMined", 0)
+
+        if conf_block_total != "hide" and (user_addr.block_c or blocks_mined):
+            if message[-1] != "":
+                message.append("")
+
+            if conf_block_total == "show":
+                if user_addr.block_c:
+                    message.append(
+                        f"<b>Hydraverse blocks:</b> {user_addr.block_c}"
+                    )
+
+                if blocks_mined:
+                    message.append(
+                        f"<b>Total blocks minted:</b> {blocks_mined}"
+                    )
+            else:  # == "full"
+                block_msg = ""
+
+                if user_addr.block_c:
+                    block_msg = f"This is your {num2words(user_addr.block_c, ordinal=True)} Hydraverse block"
+
+                if blocks_mined:
+                    if block_msg:
+                        block_msg += " and the "
+                    else:
+                        block_msg = "This is the "
+
+                    block_msg += f"{ordinal(blocks_mined)} block mined by this address."
+
+                message.append(block_msg)
+
         block_time = user.user_time(
             datetime.utcfromtimestamp(block.info.get("timestamp", datetime.now()))
         )
@@ -186,13 +221,8 @@ class EventManager:
             f"<b>{block_time.ctime()} {block_time.tzname()}</b>"
         )
 
-        # if user.block_c != user_addr.block_c:
-        #     message.append(
-        #         f"Hydraverse blocks mined by {user.uniq.name}: {user.block_c}"
-        #     )
-
         await self.bot.send_message(
-            chat_id=user.tg_user_id,
+            chat_id=conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id,
             text="\n".join(message),
             parse_mode="HTML"
         )
@@ -203,7 +233,7 @@ class EventManager:
                 **AttrDict(addr_hist.addr.dict())
             )
 
-            await addr_show(self.bot, user.tg_user_id, user, user_addr, addr)
+            await addr_show(self.bot, conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id, user, user_addr, addr)
 
     async def __sse_block_event_user_mined_matured(self, block: Block, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult) -> int:
         user_addr: UserAddrResult = addr_hist_user.user_addr
@@ -213,6 +243,7 @@ class EventManager:
         ua_conf = user_addr.info.get("conf", {})
 
         conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "show"))
+        conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "hide"))
 
         if conf_block_mature == "hide":
             return 0
@@ -258,7 +289,7 @@ class EventManager:
             ]
 
         await self.bot.send_message(
-            chat_id=user.tg_user_id,
+            chat_id=conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id,
             text="\n".join(message),
             parse_mode="HTML"
         )
@@ -269,6 +300,6 @@ class EventManager:
                 **AttrDict(addr_hist.addr.dict())
             )
 
-            await addr_show(self.bot, user.tg_user_id, user, user_addr, addr)
+            await addr_show(self.bot, conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id, user, user_addr, addr)
 
         return 1
