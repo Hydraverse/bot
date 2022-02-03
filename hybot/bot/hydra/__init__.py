@@ -1,5 +1,5 @@
 """Created by Halospace Foundation.
-Support: @TheHydraverse
+Bot Support @ <a href="t.me/TheHydraverse">The Hydraverse</a>.
 """
 from __future__ import annotations
 

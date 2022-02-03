@@ -2,6 +2,8 @@ from __future__ import annotations
 from aiogram import types
 
 # noinspection PyUnresolvedReferences
+from num2words import num2words
+
 from . import __doc__
 from . import HydraBot
 
@@ -11,7 +13,28 @@ from .data import HydraBotData, schemas
 async def hello(bot: HydraBot, msg: types.Message):
     u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
 
+    response_intro = (
+        "<pre>Welcome to the Hydraverse.</pre>\n\n"
+        "I'm the $HYDRA staking and transaction notification bot, and "
+        "I wish you all the best luck on your staking journey.\n"
+        "<b><i>May the Blocks be in your favor!</i></b>\n\n"
+        f"Your user name is <b>{u.uniq.name}.</b>\n"
+        f"You are the {num2words(u.uniq.pkid, ordinal=True)} staker to join.\n"
+    )
+
+    total_blocks = sum(ua.block_c for ua in u.user_addrs)
+
+    if total_blocks:
+        response_intro += (
+            f"Total blocks mined: {total_blocks}\n"
+        )
+
+    response_intro += "\n"
+
     response_cmds = (
+        "You can get started by simply sending me a message with your favorite HYDRA address.\n\n"
+        "I'll keep an eye on it and let you know if anything exciting happens!\n\n"
+        "<b>I can also understand some commands:</b>\n\n"
         "Manage addresses: <b>/addr</b>\n"
         "Show last address: <b>/a</b>\n\n"
         "Configuration: <b>/conf</b>\n\n"
@@ -22,10 +45,6 @@ async def hello(bot: HydraBot, msg: types.Message):
         f"Your time zone is <b>{u.info.get('tz', 'UTC')}</b>.\n"
         "Change your time zone: <b>/tz [zone]</b>\n"
         "Find a timezone: <b>/tz find [search]</b>\n\n"
-    )
-
-    response_uid = (
-        f"Your unique Hydraverse ID and name:\n  <b><pre>{u.uniq.pkid}: {u.uniq.name}</pre></b>\n\n"
     )
 
     # noinspection PyGlobalUndefined
@@ -39,12 +58,13 @@ async def hello(bot: HydraBot, msg: types.Message):
             "Thank You!!\n\n"
             f"<pre>{bot.conf.donations}</pre>\n" + __doc__)
 
+    await msg.answer(
+        response_intro +
+        response_cmds +
+        response_donate
+    )
+
     if u.info.get("tz", ...) is ...:
-        await msg.answer(
-            response_uid +
-            response_cmds +
-            response_donate
-        )
 
         await bot.db.asyncc.user_info_put(
             u,
@@ -53,11 +73,4 @@ async def hello(bot: HydraBot, msg: types.Message):
                 "tz": "UTC",
                 "at": msg.from_user.username
             }
-        )
-
-    else:
-        await msg.answer(
-            f"<pre>{u.uniq.pkid}: {u.uniq.name}</pre>\n\n" +
-            response_cmds +
-            response_donate
         )

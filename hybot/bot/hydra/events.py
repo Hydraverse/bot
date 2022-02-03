@@ -46,7 +46,7 @@ class EventManager:
         users_notified = 0
         users_notified_tx = 0
 
-        log.info(f"Processing Event #{block_sse_result.id} Block #{block_sse_result.block.height}")
+        log.debug(f"Processing Event #{block_sse_result.id} Block #{block_sse_result.block.height}")
 
         for addr_hist in block_sse_result.hist:
             if addr_hist.mined:
@@ -56,10 +56,11 @@ class EventManager:
             if block_sse_result.event == SSEBlockEvent.create:
                 users_notified_tx += await self.__sse_block_event_proc_tx(block_sse_result.block, addr_hist)
 
-        log.info(
-            f"Block #{block_sse_result.block.height} {block_sse_result.event}: Sent {users_notified} block event{'s' if users_notified != 1 else ''} "
-            f"and {users_notified_tx} TX event{'s' if users_notified_tx != 1 else ''}."
-        )
+        if users_notified or users_notified_tx:
+            log.info(
+                f"Block #{block_sse_result.block.height} {block_sse_result.event}: Sent {users_notified} block event{'s' if users_notified != 1 else ''} "
+                f"and {users_notified_tx} TX event{'s' if users_notified_tx != 1 else ''}."
+            )
 
     async def __sse_block_event_user_proc(self, block_sse_result: BlockSSEResult, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult):
         block: Block = block_sse_result.block
