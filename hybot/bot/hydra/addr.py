@@ -89,8 +89,8 @@ async def addr(bot: HydraBot, msg: types.Message):
         return await msg.answer("Address not found or not valid.")
 
 
-async def addr_add(bot: HydraBot, msg: types.Message, u: schemas.User, address: str):
-    user_addr: schemas.UserAddr = await bot.db.asyncc.user_addr_add(u, address)
+async def addr_add(bot: HydraBot, msg: types.Message, u: schemas.User, address: str, label: str = ""):
+    user_addr: schemas.UserAddr = await bot.db.asyncc.user_addr_add(u, address, label)
     addr_: schemas.Addr = user_addr.addr
 
     tp_str = (
@@ -126,7 +126,10 @@ async def addr_rename(bot: HydraBot, msg: types.Message, u: schemas.User, addres
             else:
                 return await msg.answer("Address wasn't renamed, the chosen name is already in use or the server had a problem.\n")
 
-    return await msg.answer("Address not renamed: not found.\n")
+    if not schemas.Addr.soft_validate(address, testnet=not bot.rpcx.mainnet):
+        return await msg.answer("Address not renamed: not found.\n")
+
+    return await addr_add(bot, msg, u, address, name)
 
 
 async def addr_del(bot: HydraBot, msg: types.Message, u: schemas.User, address: str):
@@ -323,4 +326,13 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
 
 
 def human_type(addr_: schemas.AddrBase) -> str:
-    return "address" if addr_.addr_tp.value.value == schemas.Addr.Type.H else "contract"
+    return "address" if addr_.addr_tp.value == schemas.Addr.Type.H else "contract"
+
+
+def addr_link(bot: HydraBot, addr_: schemas.AddrBase, text: str) -> str:
+    return f'<a href="{bot.rpcx.human_link(human_type(addr_), str(addr_))}">{text}</a>'
+
+
+def addr_link_str(bot: HydraBot, addr_: str, text: str) -> str:
+    """Guess address type based on length."""
+    return f'<a href="{bot.rpcx.human_link("contract" if len(addr_) == 40 else "address", addr_)}">{text}</a>'
