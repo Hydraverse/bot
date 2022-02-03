@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import asyncio
 from decimal import Decimal
-from typing import Coroutine, Optional, Callable
+from typing import Coroutine, Optional, Callable, Union
 
 from aiogram import Bot, Dispatcher, types
 from attrdict import AttrDict
@@ -107,11 +107,6 @@ class HydraBot(Bot):
         async def tz(msg: types.Message):
             return await self.command(msg, cmd_tz.tz)
 
-        @HydraBot.dp.message()
-        @HydraBot.dp.message(commands={"addr", "a"})
-        async def addr_(msg: types.Message):
-            return await self.command(msg, cmd_addr.addr)
-
         @HydraBot.dp.message(commands={"DELETE"})
         async def delete(msg: types.Message):
             return await self.command(msg, cmd_delete.delete)
@@ -124,13 +119,18 @@ class HydraBot(Bot):
         async def delete(msg: types.Message):
             return await self.command(msg, cmd_conf.conf)
 
+        @HydraBot.dp.message()
+        @HydraBot.dp.message(commands={"addr", "a"})
+        async def addr_(msg: types.Message):
+            return await self.command(msg, cmd_addr.addr)
+
         super().__init__(token, parse_mode="HTML")
 
     @staticmethod
     def main(db: HyDbClient):
         return HydraBot(db).run()
 
-    async def hydra_fiat_value(self, currency: str, value, *, with_name=True):
+    async def hydra_fiat_value(self, currency: str, value: Union[Decimal, int, str], *, with_name=True):
         price = await asyncio.get_event_loop().run_in_executor(
             executor=None,
             func=lambda: self.prices.price(currency, raw=True)
@@ -138,7 +138,7 @@ class HydraBot(Bot):
 
         fiat_value = round(
             Decimal(price)
-            * schemas.Addr.decimal(value),
+            * (schemas.Addr.decimal(value) if not isinstance(value, Decimal) else value),
             2
         )
 
