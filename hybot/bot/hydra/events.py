@@ -1,4 +1,5 @@
 import asyncio
+from typing import Generator
 
 import aiogram.exceptions
 import pytz
@@ -103,6 +104,61 @@ class EventManager:
 
         return staking_tot
 
+    @staticmethod
+    def yield_block_tx_inout_values(block: Block, addr_hist: AddrHistResult) -> Generator[AttrDict, None, None]:
+        addr: AddrBase = addr_hist.addr
+        addr_str = str(addr)
+        txes = list(addr.filter_tx(block))
+
+        for trxn in txes:
+            txid = trxn.get("id")
+            txno = block.info["transactions"].index(txid)
+            fees = int(trxn.get("fees", 0))
+
+            value_in = sum(
+                int(inp.get("value", 0))
+                for inp in trxn.get("inputs", [])
+                if inp.get("addressHex", inp.get("address", "")) == addr_str
+            )
+
+            value_out = sum(
+                int(out.get("value", 0))
+                for out in trxn.get("outputs", [])
+                if out.get("addressHex", out.get("address", "")) == addr_str
+            )
+
+            # NOTE: contractSpends are duplicated in separate block TX.
+
+            # fees is == -block.reward for tx 1
+            if txno == 1:
+                reward = int(block.info["reward"])
+                fees += reward
+
+                if addr_hist.mined:
+                    value_out -= reward
+
+                    if (value_in - value_out) == 0 and fees != 0:
+                        # Refund to other addresses.
+                        fees = 0
+                else:
+                    fees -= value_out
+
+            elif fees != 0 and not value_in:
+                # only TX inputs pay fees
+                fees = 0
+
+            txv = AttrDict(**trxn)
+
+            txv.update(dict(
+                balance_delta=value_in - value_out - fees,
+                value_in=value_in,
+                value_out=value_out,
+                fees=fees,
+                n=txno,
+            ))
+
+            yield txv
+
     async def __sse_block_event_user_mined(self, block: Block, addr_hist: AddrHistResult, addr_hist_user: UserAddrHistResult) -> int:
         user_addr: UserAddrResult = addr_hist_user.user_addr
         user: UserBase = user_addr.user
@@ -176,7 +232,13 @@ class EventManager:
             else:  # == "show"
                 utxo_str = f"<b>UTXOs:</b> +{utxo_out_tot} ({utxo_inp_cnt} ➔ {utxo_out_cnt})"
 
-        reward = block.info["reward"]
+        # Determine how much of the total reward belongs to this address:
+        #
+        reward: int = int(block.info["reward"])
+        txv = list(txv for txv in EventManager.yield_block_tx_inout_values(block, addr_hist) if txv.n == 1)[0]
+        fee_reward = txv.value_in - txv.value_out - txv.fees
+        reward -= fee_reward
+
         currency = user.info.get("fiat", "USD")
         value = await self.bot.hydra_fiat_value(currency, reward)
         reward = round(Addr.decimal(reward), 2)
@@ -194,6 +256,15 @@ class EventManager:
             f'<b>Reward:</b> <a href="{self.bot.rpcx.human_link("tx", block_tx["id"])}">+{reward}</a> HYDRA',
             f"<b>Value:</b> {value} @ <b>{price}</b>",
         ]
+
+        if fee_reward and conf_block_notify_both:  # Adding conf_block_notify_both to ensure this is not normally shown.
+            fee_str = "Refunds"
+            fee_reward = Addr.decimal(fee_reward)
+            fee_value = await self.bot.hydra_fiat_value(currency, fee_reward, with_name=False)
+
+            message.append(
+                f"<b>{fee_str}:</b> {round(fee_reward, 2)} HYDRA ~ {fee_value}"
+            )
 
         if staking_tot is not None:
             message += [
@@ -361,62 +432,22 @@ class EventManager:
         addr: AddrBase = addr_hist.addr
         addr_str = str(addr)
 
-        txes = list(addr.filter_tx(block))
-
         user_txes: Dict[str, AttrDict] = {}
         tokn_xfrs: Dict[str, Dict[str, List[AttrDict]]] = {}
         sent = 0
 
-        for trxn in txes:
-            txid = trxn.get("id")
-            txno = block.info["transactions"].index(txid)
-            fees = int(trxn.get("fees", 0))
+        for txv in EventManager.yield_block_tx_inout_values(block, addr_hist):
+            txid = txv.get("id")
 
-            value_in = sum(
-                int(inp.get("value", 0))
-                for inp in trxn.get("inputs", [])
-                if inp.get("addressHex", inp.get("address", "")) == addr_str
-            )
+            token_transfers = txv.get("qrc20TokenTransfers", []) + txv.get("qrc721TokenTransfers", [])
 
-            value_out = sum(
-                int(out.get("value", 0))
-                for out in trxn.get("outputs", [])
-                if out.get("addressHex", out.get("address", "")) == addr_str
-            )
-
-            # NOTE: contractSpends are duplicated in separate block TX.
-
-            # fees is == -block.reward for tx 1
-            if txno == 1:
-                reward = int(block.info["reward"])
-                fees += reward
-
-                if addr_hist.mined:
-                    value_out -= reward
-
-                    if (value_in - value_out) == 0 and fees != 0:
-                        fees = 0
-                else:
-                    fees -= value_out
-                    # value_out = 0
-            elif fees != 0 and not value_in:
-                # only TX inputs pay fees
-                fees = 0
-
-            user_tx = AttrDict(trxn)
-            user_tx.balance_delta = value_in - value_out - fees
-            user_tx.n = txno
-            user_tx.fees = fees
-
-            token_transfers = trxn.get("qrc20TokenTransfers", []) + trxn.get("qrc721TokenTransfers", [])
-
-            if txno == 1 and addr_hist.mined:
-                if not len(token_transfers) and not fees:
+            if txv.n == 1 and addr_hist.mined:
+                if not len(token_transfers) and not txv.fees:
                     # Any amount remaining in user_tx.balance_delta is the fee refund which would
                     # show up as sent to those addresses.
                     continue
 
-            log.info(f"Block #{block.height} TX #{txno} Addr {addr_str}: value_in={value_in} value_out={value_out} fees={fees}")
+            log.info(f"Block #{block.height} TX #{txv.n} Addr {addr_str}: value_in={txv.value_in} value_out={txv.value_out} fees={txv.fees}")
 
             for token_transfer in token_transfers:
                 token_transfer = AttrDict(token_transfer)
@@ -443,7 +474,7 @@ class EventManager:
 
                     tokn_xfrs.setdefault(addr_smac, {}).setdefault(txid, []).append(token_tx)
 
-            user_txes[txid] = user_tx
+            user_txes[txid] = txv
 
         if len(user_txes):
             balance_delta_total = sum(user_tx.balance_delta for user_tx in user_txes.values())
