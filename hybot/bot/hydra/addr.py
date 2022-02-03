@@ -309,7 +309,7 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
         if message[-1] != "":
             message.append("")
 
-        now = datetime.utcnow() - timedelta(seconds=16)
+        now = datetime.utcnow() + timedelta(seconds=16)
         td: timedelta = now - ua.block_t
         td_msg = schemas.timedelta_str(td)
 
