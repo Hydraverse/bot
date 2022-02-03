@@ -363,8 +363,7 @@ class EventManager:
         txes = list(addr.filter_tx(block))
 
         user_txes: Dict[str, AttrDict] = {}
-        tokn_txes_from: Dict[str, Dict[str, AttrDict]] = {}
-        tokn_txes_to: Dict[str, Dict[str, AttrDict]] = {}
+        tokn_xfrs: Dict[str, Dict[str, List[AttrDict]]] = {}
         sent = 0
 
         for trxn in txes:
@@ -438,17 +437,10 @@ class EventManager:
                     addr_recv=addr_recv
                 )
 
-                if addr_str == addr_smac and addr_send != addr_smac and addr_recv != addr_smac:
-                    if token_transfer["to"] is None:
-                        tokn_txes_to.setdefault(addr_smac, {})[txid] = token_tx
-                    else:
-                        tokn_txes_from.setdefault(addr_smac, {})[txid] = token_tx
-                else:
-                    if addr_str == addr_send:
-                        tokn_txes_from.setdefault(addr_smac, {})[txid] = token_tx
+                if (addr_str == addr_smac and addr_send != addr_smac and addr_recv != addr_smac) or \
+                        addr_str == addr_send or addr_str == addr_recv:
 
-                    if addr_str == addr_recv:
-                        tokn_txes_to.setdefault(addr_smac, {})[txid] = token_tx
+                    tokn_xfrs.setdefault(addr_smac, {}).setdefault(txid, []).append(token_tx)
 
             user_txes[txid] = user_tx
 
@@ -459,8 +451,7 @@ class EventManager:
 
             block_txes = AttrDict(
                 txes=user_txes,
-                tokens_inp=tokn_txes_to,
-                tokens_out=tokn_txes_from,
+                token_xfrs=tokn_xfrs,
                 hydra_sent=hydra_sent,
                 fee_total=fee_total
             )
@@ -491,8 +482,7 @@ class EventManager:
             conf_block_notify_both = True
 
         txes: Dict[str, AttrDict] = block_txes.txes
-        tokens_inp: Dict[str, Dict[str, AttrDict]] = block_txes.tokens_inp
-        tokens_out: Dict[str, Dict[str, AttrDict]] = dict(block_txes.tokens_out)  # Copy for local modification.
+        token_xfrs: Dict[str, Dict[str, List[AttrDict]]] = block_txes.token_xfrs
 
         txes_show = {txid: tx for txid, tx in txes.items() if tx.balance_delta}
 
@@ -544,44 +534,27 @@ class EventManager:
 
         first_token = True
 
-        for token_addr, token_in_txes in tokens_inp.items():
-            for txid, token_in_tx in token_in_txes.items():
-                is_nft = not isinstance(token_in_tx.value_or_id, Decimal)
-                action = "Mint" if token_in_tx.addr_send is None else "Burn" if token_in_tx.addr_recv is None else "Receive" if addr_str == token_in_tx.addr_recv else "Transfer"
-                action += " NFT" if is_nft else ""
+        for token_addr, token_in_txes_all in token_xfrs.items():
+            for txid, token_in_txes in token_in_txes_all.items():
+                for token_in_tx in token_in_txes:
+                    is_nft = not isinstance(token_in_tx.value_or_id, Decimal)
+                    txrx = "Send" if addr_str == token_in_tx.addr_send else "Receive" if addr_str == token_in_tx.addr_recv else "Transfer"
+                    action = "Mint" if token_in_tx.addr_send is None else "Burn" if token_in_tx.addr_recv is None else txrx
+                    action += " NFT" if is_nft else ""
 
-                if not is_nft:
-                    value_str = f"<b>{self.tx_link(txid, action)}:</b> {token_in_tx.value_or_id} {addr_link_str(self.bot, token_addr, token_in_tx.symbol)}"
-                else:
-                    value_str = f"<b>{self.tx_link(txid, action)}:</b> {addr_link_str(self.bot, token_addr, token_in_tx.symbol)} ID #{token_in_tx.value_or_id}"
-                    # TODO: Maybe also get URI data from addr_hist.info_new.qrc721Balances[].uris[]
+                    if not is_nft:
+                        value_str = f"<b>{self.tx_link(txid, action)}:</b> {token_in_tx.value_or_id} {addr_link_str(self.bot, token_addr, token_in_tx.symbol)}"
+                    else:
+                        value_str = f"<b>{self.tx_link(txid, action)}:</b> {addr_link_str(self.bot, token_addr, token_in_tx.symbol)} ID #{token_in_tx.value_or_id}"
+                        # TODO: Maybe also get URI data from addr_hist.info_new.qrc721Balances[].uris[]
 
-                if first_token:
-                    first_token = False
+                    if first_token:
+                        first_token = False
 
-                    if message[-1] != "":
-                        message.append("")
+                        if message[-1] != "":
+                            message.append("")
 
-                message.append(value_str)
-
-        for token_addr, token_out_txes in tokens_out.items():
-            for txid, token_out_tx in token_out_txes.items():
-                is_nft = not isinstance(token_out_tx.value_or_id, Decimal)
-                action = "Burn" if token_out_tx.addr_recv is None else "Mint" if token_out_tx.addr_send is None else "Send" if addr_str == token_out_tx.addr_send else "Transfer"
-                action += " NFT" if is_nft else ""
-
-                if not is_nft:
-                    value_str = f"<b>{self.tx_link(txid, action)}:</b> {token_out_tx.value_or_id} {addr_link_str(self.bot, token_addr, token_out_tx.symbol)}"
-                else:
-                    value_str = f"<b>{self.tx_link(txid, action)}:</b> {addr_link_str(self.bot, token_addr, token_out_tx.symbol)} ID #{token_out_tx.value_or_id}"
-
-                if first_token:
-                    first_token = False
-
-                    if message[-1] != "":
-                        message.append("")
-
-                message.append(value_str)
+                    message.append(value_str)
 
         if message[-1] != "":
             message.append("")
