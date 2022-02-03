@@ -89,7 +89,8 @@ async def addr(bot: HydraBot, msg: types.Message):
         matched = True
 
     if not matched:
-        return await msg.answer("Address not found or not valid.")
+        if str(msg.text).startswith("/"):
+            return await msg.answer("Address not found or not valid.")
 
 
 async def addr_add(bot: HydraBot, msg: types.Message, u: schemas.User, address: str, label: str = ""):
