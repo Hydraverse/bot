@@ -309,7 +309,8 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
         if message[-1] != "":
             message.append("")
 
-        td: timedelta = datetime.utcnow() - ua.block_t
+        now = datetime.utcnow() - timedelta(seconds=16)
+        td: timedelta = now - ua.block_t
         td_msg = schemas.timedelta_str(td)
 
         tz_time = u.user_time(ua.block_t).ctime()
@@ -318,7 +319,7 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
             f"Last block was <b>{td_msg}</b> ago:\n<b>{tz_time}</b>"
         ]
 
-    user_now = u.user_time(datetime.utcnow())
+    user_now = u.user_time(now)
 
     message.append(
         f"<b>{user_now.ctime()} {user_now.tzname()}</b>"
