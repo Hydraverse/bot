@@ -53,6 +53,8 @@ async def conf(bot: HydraBot, msg: types.Message):
         conf_block_total = f"Current{' (for user)' if ua and 'total' not in conf_block else ''}: {conf_block_total}" if conf_block_total is not None else "Default: hide"
         conf_block_notify = conf_block.get('notify', None if not ua else conf_block_usr.get('notify', None))
         conf_block_notify = f"Current{' (for user)' if ua and 'notify' not in conf_block else ''}: {conf_block_notify}" if conf_block_notify is not None else "Default: priv"
+        conf_block_tx = conf_block.get('tx', None if not ua else conf_block_usr.get('tx', None))
+        conf_block_tx = f"Current{' (for user)' if ua and 'tx' not in conf_block else ''}: {conf_block_tx}" if conf_block_tx is not None else "Default: full"
 
         return await msg.answer(
             f"<b>Configuration management{addr_link_str}.</b>\n\n"
@@ -66,6 +68,9 @@ async def conf(bot: HydraBot, msg: types.Message):
             f"Notifications for new blocks:\n"
             f"<b>/conf block notify [here|priv|both|hide]</b>\n"
             f"{conf_block_notify}\n\n"
+            f"Notifications for new transactions:\n"
+            f"<b>/conf block tx [show|hide|full]</b>\n"
+            f"{conf_block_tx}\n\n"
             f"Notify on block mature:\n"
             f"<b>/conf block mature [show|hide|full]</b>\n"
             f"{conf_block_mature}\n\n"

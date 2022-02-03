@@ -478,17 +478,17 @@ class EventManager:
         conf = u.info.get("conf", {})
         ua_conf = u.info.get("conf", {})
 
-        conf_block_tx = ua_conf.get("block", {}).get("tx", conf.get("block", {}).get("tx", "show"))
-        conf_tx_notify = ua_conf.get("tx", {}).get("notify", conf.get("tx", {}).get("notify", "priv"))
+        conf_block_tx = ua_conf.get("block", {}).get("tx", conf.get("block", {}).get("tx", "full"))
 
         if conf_block_tx == "hide":
             return 0
 
-        conf_tx_notify_both = False
+        conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "priv"))
+        conf_block_notify_both = False
 
-        if isinstance(conf_tx_notify, int) and conf_tx_notify > 0:
-            conf_tx_notify = -conf_tx_notify
-            conf_tx_notify_both = True
+        if isinstance(conf_block_notify, int) and conf_block_notify > 0:
+            conf_block_notify = -conf_block_notify
+            conf_block_notify_both = True
 
         txes: Dict[str, AttrDict] = block_txes.txes
         tokens_inp: Dict[str, Dict[str, AttrDict]] = block_txes.tokens_inp
@@ -595,12 +595,12 @@ class EventManager:
         message = "\n".join(message)
 
         sent = await try_send_notify(self.bot.send_message(
-            chat_id=conf_tx_notify if isinstance(conf_tx_notify, int) else u.tg_user_id,
+            chat_id=conf_block_notify if isinstance(conf_block_notify, int) else u.tg_user_id,
             text=message,
             parse_mode="HTML"
         ))
 
-        if conf_tx_notify_both:
+        if conf_block_notify_both:
             sent += await try_send_notify(self.bot.send_message(
                 chat_id=u.tg_user_id,
                 text=message,
@@ -608,7 +608,7 @@ class EventManager:
             ))
 
         if conf_block_tx == "full":
-            await self.addr_show(u, ua, addr_hist, conf_tx_notify, conf_tx_notify_both)
+            await self.addr_show(u, ua, addr_hist, conf_block_notify, conf_block_notify_both)
 
         return sent
 
