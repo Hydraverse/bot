@@ -109,17 +109,20 @@ class EventManager:
         conf = user.info.get("conf", {})
         ua_conf = user_addr.info.get("conf", {})
 
-        conf_block_stake = ua_conf.get("block", {}).get("stake", conf.get("block", {}).get("stake", "hide"))
-        conf_block_bal = ua_conf.get("block", {}).get("bal", conf.get("block", {}).get("bal", "hide"))
-        conf_block_utxo = ua_conf.get("block", {}).get("utxo", conf.get("block", {}).get("utxo", "show"))
-        conf_block_total = ua_conf.get("block", {}).get("total", conf.get("block", {}).get("total", "hide"))
-
-        conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "hide"))
+        conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "priv"))
         conf_block_notify_both = False
+
+        if conf_block_notify == "hide":
+            return 0
 
         if isinstance(conf_block_notify, int) and conf_block_notify > 0:
             conf_block_notify = -conf_block_notify
             conf_block_notify_both = True
+
+        conf_block_stake = ua_conf.get("block", {}).get("stake", conf.get("block", {}).get("stake", "hide"))
+        conf_block_bal = ua_conf.get("block", {}).get("bal", conf.get("block", {}).get("bal", "hide"))
+        conf_block_utxo = ua_conf.get("block", {}).get("utxo", conf.get("block", {}).get("utxo", "show"))
+        conf_block_total = ua_conf.get("block", {}).get("total", conf.get("block", {}).get("total", "hide"))
 
         balance_str = None
 
@@ -281,18 +284,18 @@ class EventManager:
         conf = user.info.get("conf", {})
         ua_conf = user_addr.info.get("conf", {})
 
-        conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "full"))
+        conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "hide"))
         conf_block_stake = "full"
-        conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "hide"))
+        conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "priv"))
+
+        if conf_block_mature == "hide":
+            return 0
 
         conf_block_notify_both = False
 
         if isinstance(conf_block_notify, int) and conf_block_notify > 0:
             conf_block_notify = -conf_block_notify
             conf_block_notify_both = True
-
-        if conf_block_mature == "hide":
-            return 0
 
         staking_tot = EventManager.staking_fmt(conf_block_stake, addr_hist)
 

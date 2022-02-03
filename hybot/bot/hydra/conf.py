@@ -48,7 +48,7 @@ async def conf(bot: HydraBot, msg: types.Message):
         conf_block_utxo = conf_block.get('utxo', None if not ua else conf_block_usr.get('utxo', None))
         conf_block_utxo = f"Current{' (for user)' if ua and 'utxo' not in conf_block else ''}: {conf_block_utxo}" if conf_block_utxo is not None else "Default: show"
         conf_block_mature = conf_block.get('mature', None if not ua else conf_block_usr.get('mature', None))
-        conf_block_mature = f"Current{' (for user)' if ua and 'mature' not in conf_block else ''}: {conf_block_mature}" if conf_block_mature is not None else "Default: full"
+        conf_block_mature = f"Current{' (for user)' if ua and 'mature' not in conf_block else ''}: {conf_block_mature}" if conf_block_mature is not None else "Default: hide"
         conf_block_total = conf_block.get('total', None if not ua else conf_block_usr.get('total', None))
         conf_block_total = f"Current{' (for user)' if ua and 'total' not in conf_block else ''}: {conf_block_total}" if conf_block_total is not None else "Default: hide"
         conf_block_notify = conf_block.get('notify', None if not ua else conf_block_usr.get('notify', None))
@@ -63,6 +63,12 @@ async def conf(bot: HydraBot, msg: types.Message):
             "Address-specific:\n"
             "<b>/conf [addr]: [conf] [name] [value]</b>\n\n"
             "<pre>Block config:</pre>\n\n"
+            f"Notifications for new blocks:\n"
+            f"<b>/conf block notify [here|priv|both|hide]</b>\n"
+            f"{conf_block_notify}\n\n"
+            f"Notify on block mature:\n"
+            f"<b>/conf block mature [show|hide|full]</b>\n"
+            f"{conf_block_mature}\n\n"
             f"Show balance/status on new blocks:\n"
             f"<b>/conf block bal [show|hide|full]</b>\n"
             f"{conf_block_bal}\n\n"
@@ -72,15 +78,9 @@ async def conf(bot: HydraBot, msg: types.Message):
             f"Show UTXO split info on new blocks:\n"
             f"<b>/conf block utxo [show|hide|full]</b>\n"
             f"{conf_block_utxo}\n\n"
-            f"Notify on block mature:\n"
-            f"<b>/conf block mature [show|hide|full]</b>\n"
-            f"{conf_block_mature}\n\n"
             f"Show total mined on new block:\n"
             f"<b>/conf block total [show|hide|full]</b>\n"
             f"{conf_block_total}\n\n"
-            f"Notify in group for new blocks:\n"
-            f"<b>/conf block notify [here|priv|both]</b>\n"
-            f"{conf_block_notify}\n\n"
             "\n"
         )
 
@@ -89,7 +89,7 @@ async def conf(bot: HydraBot, msg: types.Message):
     if len(cmds) != 3 or cmds[0] != "block" or \
             cmds[1] not in ("bal", "stake", "mature", "utxo", "total", "notify") or \
             (cmds[1] != "notify" and cmds[2] not in ("show", "hide", "full", "-")) or \
-            (cmds[1] == "notify" and cmds[2] not in ("here", "priv", "both", "-")):
+            (cmds[1] == "notify" and cmds[2] not in ("here", "priv", "both", "hide", "-")):
         return await msg.answer("Invalid command or config value.")
 
     if cmds[1] == "notify" and cmds[2] in ("here", "both"):
