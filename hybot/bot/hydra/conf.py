@@ -54,7 +54,7 @@ async def conf(bot: HydraBot, msg: types.Message):
         conf_block_notify = conf_block.get('notify', None if not ua else conf_block_usr.get('notify', None))
         conf_block_notify = f"Current{' (for user)' if ua and 'notify' not in conf_block else ''}: {conf_block_notify}" if conf_block_notify is not None else "Default: priv"
         conf_block_tx = conf_block.get('tx', None if not ua else conf_block_usr.get('tx', None))
-        conf_block_tx = f"Current{' (for user)' if ua and 'tx' not in conf_block else ''}: {conf_block_tx}" if conf_block_tx is not None else "Default: full"
+        conf_block_tx = f"Current{' (for user)' if ua and 'tx' not in conf_block else ''}: {conf_block_tx}" if conf_block_tx is not None else "Default: show"
 
         return await msg.answer(
             f"<b>Configuration management{addr_link_str}.</b>\n\n"
@@ -92,7 +92,7 @@ async def conf(bot: HydraBot, msg: types.Message):
     cmds = conf_cmd.lower().split()
 
     if len(cmds) != 3 or cmds[0] != "block" or \
-            cmds[1] not in ("bal", "stake", "mature", "utxo", "total", "notify") or \
+            cmds[1] not in ("bal", "stake", "mature", "utxo", "total", "notify", "tx") or \
             (cmds[1] != "notify" and cmds[2] not in ("show", "hide", "full", "-")) or \
             (cmds[1] == "notify" and cmds[2] not in ("here", "priv", "both", "hide", "-")):
         return await msg.answer("Invalid command or config value.")

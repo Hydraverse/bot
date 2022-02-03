@@ -478,7 +478,7 @@ class EventManager:
         conf = u.info.get("conf", {})
         ua_conf = u.info.get("conf", {})
 
-        conf_block_tx = ua_conf.get("block", {}).get("tx", conf.get("block", {}).get("tx", "full"))
+        conf_block_tx = ua_conf.get("block", {}).get("tx", conf.get("block", {}).get("tx", "show"))
 
         if conf_block_tx == "hide":
             return 0
@@ -511,7 +511,7 @@ class EventManager:
         hydra_sent_value = await self.bot.hydra_fiat_value(currency, abs(hydra_sent), with_name=False)
 
         if hydra_sent != 0:
-            send_recv = "Received" if hydra_sent < 0 else "Sent"
+            send_recv = "Receive" if hydra_sent < 0 else "Send"
 
             if txes_len == 1:
                 send_recv = self.tx_link(tuple(txes_show.keys())[0], send_recv)
