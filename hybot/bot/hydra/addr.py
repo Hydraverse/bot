@@ -51,7 +51,10 @@ async def addr(bot: HydraBot, msg: types.Message):
         if len(u.user_addrs):
             result += [f"Addresses:"]
             result += [
-                          f"\n<a href=\"{bot.rpcx.human_link(human_type(ua.addr), str(ua.addr))}\">{ua.name}</a>\n"
+                          f"\n<a href=\"{bot.rpcx.human_link(human_type(ua.addr), str(ua.addr))}\">{ua.name}</a>"
+                          + f"{': ' if human_type(ua.addr) == 'contract' else ''}"
+                          + (ua.addr.info.get("qrc20", {}).get("name", ""))
+                          + "\n"
                           + f"<pre>{str(ua.addr)}</pre>"
                           for ua in u.user_addrs
                       ] + ["\n"]
@@ -168,8 +171,12 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
     ua_addr = str(addr_)
     info = AttrDict(addr_.info)
 
+    sc_name = info.get("qrc20", {}).get("name", "")
+    if sc_name:
+        sc_name = ": " + sc_name
+
     message = [
-        f'<a href="{bot.rpcx.human_link(human_type(addr_), ua_addr)}">{ua.name}</a>',
+        f'<a href="{bot.rpcx.human_link(human_type(addr_), ua_addr)}">{ua.name}</a>' + sc_name,
         f"<pre>{ua_addr}</pre>",
         "",
     ]
