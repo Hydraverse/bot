@@ -645,5 +645,6 @@ async def try_send_notify(coro) -> int:
         return 1
     except aiogram.exceptions.AiogramError as exc:
         log.warning(f"Unable to send notification: {exc}", exc_info=exc)
+        # Recently seen: TelegramForbiddenError: Blocked by user
 
     return 0
