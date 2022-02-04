@@ -356,7 +356,7 @@ class EventManager:
         conf = user.info.get("conf", {})
         ua_conf = user_addr.info.get("conf", {})
 
-        conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "hide"))
+        conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "show"))
         conf_block_stake = "full"
         conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "priv"))
 

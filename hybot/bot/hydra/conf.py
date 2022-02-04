@@ -48,7 +48,7 @@ async def conf(bot: HydraBot, msg: types.Message):
         conf_block_utxo = conf_block.get('utxo', None if not ua else conf_block_usr.get('utxo', None))
         conf_block_utxo = f"Current{' (for user)' if ua and 'utxo' not in conf_block else ''}: {conf_block_utxo}" if conf_block_utxo is not None else "Default: show"
         conf_block_mature = conf_block.get('mature', None if not ua else conf_block_usr.get('mature', None))
-        conf_block_mature = f"Current{' (for user)' if ua and 'mature' not in conf_block else ''}: {conf_block_mature}" if conf_block_mature is not None else "Default: hide"
+        conf_block_mature = f"Current{' (for user)' if ua and 'mature' not in conf_block else ''}: {conf_block_mature}" if conf_block_mature is not None else "Default: show"
         conf_block_total = conf_block.get('total', None if not ua else conf_block_usr.get('total', None))
         conf_block_total = f"Current{' (for user)' if ua and 'total' not in conf_block else ''}: {conf_block_total}" if conf_block_total is not None else "Default: hide"
         conf_block_notify = conf_block.get('notify', None if not ua else conf_block_usr.get('notify', None))
