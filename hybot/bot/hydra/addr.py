@@ -23,6 +23,10 @@ async def addr(bot: HydraBot, msg: types.Message):
             # Filter should not allow any other /xx command here
             address = msg_text
 
+            # And not react in groups:
+            if msg.chat.id < 0:
+                return
+
         if not address:
             if not await addr_show(bot, msg.chat.id, u, ua=None):
                 address = None
