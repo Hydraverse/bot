@@ -37,6 +37,8 @@ async def addr(bot: HydraBot, msg: types.Message):
 
     if not address:
         return await msg.answer(
+            "<b>Manage your addresses</b>\n\n"
+            "You can also simply send me an address and I'll add it!\n\n"
             "<pre>"
             "Add:    <b>/addr [addr]</b>\n"
             "Info:   <b>/addr [search]</b>\n"
