@@ -5,8 +5,8 @@ After=network.target
 [Service]
 Type=simple
 UMask=022
-WorkingDirectory=/home/hyve/app/hybot/
-ExecStart=/home/hyve/app/hybot/env/bot/bin/python -O -m hybot -vv
+WorkingDirectory=/home/hyve/app/bot/
+ExecStart=/home/hyve/app/bot/env/bot/bin/python -O -m hybot -vv
 Restart=on-failure
 KillSignal=SIGQUIT
 Type=notify
