@@ -45,7 +45,7 @@ async def addr(bot: HydraBot, msg: types.Message):
             "</pre>"
         )
 
-    if address == "list":
+    if address.lower() == "list":
         result = []
 
         if len(u.user_addrs):
