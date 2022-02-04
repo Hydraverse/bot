@@ -29,18 +29,18 @@ class EventManager:
             try:
                 await self.bot.db.sse_block_async(self.__sse_block_event, asyncio.get_event_loop())
             except requests.exceptions.ConnectionError as exc:
-                log.debug("SSE block event connection error", exc_info=exc)
+                log.info("SSE block event connection error", exc_info=exc)
             except requests.exceptions.ChunkedEncodingError as exc:
-                log.debug("SSE block event connection interrupted", exc_info=exc)
+                log.info("SSE block event connection interrupted", exc_info=exc)
             except (requests.exceptions.RequestException, requests.exceptions.BaseHTTPError) as exc:
-                log.debug("SSE block event request error", exc_info=exc)
+                log.info("SSE block event request error", exc_info=exc)
             except (KeyboardInterrupt, asyncio.exceptions.CancelledError):
                 log.info("SSE block task cancelled.")
                 return
             except BaseException as exc:
-                log.debug("SSE block event other error", exc_info=exc)
+                log.warning("SSE block event other error", exc_info=exc)
 
-            await asyncio.sleep(15)
+            await asyncio.sleep(1)
 
     # noinspection PyMethodMayBeStatic
     async def __sse_block_event(self, block_sse_result: BlockSSEResult):
