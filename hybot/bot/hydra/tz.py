@@ -6,13 +6,15 @@ import pytz
 from . import HydraBot
 from .data import HydraBotData, schemas
 
+TZ_ALL_LOWER = {tz.lower(): tz for tz in pytz.all_timezones}
+
 
 async def tz(bot: HydraBot, msg: types.Message):
     u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
 
     try:
         tz_cur = u.info.get("tz", "UTC")
-        tz_new = str(msg.text).replace("/tz", "", 1).strip()
+        tz_new = str(msg.text).replace("/tz", "", 1).strip().lower()
 
         if not tz_new:
             return await msg.answer(
@@ -32,14 +34,14 @@ async def tz(bot: HydraBot, msg: types.Message):
             response = "Matching time zones:\n\n"
             found = 0
 
-            for tz_name in pytz.all_timezones:
-                if tz_name.lower() == search.lower():
+            for tz_name, tz_name_full in TZ_ALL_LOWER.items():
+                if tz_name == search:
                     found = 1
                     response = f"Exact match: {tz_name}\n"
                     break
 
-                if fuzz.token_sort_ratio(search.lower(), tz_name.lower()) > 50:
-                    response += f"{tz_name}\n"
+                if fuzz.token_sort_ratio(search, tz_name) > 50:
+                    response += f"{tz_name_full}\n"
                     found += 1
 
             if found == 0:
@@ -47,11 +49,11 @@ async def tz(bot: HydraBot, msg: types.Message):
 
             return await msg.answer(response)
 
-        for tz_name in pytz.all_timezones:
-            if tz_name.lower() == tz_new.lower():
-                tz_new = tz_name
+        for tz_name, tz_name_full in TZ_ALL_LOWER.items():
+            if tz_name == tz_new:
+                tz_new = tz_name_full
 
-        if tz_new == tz_cur:
+        if tz_new.lower() == tz_cur.lower():
             return await msg.answer(
                 f"Timezone is already <b>{tz_cur}</b>.\n"
                 "Looks like you're right where you need to be!"
