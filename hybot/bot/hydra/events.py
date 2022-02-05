@@ -357,7 +357,7 @@ class EventManager:
         conf = user.info.get("conf", {})
         ua_conf = user_addr.info.get("conf", {})
 
-        conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "show"))
+        conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "full"))
         conf_block_stake = "full"
         conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "priv"))
 
@@ -382,17 +382,6 @@ class EventManager:
             if value:
                 utxo_out_tot += value
 
-        matured = (
-                int(addr_hist.info_new["mature"]) -
-                int(addr_hist.info_old["mature"])
-        )
-
-        matured_str = ""
-
-        if matured != 0 and matured != utxo_out_tot:
-            matured = round(Addr.decimal(matured), 2)
-            matured_str = f" ({'+' if matured > 0 else ''}{matured})"
-
         utxo_out_tot = round(Addr.decimal(utxo_out_tot), 2)
 
         reward = round(Addr.decimal(block.info["reward"]), 2)
@@ -401,7 +390,7 @@ class EventManager:
             f'<b><a href="{self.bot.rpcx.human_link("address", str(addr_hist.addr))}">{user_addr.name}</a> '
             + f'block <a href="{self.bot.rpcx.human_link("block", block.height)}">#{block.height}</a> has matured!</b>\n',
             f'<b>Reward:</b> <a href="{self.bot.rpcx.human_link("tx", block_tx["id"])}">+{reward}</a> HYDRA',
-            f"Matured: +{utxo_out_tot}{matured_str}",
+            f"UTXOs: +{utxo_out_tot}",
         ]
 
         if staking_tot:
