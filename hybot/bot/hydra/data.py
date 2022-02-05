@@ -49,7 +49,7 @@ class HydraBotData:
                             "One moment while I set things up..."
                         )
 
-                        u: schemas.User = db.asyncc.user_add(msg.from_user.id)
+                        u: schemas.User = await db.asyncc.user_add(msg.from_user.id)
 
                         return await HydraBotData.update_at(db, u, msg)
                     finally:
