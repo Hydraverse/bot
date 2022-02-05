@@ -55,10 +55,16 @@ async def conf(bot: HydraBot, msg: types.Message):
         conf_block_mature = f"Current{' (for user)' if ua and 'mature' not in conf_block else ''}: {conf_block_mature}" if conf_block_mature is not None else "Default: show"
         conf_block_total = conf_block.get('total', None if not ua else conf_block_usr.get('total', None))
         conf_block_total = f"Current{' (for user)' if ua and 'total' not in conf_block else ''}: {conf_block_total}" if conf_block_total is not None else "Default: hide"
-        conf_block_notify = conf_block.get('notify', None if not ua else conf_block_usr.get('notify', None))
-        conf_block_notify = f"Current{' (for user)' if ua and 'notify' not in conf_block else ''}: {conf_block_notify}" if conf_block_notify is not None else "Default: priv"
         conf_block_tx = conf_block.get('tx', None if not ua else conf_block_usr.get('tx', None))
         conf_block_tx = f"Current{' (for user)' if ua and 'tx' not in conf_block else ''}: {conf_block_tx}" if conf_block_tx is not None else "Default: show"
+        conf_block_notify = conf_block.get('notify', None if not ua else conf_block_usr.get('notify', None))
+        conf_block_notify = (
+            conf_block_notify if not isinstance(conf_block_notify, int) else
+            "(notifying in group only with 'here')"
+            if conf_block_notify < 0 else
+            "(notifying privately and in group with 'both')"
+        )
+        conf_block_notify = f"Current{' (for user)' if ua and 'notify' not in conf_block else ''}: {conf_block_notify}" if conf_block_notify is not None else "Default: priv"
 
         return await msg.answer(
             f"<b>Configuration management{addr_link_str}.</b>\n\n"
