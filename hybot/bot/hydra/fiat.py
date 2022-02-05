@@ -15,7 +15,8 @@ async def fiat(bot: HydraBot, msg: types.Message):
 
     if str(msg.text).startswith("/price"):
         return await msg.answer(
-            f"Current HYDRA price: {await bot.hydra_fiat_value(fiat_cur, 1 * 10**8)}"
+            f"Current $HYDRA price: {await bot.hydra_fiat_value(fiat_cur, 1 * 10**8)}\n"
+            f"Current $LOC price: {await bot.locktrip_fiat_value(fiat_cur, 1 * 10**8)}\n"
         )
 
     fiat_new = str(msg.text).replace("/fiat", "", 1).strip()
