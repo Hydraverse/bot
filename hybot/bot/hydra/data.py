@@ -26,17 +26,29 @@ class HydraBotData:
         return u
 
     @staticmethod
-    async def user_load(db: HyDbClient, msg: Message, create: bool = True) -> Optional[schemas.User]:
+    async def user_load(db: HyDbClient, msg: Message, create: bool = True, requires_start: bool = True, dm_only: bool = True) -> Optional[schemas.User]:
         if msg.from_user.id in HydraBotData.__CREATING__:
             raise RuntimeError("Currently creating user account!")
 
+        if msg.chat.id < 0 and dm_only:
+            await msg.reply(f"Hi {msg.from_user.first_name}, that function is only available in a private chat.")
+            return
+
         try:
             u: schemas.User = await db.asyncc.user_get_tg(msg.from_user.id)
+
+            if msg.chat.id < 0 and requires_start and "tz" not in u.info:
+                await msg.reply(f"Hi {msg.from_user.first_name}!\nTo get started please send <pre>/start</pre> privately to me at @HydraverseBot.")
+                return
 
             return await HydraBotData.update_at(db, u, msg)
 
         except BaseRPC.Exception as exc:
             if exc.response.status_code == 404:
+                if msg.chat.id < 0 and requires_start:
+                    await msg.reply(f"Hi {msg.from_user.first_name}!\nTo get started please send <pre>/start</pre> privately to me at @HydraverseBot.")
+                    return
+
                 if create:
                     if msg.from_user.id in HydraBotData.__CREATING__:
                         raise RuntimeError("Currently creating user account!")

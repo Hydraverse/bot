@@ -5,12 +5,15 @@ from .data import HydraBotData, schemas
 
 
 async def delete(bot: HydraBot, msg: types.Message):
-    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=False)
+    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=False, requires_start=False, dm_only=True)
 
     if u is None:
-        return await msg.answer(
-            "You don't currently have an account."
-        )
+        if msg.chat.id > 0:
+            await msg.answer(
+                "You don't currently have an account."
+            )
+
+        return
 
     delete_cmd = f"/DELETE {u.tg_user_id}"
 

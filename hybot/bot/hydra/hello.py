@@ -11,7 +11,10 @@ from .data import HydraBotData, schemas
 
 
 async def hello(bot: HydraBot, msg: types.Message):
-    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
+    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True, requires_start=False, dm_only=True)
+
+    if u is None:
+        return
 
     response_intro = (
         "<pre>Welcome to the Hydraverse.</pre>\n\n"
@@ -71,6 +74,5 @@ async def hello(bot: HydraBot, msg: types.Message):
             {
                 "lang": msg.from_user.language_code,
                 "tz": "UTC",
-                "at": msg.from_user.username
             }
         )

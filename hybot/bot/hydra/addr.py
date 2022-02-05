@@ -13,7 +13,7 @@ _ADDR_SHOW_PREV = {}
 
 
 async def addr(bot: HydraBot, msg: types.Message):
-    u: Optional[schemas.User] = await HydraBotData.user_load(bot.db, msg, create=False)
+    u: Optional[schemas.User] = await HydraBotData.user_load(bot.db, msg, create=False, dm_only=False)
 
     msg_text = str(msg.text).strip()
 
@@ -58,7 +58,13 @@ async def addr(bot: HydraBot, msg: types.Message):
         )
 
     if u is None:
-        u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True)
+        if msg.chat.id < 0:
+            return
+
+        u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True, requires_start=True, dm_only=False)
+
+        if u is None:
+            return
 
     if address.lower() == "list":
         result = []
