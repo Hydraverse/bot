@@ -1,6 +1,7 @@
 from typing import Optional
 
 from aiogram.types import Message
+from attrdict import AttrDict
 
 from hydra.rpc import BaseRPC
 from hydb.api.client import HyDbClient, schemas
@@ -16,12 +17,27 @@ class HydraBotData:
         HydraBotData.SERVER_INFO = db.server_info()
 
     @staticmethod
+    async def update_at(db: HyDbClient, u: schemas.User, msg: Message) -> schemas.User:
+        if u.info.get("at", "") != msg.from_user.username:
+            u.info.at = msg.from_user.username
+
+            await db.asyncc.user_info_put(
+                user=u,
+                info=u.info,
+                over=False
+            )
+
+        return u
+
+    @staticmethod
     async def user_load(db: HyDbClient, msg: Message, create: bool = True) -> Optional[schemas.User]:
         if msg.from_user.id in HydraBotData.__CREATING__:
             raise RuntimeError("Currently creating user account!")
 
         try:
-            return await db.asyncc.user_get_tg(msg.from_user.id)
+            u: schemas.User = await db.asyncc.user_get_tg(msg.from_user.id)
+
+            return await HydraBotData.update_at(db, u, msg)
 
         except BaseRPC.Exception as exc:
             if exc.response.status_code == 404:
@@ -37,7 +53,9 @@ class HydraBotData:
                             "One moment while I set things up..."
                         )
 
-                        return await db.asyncc.user_add(msg.from_user.id)
+                        u: schemas.User = db.asyncc.user_add(msg.from_user.id)
+
+                        return await HydraBotData.update_at(db, u, msg)
                     finally:
                         HydraBotData.__CREATING__.remove(msg.from_user.id)
                 else:
