@@ -21,11 +21,7 @@ class HydraBotData:
         if u.info.get("at", "") != msg.from_user.username:
             u.info.at = msg.from_user.username
 
-            await db.asyncc.user_info_put(
-                user=u,
-                info=u.info,
-                over=False
-            )
+            await db.asyncc.user_info_put(u, u.info)
 
         return u
 
