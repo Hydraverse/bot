@@ -27,13 +27,14 @@ class EventManager:
     async def _sse_block_task(self):
         while 1:
             try:
+                log.info("SSE block task: Running event processing loop.")
                 await self.bot.db.sse_block_async(self.__sse_block_event, asyncio.get_event_loop())
             except requests.exceptions.ConnectionError as exc:
-                log.info("SSE block event connection error", exc_info=exc)
+                log.debug("SSE block event connection error", exc_info=exc)
             except requests.exceptions.ChunkedEncodingError as exc:
-                log.info("SSE block event connection interrupted", exc_info=exc)
+                log.debug("SSE block event connection interrupted", exc_info=exc)
             except (requests.exceptions.RequestException, requests.exceptions.BaseHTTPError) as exc:
-                log.info("SSE block event request error", exc_info=exc)
+                log.debug("SSE block event request error", exc_info=exc)
             except (KeyboardInterrupt, asyncio.exceptions.CancelledError):
                 log.info("SSE block task cancelled.")
                 return
@@ -643,6 +644,10 @@ async def try_send_notify(coro) -> int:
     try:
         await coro
         return 1
+
+    except aiogram.exceptions.TelegramForbiddenError as exc:
+        log.warning(f"Unable to send notification: {exc}")
+
     except aiogram.exceptions.AiogramError as exc:
         log.warning(f"Unable to send notification: {exc}", exc_info=exc)
         # Recently seen: TelegramForbiddenError: Blocked by user

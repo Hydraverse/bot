@@ -1,4 +1,5 @@
 from datetime import timedelta, datetime
+from decimal import Decimal
 from typing import Optional, Union
 
 from aiogram import types
@@ -28,7 +29,7 @@ async def addr(bot: HydraBot, msg: types.Message):
                 return
 
         if not address:
-            if u is None:
+            if u is None or msg.chat.id < 0:
                 return
 
             if not await addr_show(bot, msg.chat.id, u, ua=None):
@@ -211,10 +212,14 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
     info_add_dec("balance")
 
     balance = int(info.get("balance", 0))
+    total_fiat_value = Decimal(0)
+    hydra_fiat_value = Decimal(0)
+    currency = u.info.get("fiat", "USD")
 
     if balance:
-        currency = u.info.get("fiat", "USD")
-        fiat_value = await bot.hydra_fiat_value(currency, balance, with_name=True)
+        hydra_fiat_value = await bot.hydra_fiat_value_dec(currency, balance)
+        total_fiat_value += hydra_fiat_value
+        fiat_value = bot.fiat_value_format(currency, hydra_fiat_value, with_name=True)
         fiat_price = await bot.hydra_fiat_value(currency, 1 * 10**8, with_name=False)
 
         message.append(
@@ -253,6 +258,16 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
 
             balance = tb.balance if tb.decimals == 0 else round(schemas.Addr.decimal(tb.balance, decimals=tb.decimals), 2)
 
+            tb.fiat_value = Decimal(0)
+
+            if tb.symbol == "LOC":
+                tb.fiat_value = await bot.locktrip_fiat_value_dec(
+                    currency,
+                    schemas.Addr.decimal(tb.balance, decimals=tb.decimals)
+                )
+
+                total_fiat_value += tb.fiat_value
+
             if int(balance) == balance:
                 balance = int(balance)
 
@@ -260,10 +275,20 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
             max_bal_len = max(len(tb.balance), max_bal_len)
 
         for tb in sorted(token_balances, key=lambda tb_: float(tb_.balance.replace(",", "")), reverse=True):
+            if tb.fiat_value:
+                tb.fiat_value = bot.fiat_value_format(currency, tb.fiat_value, with_name=total_fiat_value == 0)
+                tb.fiat_value = f" ~ {tb.fiat_value}"
+
+                if tb.symbol == "LOC":
+                    fiat_price = await bot.locktrip_fiat_value(currency, 1 * 10**8, with_name=False)
+                    tb.fiat_value += f" @ <b>{fiat_price}</b>"
+            else:
+                tb.fiat_value = ""
+
             message.append(
                 "<pre>" +
                 f"{tb.balance}".rjust(max_bal_len) +
-                f"</pre>  <a href=\"{bot.rpcx.human_link('contract', tb.addressHex)}\">{tb.symbol}</a>"
+                f"</pre>  <a href=\"{bot.rpcx.human_link('contract', tb.addressHex)}\">{tb.symbol}</a>{tb.fiat_value}"
             )
 
     if message[-1] != "":
@@ -296,6 +321,13 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
 
     if message[-1] != "":
         message.append("")
+
+    if total_fiat_value != hydra_fiat_value:
+        total_fiat_value = bot.fiat_value_format(currency, total_fiat_value, with_name=True)
+
+        message.append(
+            f"<b>Total fiat value:</b> {total_fiat_value}"
+        )
 
     ranking = info.get("ranking", 0)
 

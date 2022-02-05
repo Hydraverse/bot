@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 from decimal import Decimal
+from math import floor
 from typing import Coroutine, Optional, Callable, Union
 
 from aiogram import Bot, Dispatcher, types
@@ -34,6 +35,7 @@ class HydraBot(Bot):
     evm: object  # type: EventManager
 
     prices: PriceClient
+    prices_loc: PriceClient
     coin: AttrDict
 
     CONF = {
@@ -71,7 +73,15 @@ class HydraBot(Bot):
             passphrase=self.conf.kc_psp
         )
 
+        self.prices_loc = PriceClient(
+            coin="LOC",
+            api_key=self.conf.kc_key,
+            api_secret=self.conf.kc_sec,
+            passphrase=self.conf.kc_psp
+        )
+
         self.prices._cache.expiry = timedelta(minutes=1)
+        self.prices_loc._cache.expiry = timedelta(minutes=3)
 
         self.coin = AttrDict(self.prices.kuku.get_currency(self.prices.coin))
 
@@ -130,24 +140,57 @@ class HydraBot(Bot):
     def main(db: HyDbClient):
         return HydraBot(db).run()
 
-    async def hydra_fiat_value(self, currency: str, value: Union[Decimal, int, str], *, with_name=True):
-        price = await asyncio.get_event_loop().run_in_executor(
-            executor=None,
-            func=lambda: self.prices.price(currency, raw=True)
-        )
+    async def hydra_fiat_value(self, currency: str, value: Union[Decimal, int, str], *, with_name=True) -> str:
+        return await HydraBot.fiat_value(self.prices, currency, value, with_name=with_name)
 
-        fiat_value = round(
-            Decimal(price)
-            * (schemas.Addr.decimal(value) if not isinstance(value, Decimal) else value),
-            2
-        )
+    async def locktrip_fiat_value(self, currency: str, value: Union[Decimal, int, str], *, with_name=True) -> str:
+        return await HydraBot.fiat_value(self.prices_loc, currency, value, with_name=with_name)
 
+    async def hydra_fiat_value_dec(self, currency: str, value: Union[Decimal, int, str]) -> Decimal:
+        return await HydraBot.fiat_value_decimal(self.prices, currency, value)
+
+    async def locktrip_fiat_value_dec(self, currency: str, value: Union[Decimal, int, str]) -> Decimal:
+        return await HydraBot.fiat_value_decimal(self.prices_loc, currency, value)
+
+    def fiat_value_format(self, currency: str, fiat_value: Decimal, *, with_name=True) -> str:
         # noinspection StrFormat
         return self.prices.format(
             currency,
             '{:,}'.format(fiat_value),
             with_name=with_name
         )
+
+    @staticmethod
+    async def fiat_value(pc: PriceClient, currency: str, value: Union[Decimal, int, str], *, with_name=True) -> str:
+
+        fiat_value = await HydraBot.fiat_value_decimal(pc, currency, value)
+
+        # noinspection StrFormat
+        return pc.format(
+            currency,
+            '{:,}'.format(fiat_value),
+            with_name=with_name
+        )
+
+    @staticmethod
+    async def fiat_value_decimal(pc: PriceClient, currency: str, value: Union[Decimal, int, str]) -> Decimal:
+        price = await asyncio.get_event_loop().run_in_executor(
+            executor=None,
+            func=lambda: pc.price(currency, raw=True)
+        )
+
+        # The resulting types of floor() and round() are actually Decimal.
+        # noinspection PyTypeChecker
+        fiat_value: Decimal = round(
+            floor(
+                Decimal(price)
+                * (schemas.Addr.decimal(value) if not isinstance(value, Decimal) else value)
+                * Decimal(100)
+            ) / Decimal(100),
+            2
+        )
+
+        return fiat_value
 
     def run(self):
         return self.dp.run_polling(self)
