@@ -325,11 +325,11 @@ class EventManager:
             tz_time = tz_time.ctime()
 
             message += [
-                f"Last block mined <b>{td_msg}</b> ago:\n<b>{tz_time}</b>"
+                f"Last block mined <b>{td_msg}</b> ago:\n<pre>{tz_time}</pre>"
             ]
 
         message.append(
-            f"<b>{block_time.ctime()} {block_time.tzname()}</b>"
+            f"<pre>{block_time.ctime()} {block_time.tzname()}</pre>"
         )
 
         message = "\n".join(message)

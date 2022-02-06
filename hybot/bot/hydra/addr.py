@@ -369,13 +369,13 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
         tz_time = u.user_time(ua.block_t).ctime()
 
         message += [
-            f"Last block was <b>{td_msg}</b> ago:\n<b>{tz_time}</b>"
+            f"Last block was <b>{td_msg}</b> ago:\n<pre>{tz_time}</pre>"
         ]
 
     user_now = u.user_time(now)
 
     message.append(
-        f"<b>{user_now.ctime()} {user_now.tzname()}</b>"
+        f"<pre>{user_now.ctime()} {user_now.tzname()}</pre>"
     )
 
     await bot.send_message(
