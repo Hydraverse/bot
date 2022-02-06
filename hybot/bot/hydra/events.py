@@ -111,8 +111,6 @@ class EventManager:
         addr_str = str(addr)
         a = lambda a_: a_.get("addressHex", a_.get("address"))
 
-        refund = 0
-
         for trxn in (addr.filter_tx(block) if not miner else [block.tx[1]]):
             txid = trxn.get("id")
             txno = block.info["transactions"].index(txid)
@@ -136,10 +134,13 @@ class EventManager:
             if txno == 1:
                 fees = value_in - value_out  # out - in == actual reward to miner (and in < out), and/or any fee refunds.
 
-                if addr_hist.mined and not miner:
+                if addr_hist.mined:
                     # Include the refund as part of the block reward, because it is.
                     # Net fees are then not shown on related TX but this is the most sensible way.
-                    fees = 0
+                    if not miner:
+                        fees = 0
+                    else:
+                        fees = int(trxn.get("fees", 0)) + (value_out - value_in)
 
             elif not value_in:
                 # only TX inputs pay fees, this prevents display of tx fee total on receive,
