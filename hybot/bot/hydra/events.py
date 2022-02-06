@@ -2,7 +2,6 @@ import asyncio
 from typing import Generator
 
 import aiogram.exceptions
-import pytz
 import requests
 from num2words import num2words
 
@@ -11,6 +10,7 @@ from hydb.api.schemas import *
 
 from hybot.bot.hydra import HydraBot
 from hybot.bot.hydra.addr import addr_show, addr_link, addr_link_str
+from hybot.bot.hydra.conf import Config
 from hybot.util.misc import ordinal
 
 
@@ -169,10 +169,7 @@ class EventManager:
         user_addr: UserAddrResult = addr_hist_user.user_addr
         user: UserBase = user_addr.user
 
-        conf = user.info.get("conf", {})
-        ua_conf = user_addr.info.get("conf", {})
-
-        conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "priv"))
+        conf_block_notify = Config.get(user, user_addr, "block", "notify").value_or_default
         conf_block_notify_both = False
 
         if conf_block_notify == "hide":
@@ -182,10 +179,10 @@ class EventManager:
             conf_block_notify = -conf_block_notify
             conf_block_notify_both = True
 
-        conf_block_stake = ua_conf.get("block", {}).get("stake", conf.get("block", {}).get("stake", "hide"))
-        conf_block_bal = ua_conf.get("block", {}).get("bal", conf.get("block", {}).get("bal", "hide"))
-        conf_block_utxo = ua_conf.get("block", {}).get("utxo", conf.get("block", {}).get("utxo", "show"))
-        conf_block_total = ua_conf.get("block", {}).get("total", conf.get("block", {}).get("total", "hide"))
+        conf_block_stake = Config.get(user, user_addr, "block", "stake").value_or_default
+        conf_block_bal = Config.get(user, user_addr, "block", "bal").value_or_default
+        conf_block_utxo = Config.get(user, user_addr, "block", "utxo").value_or_default
+        conf_block_total = Config.get(user, user_addr, "block", "total").value_or_default
 
         balance_str = None
 
@@ -363,12 +360,9 @@ class EventManager:
         user_addr: UserAddrResult = addr_hist_user.user_addr
         user: UserBase = user_addr.user
 
-        conf = user.info.get("conf", {})
-        ua_conf = user_addr.info.get("conf", {})
-
-        conf_block_mature = ua_conf.get("block", {}).get("mature", conf.get("block", {}).get("mature", "hide"))
-        conf_block_stake = "full"
-        conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "priv"))
+        conf_block_mature = Config.get(user, user_addr, "block", "mature").value_or_default
+        conf_block_stake = Config.get(user, user_addr, "block", "stake").value_or_default
+        conf_block_notify = Config.get(user, user_addr, "block", "notify").value_or_default
 
         if conf_block_mature == "hide":
             return 0
@@ -503,15 +497,12 @@ class EventManager:
         a: AddrBase = addr_hist.addr
         addr_str = str(a)
 
-        conf = u.info.get("conf", {})
-        ua_conf = u.info.get("conf", {})
-
-        conf_block_tx = ua_conf.get("block", {}).get("tx", conf.get("block", {}).get("tx", "show"))
+        conf_block_tx = Config.get(u, ua, "block", "tx").value_or_default
 
         if conf_block_tx == "hide":
             return 0
 
-        conf_block_notify = ua_conf.get("block", {}).get("notify", conf.get("block", {}).get("notify", "priv"))
+        conf_block_notify = Config.get(u, ua, "block", "notify").value_or_default
         conf_block_notify_both = False
 
         if isinstance(conf_block_notify, int) and conf_block_notify > 0:
