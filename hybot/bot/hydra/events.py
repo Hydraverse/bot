@@ -334,18 +334,24 @@ class EventManager:
 
         message = "\n".join(message)
 
-        sent = await try_send_notify(self.bot.send_message(
-            chat_id=conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id,
-            text=message,
-            parse_mode="HTML"
-        ))
-
-        if conf_block_notify_both:
-            sent += await try_send_notify(self.bot.send_message(
-                chat_id=user.tg_user_id,
+        sent = await try_send_notify(
+            self.bot.send_message(
+                chat_id=conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id,
                 text=message,
                 parse_mode="HTML"
-            ))
+            ),
+            note=f"{{op:blk, pk:{user.uniq.pkid}, tg:{user.tg_user_id}, at:{user.info.get('at', ...)}}}"
+        )
+
+        if conf_block_notify_both:
+            sent += await try_send_notify(
+                self.bot.send_message(
+                    chat_id=user.tg_user_id,
+                    text=message,
+                    parse_mode="HTML"
+                ),
+                note=f"{{op:blk.b, pk:{user.uniq.pkid}, tg:{user.tg_user_id}, at:{user.info.get('at', ...)}}}"
+            )
 
         if conf_block_bal == "full":
             await self.addr_show(user, user_addr, addr_hist, conf_block_notify, conf_block_notify_both)
@@ -402,18 +408,24 @@ class EventManager:
 
         message = "\n".join(message)
 
-        sent = await try_send_notify(self.bot.send_message(
-            chat_id=conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id,
-            text=message,
-            parse_mode="HTML"
-        ))
-
-        if conf_block_notify_both:
-            sent += await try_send_notify(self.bot.send_message(
-                chat_id=user.tg_user_id,
+        sent = await try_send_notify(
+            self.bot.send_message(
+                chat_id=conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id,
                 text=message,
                 parse_mode="HTML"
-            ))
+            ),
+            note=f"{{op:mat, pk:{user.uniq.pkid}, tg:{user.tg_user_id}, at:{user.info.get('at', ...)}}}"
+        )
+
+        if conf_block_notify_both:
+            sent += await try_send_notify(
+                self.bot.send_message(
+                    chat_id=user.tg_user_id,
+                    text=message,
+                    parse_mode="HTML"
+                ),
+                note=f"{{op:mat.b, pk:{user.uniq.pkid}, tg:{user.tg_user_id}, at:{user.info.get('at', ...)}}}"
+            )
 
         if conf_block_mature == "full":
             await self.addr_show(user, user_addr, addr_hist, conf_block_notify, conf_block_notify_both)
@@ -607,18 +619,24 @@ class EventManager:
 
         message = "\n".join(message)
 
-        sent = await try_send_notify(self.bot.send_message(
-            chat_id=conf_block_notify if isinstance(conf_block_notify, int) else u.tg_user_id,
-            text=message,
-            parse_mode="HTML"
-        ))
-
-        if conf_block_notify_both:
-            sent += await try_send_notify(self.bot.send_message(
-                chat_id=u.tg_user_id,
+        sent = await try_send_notify(
+            self.bot.send_message(
+                chat_id=conf_block_notify if isinstance(conf_block_notify, int) else u.tg_user_id,
                 text=message,
                 parse_mode="HTML"
-            ))
+            ),
+            note=f"{{op:txu, pk:{u.uniq.pkid}, tg:{u.tg_user_id}, at:{u.info.get('at', ...)}}}"
+        )
+
+        if conf_block_notify_both:
+            sent += await try_send_notify(
+                self.bot.send_message(
+                    chat_id=u.tg_user_id,
+                    text=message,
+                    parse_mode="HTML"
+                ),
+                note=f"{{op:txu.b, pk:{u.uniq.pkid}, tg:{u.tg_user_id}, at:{u.info.get('at', ...)}}}"
+            )
 
         if conf_block_tx == "full":
             await self.addr_show(u, ua, addr_hist, conf_block_notify, conf_block_notify_both)
@@ -632,12 +650,14 @@ class EventManager:
         )
 
         await try_send_notify(
-            addr_show(self.bot, conf_notify if isinstance(conf_notify, int) else u.tg_user_id, u, ua, addr)
+            addr_show(self.bot, conf_notify if isinstance(conf_notify, int) else u.tg_user_id, u, ua, addr),
+            note=f"{{op:show, pk:{u.uniq.pkid}, tg:{u.tg_user_id}, at:{u.info.get('at', ...)}}}"
         )
 
         if conf_notify_both:
             await try_send_notify(
-                addr_show(self.bot, u.tg_user_id, u, ua, addr)
+                addr_show(self.bot, u.tg_user_id, u, ua, addr),
+                note=f"{{op: show.b, pk:{u.uniq.pkid}, tg:{u.tg_user_id}, at:{u.info.get('at', ...)}}}"
             )
 
     def block_link(self, block: Block, text: str) -> str:
@@ -647,16 +667,16 @@ class EventManager:
         return f'<a href="{self.bot.rpcx.human_link("tx", txid)}">{text}</a>'
 
 
-async def try_send_notify(coro) -> int:
+async def try_send_notify(coro, *, note: str = "(none)") -> int:
     try:
         await coro
         return 1
 
     except aiogram.exceptions.TelegramForbiddenError as exc:
-        log.warning(f"Unable to send notification: {exc}")
+        log.warning(f"Unable to send notification: {exc} note={note}")
 
     except aiogram.exceptions.AiogramError as exc:
-        log.warning(f"Unable to send notification: {exc}", exc_info=exc)
+        log.warning(f"Unable to send notification: note={note} exc='{exc}'", exc_info=exc)
         # Recently seen: TelegramForbiddenError: Blocked by user
 
     return 0
