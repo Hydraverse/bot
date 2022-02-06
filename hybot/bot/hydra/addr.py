@@ -47,14 +47,16 @@ async def addr(bot: HydraBot, msg: types.Message):
             "You can also simply send me an address and I'll add it!\n"
             "If any message you send matches a label or address, it will be shown.\n"
             "You can also just type 'list' without any command to see your addresses.\n\n"
-            "<pre>"
-            "Add:    <b>/addr [addr]</b>\n"
-            "Info:   <b>/addr [search]</b>\n"
-            "List:   <b>/addr list</b>\n"
+            "Add: <b>/addr [addr]</b>\n"
+            "Info: <b>/addr [search]</b>\n"
+            "List: <b>/addr list</b>\n"
             "Recent: <b>/a</b>\n"
             "Rename: <b>/addr [name]: [new]</b>\n"
-            "Remove: <b>/addr [name] -</b>\n"
-            "</pre>"
+            "Remove: <b>/addr [name] -</b>\n\n"
+            "<b>Shortcuts - No command required:</b>\n"
+            "List addresses: <b>list</b>\n"
+            "Add with label: <b>[addr]: [name]</b>\n"
+            "Show info for matches: <b>[search]</b>\n"
         )
 
     if u is None:

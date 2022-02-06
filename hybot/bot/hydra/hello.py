@@ -48,6 +48,7 @@ async def hello(bot: HydraBot, msg: types.Message):
         f"Your time zone is <b>{u.info.get('tz', 'UTC')}</b>.\n"
         "Change your time zone: <b>/tz [zone]</b>\n"
         "Find a timezone: <b>/tz find [search]</b>\n\n"
+        "Delete your data: <b>/DELETE</b>\n\n"
     )
 
     # noinspection PyGlobalUndefined
@@ -57,8 +58,8 @@ async def hello(bot: HydraBot, msg: types.Message):
         __doc__ += f"<b><pre>{HydraBot.CONF.donations}</pre></b>\n"
 
     response_donate = (
-            "Please consider supporting this and future projects.\n"
-            "Thank You!!\n\n"
+            "Please consider supporting this and future projects.\n\n"
+            "<b>Thank You!!</b>\n\n"
             f"<pre>{bot.conf.donations}</pre>\n" + __doc__)
 
     await msg.answer(
