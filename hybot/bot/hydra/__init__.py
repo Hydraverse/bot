@@ -9,6 +9,8 @@ from math import floor
 from typing import Coroutine, Optional, Callable, Union
 
 from aiogram import Bot, Dispatcher, types
+from aiogram.dispatcher.filters import BaseFilter
+from aiogram.types import Message
 from attrdict import AttrDict
 from datetime import timedelta
 
@@ -20,13 +22,11 @@ from hydra.kc.prices import PriceClient
 
 from hybot.util.conf import Config
 
-from hybot.bot.hydra.data import HydraBotData
-
 
 @Config.defaults
 class HydraBot(Bot):
     _: HydraBot = None
-    dp = Dispatcher()
+    dp: Dispatcher = Dispatcher()
 
     conf: AttrDict
 
@@ -109,27 +109,33 @@ class HydraBot(Bot):
             fiat as cmd_fiat, \
             conf as cmd_conf
 
-        @HydraBot.dp.message(commands={"hello", "start", "hi", "help"})
+        class ChatMessageFilter(BaseFilter):
+            async def __call__(self, message: Message) -> bool:
+                return message.text is not None and len(str(message.text))
+
+        self.dp.message.bind_filter(ChatMessageFilter)
+
+        @self.dp.message(commands={"hello", "start", "hi", "help"})
         async def hello(msg: types.Message):
             return await self.command(msg, cmd_hello.hello)
 
-        @HydraBot.dp.message(commands={"tz"})
+        @self.dp.message(commands={"tz"})
         async def tz(msg: types.Message):
             return await self.command(msg, cmd_tz.tz)
 
-        @HydraBot.dp.message(commands={"DELETE"})
+        @self.dp.message(commands={"DELETE"})
         async def delete(msg: types.Message):
             return await self.command(msg, cmd_delete.delete)
 
-        @HydraBot.dp.message(commands={"fiat", "price"})
+        @self.dp.message(commands={"fiat", "price"})
         async def delete(msg: types.Message):
             return await self.command(msg, cmd_fiat.fiat)
 
-        @HydraBot.dp.message(commands={"conf"})
+        @self.dp.message(commands={"conf"})
         async def delete(msg: types.Message):
             return await self.command(msg, cmd_conf.conf)
 
-        @HydraBot.dp.message()
+        @self.dp.message()
         @HydraBot.dp.message(commands={"addr", "a"})
         async def addr_(msg: types.Message):
             return await self.command(msg, cmd_addr.addr)
@@ -208,4 +214,5 @@ class HydraBot(Bot):
                 raise
 
 
+from hybot.bot.hydra.data import HydraBotData
 from hybot.bot.hydra.events import EventManager

@@ -10,7 +10,7 @@ TZ_ALL_LOWER = {tz.lower(): tz for tz in pytz.all_timezones}
 
 
 async def tz(bot: HydraBot, msg: types.Message):
-    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True, requires_start=True, dm_only=True)
+    u: schemas.User = await HydraBotData.user_load(bot, msg, create=True, requires_start=True, dm_only=True)
 
     if u is None:
         return

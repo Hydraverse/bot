@@ -5,7 +5,7 @@ from .data import HydraBotData, schemas
 
 
 async def delete(bot: HydraBot, msg: types.Message):
-    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=False, requires_start=False, dm_only=True)
+    u: schemas.User = await HydraBotData.user_load(bot, msg, create=False, requires_start=False, dm_only=True)
 
     if u is None:
         if msg.chat.id > 0:

@@ -6,6 +6,8 @@ from attrdict import AttrDict
 from hydra.rpc import BaseRPC
 from hydb.api.client import HyDbClient, schemas
 
+from . import HydraBot
+
 
 class HydraBotData:
     __CREATING__ = []
@@ -26,7 +28,7 @@ class HydraBotData:
         return u
 
     @staticmethod
-    async def user_load(db: HyDbClient, msg: Message, create: bool = True, requires_start: bool = True, dm_only: bool = True) -> Optional[schemas.User]:
+    async def user_load(bot: HydraBot, msg: Message, create: bool = True, requires_start: bool = True, dm_only: bool = True) -> Optional[schemas.User]:
         if msg.from_user.id in HydraBotData.__CREATING__:
             raise RuntimeError("Currently creating user account!")
 
@@ -35,18 +37,20 @@ class HydraBotData:
             return
 
         try:
-            u: schemas.User = await db.asyncc.user_get_tg(msg.from_user.id)
+            u: schemas.User = await bot.db.asyncc.user_get_tg(msg.from_user.id)
 
             if msg.chat.id < 0 and requires_start and "tz" not in u.info:
-                await msg.reply(f"Hi {msg.from_user.first_name}!\nTo get started please send <pre>/start</pre> privately to me at @HydraverseBot.")
+                bot_name = (await bot.get_me()).username
+                await msg.reply(f"Hi {msg.from_user.first_name}!\nTo get started please send <pre>/start</pre> privately to me at @{bot_name}.")
                 return
 
-            return await HydraBotData.update_at(db, u, msg)
+            return await HydraBotData.update_at(bot.db, u, msg)
 
         except BaseRPC.Exception as exc:
             if exc.response.status_code == 404:
                 if msg.chat.id < 0 and requires_start:
-                    await msg.reply(f"Hi {msg.from_user.first_name}!\nTo get started please send <pre>/start</pre> privately to me at @HydraverseBot.")
+                    bot_name = (await bot.get_me()).username
+                    await msg.reply(f"Hi {msg.from_user.first_name}!\nTo get started please send <pre>/start</pre> privately to me at @{bot_name}.")
                     return
 
                 if create:
@@ -61,9 +65,9 @@ class HydraBotData:
                             "One moment while I set things up..."
                         )
 
-                        u: schemas.User = await db.asyncc.user_add(msg.from_user.id)
+                        u: schemas.User = await bot.db.asyncc.user_add(msg.from_user.id)
 
-                        return await HydraBotData.update_at(db, u, msg)
+                        return await HydraBotData.update_at(bot.db, u, msg)
                     finally:
                         HydraBotData.__CREATING__.remove(msg.from_user.id)
                 else:

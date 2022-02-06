@@ -9,7 +9,7 @@ from .data import HydraBotData, schemas
 
 
 async def fiat(bot: HydraBot, msg: types.Message):
-    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True, requires_start=True, dm_only=False)
+    u: schemas.User = await HydraBotData.user_load(bot, msg, create=True, requires_start=True, dm_only=False)
 
     if u is None:
         return

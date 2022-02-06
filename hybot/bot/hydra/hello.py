@@ -11,7 +11,7 @@ from .data import HydraBotData, schemas
 
 
 async def hello(bot: HydraBot, msg: types.Message):
-    u: schemas.User = await HydraBotData.user_load(bot.db, msg, create=True, requires_start=False, dm_only=True)
+    u: schemas.User = await HydraBotData.user_load(bot, msg, create=True, requires_start=False, dm_only=True)
 
     if u is None:
         return
