@@ -26,6 +26,7 @@ setup(
         "fuzzywuzzy",
         "python-Levenshtein",
         "num2words",
+        "aiocache",
     ],
     entry_points={
         "console_scripts": [
