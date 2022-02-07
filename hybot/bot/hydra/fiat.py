@@ -9,18 +9,21 @@ from .data import HydraBotData, schemas
 
 
 async def fiat(bot: HydraBot, msg: types.Message):
-    u: schemas.User = await HydraBotData.user_load(bot, msg, create=True, requires_start=True, dm_only=False)
+    u: schemas.User = await HydraBotData.user_load(bot, msg, create=False, requires_start=False, dm_only=False)
 
-    if u is None:
-        return
-
-    fiat_cur = u.info.get("fiat", "USD")
+    fiat_cur = u.info.get("fiat", "USD") if u is not None else "USD"
 
     if str(msg.text).startswith("/price"):
         return await msg.answer(
             f"Current $HYDRA price: {await bot.hydra_fiat_value(fiat_cur, 1 * 10**8)}\n"
             f"Current $LOC price: {await bot.locktrip_fiat_value(fiat_cur, 1 * 10**8)}\n"
         )
+
+    if u is None:
+        u = await HydraBotData.user_load(bot, msg, create=True, requires_start=True, dm_only=False)
+
+        if u is None:
+            return
 
     fiat_new = str(msg.text).replace("/fiat", "", 1).strip()
 

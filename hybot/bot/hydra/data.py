@@ -21,15 +21,23 @@ class HydraBotData:
         HydraBotData.PKID_CACHE = db.user_map().map
 
     @staticmethod
-    async def _user_load_cached(bot: HydraBot, tg_user_id: int) -> schemas.User:
+    async def _user_load_cached(bot: HydraBot, tg_user_id: int, create: bool = False) -> Optional[schemas.User]:
         if tg_user_id in HydraBotData.PKID_CACHE:
             return await bot.db.asyncc.user_get(user_pk=HydraBotData.PKID_CACHE[tg_user_id])
 
-        u: schemas.User = await bot.db.asyncc.user_get_tg(tg_user_id)
+        if create:
+            u: schemas.User = await bot.db.asyncc.user_add(tg_user_id)
+            HydraBotData.PKID_CACHE[tg_user_id] = u.uniq.pkid
+            return u
 
-        HydraBotData.PKID_CACHE[tg_user_id] = u.uniq.pkid
+        return None
 
-        return u
+    @staticmethod
+    async def user_del(bot: HydraBot, u: schemas.User):
+        if u.tg_user_id in HydraBotData.PKID_CACHE:
+            del HydraBotData.PKID_CACHE[u.tg_user_id]
+
+        await bot.db.asyncc.user_del(u)
 
     @staticmethod
     async def user_load(bot: HydraBot, msg: Message, create: bool = True, requires_start: bool = True, dm_only: bool = True) -> Optional[schemas.User]:
@@ -40,41 +48,30 @@ class HydraBotData:
             await msg.reply(f"Hi {msg.from_user.first_name}, that function is only available in a private chat.")
             return
 
-        try:
-            u: schemas.User = await HydraBotData._user_load_cached(bot, msg.from_user.id)
+        u: Optional[schemas.User] = await HydraBotData._user_load_cached(bot, msg.from_user.id)
 
-            if msg.chat.id < 0 and requires_start and "tz" not in u.info:
-                bot_name = (await bot.get_me()).username
-                await msg.reply(f"Hi {msg.from_user.first_name}!\nTo get started please send <pre>/start</pre> privately to me at @{bot_name}.")
-                return
+        if msg.chat.id < 0 and requires_start and (u is None or "tz" not in u.info):
+            bot_name = (await bot.get_me()).username
+            await msg.reply(f"Hi {msg.from_user.first_name}!\nTo get started please send <pre>/start</pre> privately to me at @{bot_name}.")
+            return
 
-            return u
+        if u is None:
+            if create:
+                if msg.from_user.id in HydraBotData.__CREATING__:
+                    raise RuntimeError("Currently creating user account!")
 
-        except BaseRPC.Exception as exc:
-            if exc.response.status_code == 404:
-                if msg.chat.id < 0 and requires_start:
-                    bot_name = (await bot.get_me()).username
-                    await msg.reply(f"Hi {msg.from_user.first_name}!\nTo get started please send <pre>/start</pre> privately to me at @{bot_name}.")
-                    return
+                HydraBotData.__CREATING__.append(msg.from_user.id)
 
-                if create:
-                    if msg.from_user.id in HydraBotData.__CREATING__:
-                        raise RuntimeError("Currently creating user account!")
+                try:
+                    await msg.answer(
+                        f"Welcome, <b>{msg.from_user.full_name}!</b>\n\n"
+                        "One moment while I set things up..."
+                    )
 
-                    HydraBotData.__CREATING__.append(msg.from_user.id)
+                    return await HydraBotData._user_load_cached(bot, msg.from_user.id, create=True)
+                finally:
+                    HydraBotData.__CREATING__.remove(msg.from_user.id)
+            else:
+                return None
 
-                    try:
-                        await msg.answer(
-                            f"Welcome, <b>{msg.from_user.full_name}!</b>\n\n"
-                            "One moment while I set things up..."
-                        )
-
-                        u: schemas.User = await HydraBotData._user_load_cached(bot, msg.from_user.id)
-
-                        return u
-                    finally:
-                        HydraBotData.__CREATING__.remove(msg.from_user.id)
-                else:
-                    return None
-
-            raise
+        return u
