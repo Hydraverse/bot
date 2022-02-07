@@ -36,7 +36,7 @@ async def hello(bot: HydraBot, msg: types.Message):
     response_cmds = (
         "You can get started by simply sending me a message with your favorite HYDRA address.\n\n"
         "I'll keep an eye on it and let you know if anything exciting happens!\n\n"
-        "<b>I can also understand some commands:</b>\n\n"
+        "<b>I can also understand some commands (and /help):</b>\n\n"
         "Manage addresses: <b>/addr</b>\n"
         "Show last address: <b>/a</b>\n\n"
         "Configuration: <b>/conf</b>\n\n"
@@ -47,6 +47,8 @@ async def hello(bot: HydraBot, msg: types.Message):
         f"Your time zone is <b>{u.info.get('tz', 'UTC')}</b>.\n"
         "Change your time zone: <b>/tz [zone]</b>\n"
         "Find a timezone: <b>/tz find [search]</b>\n\n"
+        "Show raw blockchain stats: <b>/chain</b>\n"
+        "Show this message: <b>/hi</b> or <b>/help</b>\n\n"
         "Delete your data: <b>/DELETE</b>\n\n"
     )
 
