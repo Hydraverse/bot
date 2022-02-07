@@ -1,17 +1,13 @@
 [Unit]
 Description=Hybot Telegram Bot Server
-After=network.target
+After=hydb-api.service
 
 [Service]
 Type=simple
-UMask=022
 WorkingDirectory=/home/hyve/app/bot/
 ExecStart=/home/hyve/app/bot/env/bot/bin/python -O -m hybot -vv
 Restart=on-failure
-KillSignal=SIGQUIT
-Type=notify
 StandardError=syslog
-NotifyAccess=all
 
 [Install]
 WantedBy=default.target

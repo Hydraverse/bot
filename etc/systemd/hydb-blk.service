@@ -1,17 +1,14 @@
 [Unit]
 Description=Hydraverse DB Block Updater Service
-After=network.target
+After=hydb-api.service
 
 [Service]
 Type=simple
-UMask=022
 WorkingDirectory=/home/hyve/app/db/
+ExecStartPre=/bin/sleep 5
 ExecStart=/home/hyve/app/db/env/db/bin/python -O -m hydb -vv
 Restart=on-failure
-KillSignal=SIGQUIT
-Type=notify
 StandardError=syslog
-NotifyAccess=all
 
 [Install]
 WantedBy=default.target
