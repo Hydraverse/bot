@@ -401,7 +401,7 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
             )
 
         message += [
-            f"<b>Next block arrives:</b> <pre>{eta_str}</pre>",
+            f"<b>{'Next block arrives' if block_td is not None else 'Current block ETA'}:</b> <pre>{eta_str}</pre>",
             f"<pre>{eta_next.ctime()}</pre>{' (est.)' if user_block_t is None else ''}",
             ""
         ]
