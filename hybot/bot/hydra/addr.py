@@ -360,21 +360,70 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
         message.append("")
 
     now = datetime.utcnow() + timedelta(seconds=16)
+    user_now: datetime = u.user_time(now)
+    user_block_t: Optional[datetime] = None
+    block_td: Optional[timedelta] = None
 
     if ua.block_t is not None:
+        user_block_t = u.user_time(ua.block_t)
+        block_td = now - ua.block_t
+
+    balance_mature = info.get("mature", 0)
+    eta_sec = 0
+
+    if balance_mature and addr_.addr_tp.value == schemas.Addr.Type.H:
         if message[-1] != "":
             message.append("")
 
-        td: timedelta = now - ua.block_t
-        td_msg = schemas.timedelta_str(td)
+        stats: schemas.Stats = await bot.db.stats_cache()
+        net_weight = stats.quant_net_weight.median_1d
+        block_sec = Decimal(128)
 
-        tz_time = u.user_time(ua.block_t).ctime()
+        eta_sec = int(round(net_weight * block_sec / Decimal(balance_mature)))
+
+        td = eta_td = timedelta(seconds=eta_sec)
+
+        if block_td is not None:
+            td -= block_td
+
+        eta_str = schemas.timedelta_str(td)
+
+        eta_next = (
+            user_now + td if user_block_t is None else
+            user_block_t + eta_td
+        )
+
+        if block_td is not None:
+            eta_meas_str = schemas.timedelta_str(eta_td)
+
+            message.append(
+                f"<b>Current block ETA:</b> <pre>{eta_meas_str}</pre>",
+            )
 
         message += [
-            f"Last block was <b>{td_msg}</b> ago:\n<pre>{tz_time}</pre>"
+            f"<b>Next block arrives:</b> <pre>{eta_str}</pre>",
+            f"<pre>{eta_next.ctime()}</pre>{' (est.)' if user_block_t is None else ''}",
+            ""
         ]
 
-    user_now = u.user_time(now)
+    if message[-1] != "":
+        message.append("")
+
+    if ua.block_t is not None:
+        td_msg = schemas.timedelta_str(block_td)
+
+        ratio_str = ""
+
+        if eta_sec:
+            elapsed_sec = round(block_td.total_seconds())
+            ratio = round(Decimal(elapsed_sec) / Decimal(eta_sec), 2)
+
+            if ratio >= 0.01:
+                ratio_str = f" ~ <pre>{ratio}x</pre>"
+
+        message += [
+            f"<b>Time elapsed:</b> <pre>{td_msg}</pre>{ratio_str}\n<pre>{user_block_t.ctime()}</pre>"
+        ]
 
     message.append(
         f"<pre>{user_now.ctime()} {user_now.tzname()}</pre>"

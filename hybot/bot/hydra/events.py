@@ -338,7 +338,6 @@ class EventManager:
                 text=message,
                 parse_mode="HTML"
             ),
-            note=f"{{op:blk, pk:{user.uniq.pkid}, tg:{user.tg_user_id}, at:{user.info.get('at', ...)}}}"
         )
 
         if conf_block_notify_both:
@@ -348,7 +347,6 @@ class EventManager:
                     text=message,
                     parse_mode="HTML"
                 ),
-                note=f"{{op:blk.b, pk:{user.uniq.pkid}, tg:{user.tg_user_id}, at:{user.info.get('at', ...)}}}"
             )
 
         if conf_block_bal == "full":
@@ -409,7 +407,6 @@ class EventManager:
                 text=message,
                 parse_mode="HTML"
             ),
-            note=f"{{op:mat, pk:{user.uniq.pkid}, tg:{user.tg_user_id}, at:{user.info.get('at', ...)}}}"
         )
 
         if conf_block_notify_both:
@@ -419,7 +416,6 @@ class EventManager:
                     text=message,
                     parse_mode="HTML"
                 ),
-                note=f"{{op:mat.b, pk:{user.uniq.pkid}, tg:{user.tg_user_id}, at:{user.info.get('at', ...)}}}"
             )
 
         if conf_block_mature == "full":
