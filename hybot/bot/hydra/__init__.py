@@ -107,7 +107,8 @@ class HydraBot(Bot):
             addr as cmd_addr,\
             delete as cmd_delete, \
             fiat as cmd_fiat, \
-            conf as cmd_conf
+            conf as cmd_conf, \
+            chain as cmd_chain
 
         class ChatMessageFilter(BaseFilter):
             async def __call__(self, message: Message) -> bool:
@@ -128,12 +129,16 @@ class HydraBot(Bot):
             return await self.command(msg, cmd_delete.delete)
 
         @self.dp.message(commands={"fiat", "price"})
-        async def delete(msg: types.Message):
+        async def fiat(msg: types.Message):
             return await self.command(msg, cmd_fiat.fiat)
 
         @self.dp.message(commands={"conf"})
-        async def delete(msg: types.Message):
+        async def conf(msg: types.Message):
             return await self.command(msg, cmd_conf.conf)
+
+        @self.dp.message(commands={"chain"})
+        async def chain(msg: types.Message):
+            return await self.command(msg, cmd_chain.chain)
 
         @self.dp.message()
         @HydraBot.dp.message(commands={"addr", "a"})

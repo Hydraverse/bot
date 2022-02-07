@@ -14,11 +14,6 @@ class HydraBotData:
     __CREATING__ = []
 
     SERVER_INFO: schemas.ServerInfo
-    STATS: schemas.Stats
-
-    @cached(ttl=60)
-    async def get_stats(self, bot: HydraBot) -> schemas.Stats:
-        return await bot.db.asyncc.stats()
 
     @staticmethod
     def init(db: HyDbClient):
