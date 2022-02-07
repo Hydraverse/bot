@@ -19,9 +19,8 @@ async def hello(bot: HydraBot, msg: types.Message):
     response_intro = (
         "<pre>Welcome to the Hydraverse.</pre>\n\n"
         "I'm the $HYDRA staking and transaction notification bot, and "
-        "I wish you all the best luck on your staking journey.\n"
-        "<b><i>May the Blocks be in your favor!</i></b>\n\n"
-        f"Your user name is <b>{u.uniq.name}.</b>\n"
+        "I wish you all the best luck on your staking journey.\n\n"
+        f"Your AI-generated user name is\n<pre>{u.uniq.name}.</pre>\n\n"
         f"You are the {num2words(u.uniq.pkid, ordinal=True)} staker to join.\n"
     )
 
