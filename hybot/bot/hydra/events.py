@@ -444,7 +444,7 @@ class EventManager:
                 # token_transfers is assumed to be empty.
                 continue
 
-            log.info(f"Block #{block.height} TX #{txv.n} Addr {addr_str}: value_send={txv.value_send} value_recv={txv.value_recv} fees={txv.fees}")
+            # log.debug(f"Block #{block.height} TX #{txv.n} Addr {addr_str}: value_send={txv.value_send} value_recv={txv.value_recv} fees={txv.fees}")
 
             for token_transfer in token_transfers:
                 token_transfer = AttrDict(token_transfer)
@@ -617,7 +617,6 @@ class EventManager:
                 text=message,
                 parse_mode="HTML"
             ),
-            note=f"{{op:txu, pk:{u.uniq.pkid}, tg:{u.tg_user_id}, at:{u.info.get('at', ...)}}}"
         )
 
         if conf_block_notify_both:
@@ -627,7 +626,6 @@ class EventManager:
                     text=message,
                     parse_mode="HTML"
                 ),
-                note=f"{{op:txu.b, pk:{u.uniq.pkid}, tg:{u.tg_user_id}, at:{u.info.get('at', ...)}}}"
             )
 
         if conf_block_tx == "full":
@@ -643,13 +641,11 @@ class EventManager:
 
         await try_send_notify(
             addr_show(self.bot, conf_notify if isinstance(conf_notify, int) else u.tg_user_id, u, ua, addr),
-            note=f"{{op:show, pk:{u.uniq.pkid}, tg:{u.tg_user_id}, at:{u.info.get('at', ...)}}}"
         )
 
         if conf_notify_both:
             await try_send_notify(
                 addr_show(self.bot, u.tg_user_id, u, ua, addr),
-                note=f"{{op: show.b, pk:{u.uniq.pkid}, tg:{u.tg_user_id}, at:{u.info.get('at', ...)}}}"
             )
 
     def block_link(self, block: Block, text: str) -> str:
@@ -659,16 +655,16 @@ class EventManager:
         return f'<a href="{self.bot.rpcx.human_link("tx", txid)}">{text}</a>'
 
 
-async def try_send_notify(coro, *, note: str = "(none)") -> int:
+async def try_send_notify(coro) -> int:
     try:
         await coro
         return 1
 
     except aiogram.exceptions.TelegramForbiddenError as exc:
-        log.warning(f"Unable to send notification: {exc} note={note}")
+        log.warning(f"Unable to send notification: {exc}")
 
     except aiogram.exceptions.AiogramError as exc:
-        log.warning(f"Unable to send notification: note={note} exc='{exc}'", exc_info=exc)
+        log.warning(f"Unable to send notification: exc='{exc}'", exc_info=exc)
         # Recently seen: TelegramForbiddenError: Blocked by user
 
     return 0

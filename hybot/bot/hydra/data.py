@@ -1,8 +1,6 @@
 from typing import Optional
 
-from aiocache import cached
 from aiogram.types import Message
-from attrdict import AttrDict
 
 from hydra.rpc import BaseRPC
 from hydb.api.client import HyDbClient, schemas
@@ -15,16 +13,21 @@ class HydraBotData:
 
     SERVER_INFO: schemas.ServerInfo
 
+    PKID_CACHE = {}
+
     @staticmethod
     def init(db: HyDbClient):
         HydraBotData.SERVER_INFO = db.server_info()
+        HydraBotData.PKID_CACHE = db.user_map().map
 
     @staticmethod
-    async def update_at(db: HyDbClient, u: schemas.User, msg: Message) -> schemas.User:
-        if u.info.get("at", "") != msg.from_user.username:
-            u.info.at = msg.from_user.username
+    async def _user_load_cached(bot: HydraBot, tg_user_id: int) -> schemas.User:
+        if tg_user_id in HydraBotData.PKID_CACHE:
+            return await bot.db.asyncc.user_get(user_pk=HydraBotData.PKID_CACHE[tg_user_id])
 
-            await db.asyncc.user_info_put(u, u.info)
+        u: schemas.User = await bot.db.asyncc.user_get_tg(tg_user_id)
+
+        HydraBotData.PKID_CACHE[tg_user_id] = u.uniq.pkid
 
         return u
 
@@ -38,14 +41,14 @@ class HydraBotData:
             return
 
         try:
-            u: schemas.User = await bot.db.asyncc.user_get_tg(msg.from_user.id)
+            u: schemas.User = await HydraBotData._user_load_cached(bot, msg.from_user.id)
 
             if msg.chat.id < 0 and requires_start and "tz" not in u.info:
                 bot_name = (await bot.get_me()).username
                 await msg.reply(f"Hi {msg.from_user.first_name}!\nTo get started please send <pre>/start</pre> privately to me at @{bot_name}.")
                 return
 
-            return await HydraBotData.update_at(bot.db, u, msg)
+            return u
 
         except BaseRPC.Exception as exc:
             if exc.response.status_code == 404:
@@ -66,9 +69,9 @@ class HydraBotData:
                             "One moment while I set things up..."
                         )
 
-                        u: schemas.User = await bot.db.asyncc.user_add(msg.from_user.id)
+                        u: schemas.User = await HydraBotData._user_load_cached(bot, msg.from_user.id)
 
-                        return await HydraBotData.update_at(bot.db, u, msg)
+                        return u
                     finally:
                         HydraBotData.__CREATING__.remove(msg.from_user.id)
                 else:
