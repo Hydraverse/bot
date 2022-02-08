@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/home/hyve/app/db/
-ExecStart=/home/hyve/app/db/env/db/bin/python -O -m uvicorn hydb.api.__main__:app --reload --timeout-keep-alive 86400
+ExecStart=/home/hyve/app/db/env/db/bin/python -O -m uvicorn hydb.api.__main__:app --timeout-keep-alive 86400
 Restart=on-failure
 StandardError=syslog
 
