@@ -438,10 +438,10 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
         user_block_t = u.user_time(ua.block_t)
         block_td = now - ua.block_t
 
-    balance_mature = info.get("mature", 0)
+    balance_mature = Decimal(info.get("mature", 0))
     eta_sec = 0
 
-    if balance_mature and addr_.addr_tp.value == schemas.Addr.Type.H:
+    if balance_mature > 0 and addr_.addr_tp.value == schemas.Addr.Type.H:
         if message[-1] != "":
             message.append("")
 
@@ -449,7 +449,7 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
         net_weight = stats.quant_net_weight.median_1d
         block_sec = Decimal(128)
 
-        eta_sec = int(round(net_weight * block_sec / Decimal(balance_mature)))
+        eta_sec = int(round(net_weight * block_sec / balance_mature))
 
         td = eta_td = timedelta(seconds=eta_sec)
 
