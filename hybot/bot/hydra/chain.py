@@ -1,3 +1,5 @@
+import asyncio
+
 import aiogram.exceptions
 from aiogram import types
 from attrdict import AttrDict
@@ -8,6 +10,24 @@ from hybot.hybot import Hybot
 
 
 async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
+    reply_markup = types.InlineKeyboardMarkup(
+        inline_keyboard=[[
+            types.InlineKeyboardButton(text="🔁 Refresh", callback_data=f"chain:refresh"),
+            types.InlineKeyboardButton(text="❌", callback_data=f"remove"),
+        ]]
+    )
+
+    refresh_reply_markup = None
+
+    if refresh:
+        refresh_reply_markup = types.InlineKeyboardMarkup(
+            inline_keyboard=[[
+                types.InlineKeyboardButton(text="♻", callback_data="-")
+            ]]
+        )
+
+        await msg.edit_reply_markup(reply_markup=refresh_reply_markup)
+
     stats: schemas.Stats = await bot.db.stats_cache()
 
     message = []
@@ -45,18 +65,17 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
 
     message = "\n".join(message)
 
-    inline_keyboard = types.InlineKeyboardMarkup(
-        inline_keyboard=[[
-            types.InlineKeyboardButton(text="🔁 Refresh", callback_data=f"chain:refresh"),
-            types.InlineKeyboardButton(text="❌", callback_data=f"remove"),
-        ]]
-    )
-
     if refresh:
         try:
-            return await msg.edit_text(
+            await msg.edit_text(
                 text=message,
-                reply_markup=inline_keyboard
+                reply_markup=refresh_reply_markup
+            )
+
+            await asyncio.sleep(60)
+
+            return await msg.edit_reply_markup(
+                reply_markup=reply_markup
             )
 
         except aiogram.exceptions.TelegramBadRequest:
@@ -64,5 +83,5 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
 
     return await msg.answer(
         text=message,
-        reply_markup=inline_keyboard
+        reply_markup=reply_markup
     )
