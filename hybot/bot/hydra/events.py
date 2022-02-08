@@ -331,12 +331,23 @@ class EventManager:
         )
 
         message = "\n".join(message)
+        chat_id = conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id
+
+        info_reply_markup = aiogram.types.InlineKeyboardMarkup(
+            inline_keyboard=[[
+                aiogram.types.InlineKeyboardButton(
+                    text="🚀 Info 🚀",
+                    callback_data=f"show:{user.uniq.pkid}:{user_addr.pkid}:{user.tg_user_id}"
+                )
+            ]]
+        )
 
         sent = await try_send_notify(
             self.bot.send_message(
-                chat_id=conf_block_notify if isinstance(conf_block_notify, int) else user.tg_user_id,
+                chat_id=chat_id,
                 text=message,
-                parse_mode="HTML"
+                parse_mode="HTML",
+                reply_markup=None if chat_id != user.tg_user_id or conf_block_bal == "full" else info_reply_markup
             ),
         )
 
@@ -345,7 +356,8 @@ class EventManager:
                 self.bot.send_message(
                     chat_id=user.tg_user_id,
                     text=message,
-                    parse_mode="HTML"
+                    parse_mode="HTML",
+                    reply_markup=None if conf_block_bal == "full" else info_reply_markup
                 ),
             )
 

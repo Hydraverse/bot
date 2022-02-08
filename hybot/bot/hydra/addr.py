@@ -1,7 +1,8 @@
 from datetime import timedelta, datetime
 from decimal import Decimal
-from typing import Optional, Union
+from typing import Optional, Union, Dict, List
 
+import aiogram.exceptions
 from aiogram import types
 from attrdict import AttrDict
 # from emoji import UNICODE_EMOJI_ENGLISH
@@ -9,7 +10,55 @@ from attrdict import AttrDict
 from . import HydraBot
 from .data import HydraBotData, schemas
 
-_ADDR_SHOW_PREV = {}
+_ADDR_SHOW_PREV: Dict[int, int] = {}
+
+
+def addr_list_keyboard(user_addrs: List[schemas.UserAddrBase]):
+    buttons = [
+        types.KeyboardButton(
+            text=ua.name,
+        )
+        for ua in sorted(user_addrs, key=lambda ua_: ua_.name)
+    ]
+
+    addr_list_button = types.KeyboardButton(
+        text="List",
+    )
+
+    cols = 2 if len(buttons) > 1 else 1
+    keyboard = []
+    row = []
+
+    if len(buttons) > cols:
+
+        for button in buttons:
+            row.append(button)
+
+            if len(row) == cols:
+                keyboard.append(row)
+                row = []
+
+    else:
+        row = buttons
+
+    if len(row) or len(keyboard):
+        if len(row) < cols:
+            row.append(addr_list_button)
+
+            keyboard.append(row)
+        else:
+            keyboard.append(row)
+            keyboard.append([addr_list_button])
+
+    reply_markup = types.ReplyKeyboardMarkup(
+        keyboard=keyboard,
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        input_field_placeholder="Address or name to show",
+        selective=True,
+    )
+
+    return reply_markup
 
 
 async def addr(bot: HydraBot, msg: types.Message):
@@ -71,21 +120,28 @@ async def addr(bot: HydraBot, msg: types.Message):
     if address.lower() == "list":
         result = []
 
+        reply_markup = None
+
         if len(u.user_addrs):
             result += [f"Addresses:"]
             result += [
-                          f"\n<a href=\"{bot.rpcx.human_link(human_type(ua.addr), str(ua.addr))}\">{ua.name}</a>"
-                          + f"{': ' if human_type(ua.addr) == 'contract' else ''}"
-                          + (ua.addr.info.get("qrc20", {}).get("name", ""))
-                          + "\n"
-                          + f"<pre>{str(ua.addr)}</pre>"
-                          for ua in u.user_addrs
-                      ] + ["\n"]
+                f"\n<a href=\"{bot.rpcx.human_link(human_type(ua.addr), str(ua.addr))}\">{ua.name}</a>"
+                + f"{': ' if human_type(ua.addr) == 'contract' else ''}"
+                + (ua.addr.info.get("qrc20", {}).get("name", ""))
+                + "\n"
+                + f"<pre>{str(ua.addr)}</pre>"
+                for ua in sorted(u.user_addrs, key=lambda ua_: ua_.name)
+            ] + ["\n"]
+
+            reply_markup = addr_list_keyboard(u.user_addrs) if msg.chat.id > 0 else None
 
         if not len(result):
             result = ["No addresses yet."]
 
-        return await msg.answer("\n".join(result))
+        return await msg.answer(
+            text="\n".join(result),
+            reply_markup=reply_markup
+        )
 
     if address.endswith(" -"):
         address = address[:-2].strip()
@@ -130,9 +186,12 @@ async def addr_add(bot: HydraBot, msg: types.Message, u: schemas.User, address: 
 
     addr_str = str(addr_)
 
+    u.user_addrs.append(user_addr)
+
     await msg.answer(
         f"Added {tp_str} address with label <a href=\"{bot.rpcx.human_link(human_type(user_addr.addr), addr_str)}\">{user_addr.name}</a>.",
-        parse_mode="HTML"
+        parse_mode="HTML",
+        reply_markup=addr_list_keyboard(u.user_addrs)
     )
 
     return await addr_show(bot, msg.chat.id, u, user_addr)
@@ -149,7 +208,11 @@ async def addr_rename(bot: HydraBot, msg: types.Message, u: schemas.User, addres
             )
 
             if update_result.updated:
-                return await msg.answer(f"Address renamed from {ua.name} to {name}.\n")
+                ua.name = name
+                return await msg.answer(
+                    f"Address renamed from {ua.name} to {name}.\n",
+                    reply_markup=addr_list_keyboard(u.user_addrs)
+                )
             else:
                 return await msg.answer("Address wasn't renamed, the chosen name is already in use or the server had a problem.\n")
 
@@ -164,13 +227,20 @@ async def addr_del(bot: HydraBot, msg: types.Message, u: schemas.User, address: 
         if str(ua.addr) == address or address.lower() == ua.name.lower():
             delete_result: schemas.DeleteResult = await bot.db.asyncc.user_addr_del(ua)
             if delete_result.deleted:
-                return await msg.answer("Address removed.\n")
+                u.user_addrs.remove(ua)
+                return await msg.answer(
+                    "Address removed.\n",
+                    reply_markup=addr_list_keyboard(u.user_addrs)
+                )
             break
 
     return await msg.answer("Address not removed: not found.\n")
 
 
-async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.UserBase], ua: Optional[Union[schemas.UserAddrBase, schemas.UserAddrResult]], addr_: Optional[schemas.Addr] = None) -> bool:
+async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.UserBase],
+                    ua: Optional[Union[schemas.UserAddrBase, schemas.UserAddrResult]],
+                    addr_: Optional[schemas.Addr] = None,
+                    *, render: bool = False) -> Union[str, bool]:
     if ua is None:
         if not isinstance(u, schemas.User):
             raise TypeError("Must provide User (not UserBase) when ua is None.")
@@ -429,11 +499,25 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
         f"<pre>{user_now.ctime()} {user_now.tzname()}</pre>"
     )
 
-    await bot.send_message(
-        chat_id=chat_id,
-        text="\n".join(message),
-        parse_mode="HTML",
-    )
+    message = "\n".join(message)
+
+    if not render:
+        inline_keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[[
+                types.InlineKeyboardButton(text="🔁 Refresh", callback_data=f"refresh:{u.uniq.pkid}:{ua.pkid}:{chat_id}"),
+                types.InlineKeyboardButton(text="❌", callback_data=f"remove"),
+            ]]
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=message,
+            parse_mode="HTML",
+            reply_markup=inline_keyboard
+        )
+
+    else:
+        return message
 
     return True
 

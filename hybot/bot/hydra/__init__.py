@@ -4,15 +4,17 @@ Bot Support @ <a href="t.me/TheHydraverse">The Hydraverse</a>.
 from __future__ import annotations
 
 import asyncio
+
+import aiogram.exceptions
 from decimal import Decimal
 from math import floor
-from typing import Coroutine, Optional, Callable, Union
+from typing import Coroutine, Optional, Union
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.dispatcher.filters import BaseFilter
 from aiogram.types import Message
 from attrdict import AttrDict
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from hydra.rpc.explorer import ExplorerRPC
 from hydra import log
@@ -116,7 +118,7 @@ class HydraBot(Bot):
 
         self.dp.message.bind_filter(ChatMessageFilter)
 
-        @self.dp.message(commands={"hello", "start", "hi", "help"})
+        @HydraBot.dp.message(commands={"hello", "start", "hi", "help"})
         async def hello(msg: types.Message):
             return await self.command(msg, cmd_hello.hello)
 
@@ -145,6 +147,17 @@ class HydraBot(Bot):
         async def addr_(msg: types.Message):
             return await self.command(msg, cmd_addr.addr)
 
+        @self.dp.callback_query()
+        async def process_callback(callback_query: types.CallbackQuery):
+            if callback_query.data.startswith("refresh:") or callback_query.data.startswith("show:"):
+                parts = callback_query.data.split(":")
+                action = parts[0]
+                user_pk, user_addr_pk, chat_id = map(int, parts[1:])
+
+                return await self.show_addr(callback_query.message, user_pk, user_addr_pk, chat_id, refreshing=action == "refresh")
+            elif callback_query.data == "remove":
+                return await callback_query.message.delete_reply_markup()
+
         super().__init__(token, parse_mode="HTML")
 
     @staticmethod
@@ -170,6 +183,62 @@ class HydraBot(Bot):
             '{:,}'.format(fiat_value),
             with_name=with_name
         )
+
+    async def show_addr(self, msg: Message, user_pk: int, user_addr_pk: int, chat_id: int, refreshing: bool = True):
+
+        ua: Optional[schemas.UserAddrFull] = await self.db.asyncc.user_addr_get(user_pk, user_addr_pk)
+
+        reply_markup = msg.reply_markup
+
+        if refreshing and reply_markup is not None:
+            if reply_markup.inline_keyboard[0][0].callback_data == "-":
+                return
+
+            refresh_reply_markup = types.InlineKeyboardMarkup(
+                inline_keyboard=[[
+                    types.InlineKeyboardButton(text="♻", callback_data="-")
+                ]]
+            )
+
+            await msg.edit_reply_markup(reply_markup=refresh_reply_markup)
+        else:
+            if reply_markup is not None:
+                await msg.delete_reply_markup()
+
+            refresh_reply_markup = None
+
+        if ua is None:
+            return
+
+        u: schemas.UserBase = ua.user
+
+        from .addr import addr_show
+
+        new_text = await addr_show(
+            bot=self,
+            chat_id=chat_id,
+            u=u,
+            ua=ua,
+            render=refreshing
+        )
+
+        if not refreshing:
+            return
+
+        try:
+            if refresh_reply_markup is not None:
+                await msg.edit_text(text=new_text, reply_markup=refresh_reply_markup)
+            else:
+                await msg.edit_text(text=new_text)
+
+        except aiogram.exceptions.TelegramBadRequest:
+            pass
+
+        if refresh_reply_markup is not None and reply_markup is not refresh_reply_markup:
+            await asyncio.sleep(5)
+            await msg.edit_reply_markup(reply_markup=reply_markup)
+
+        return
 
     @staticmethod
     async def fiat_value(pc: PriceClient, currency: str, value: Union[Decimal, int, str], *, with_name=True) -> str:
@@ -212,7 +281,7 @@ class HydraBot(Bot):
             return await fn(self, msg, *args, **kwds)
         except BaseException as error:
             await msg.answer(
-                f"Sorry, something went wrong. <b><pre>{error}</pre></b>"
+                f"Sorry, something went wrong.\n\n<pre>\n{error}\n</pre>",
             )
 
             if log.level() <= log.INFO:
