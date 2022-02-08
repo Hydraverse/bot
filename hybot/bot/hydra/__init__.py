@@ -155,8 +155,12 @@ class HydraBot(Bot):
                 user_pk, user_addr_pk, chat_id = map(int, parts[1:])
 
                 return await self.show_addr(callback_query.message, user_pk, user_addr_pk, chat_id, refreshing=action == "refresh")
+
             elif callback_query.data == "remove":
                 return await callback_query.message.delete_reply_markup()
+
+            elif callback_query.data == "chain:refresh":
+                return await cmd_chain.chain(self, callback_query.message, refresh=True)
 
         super().__init__(token, parse_mode="HTML")
 

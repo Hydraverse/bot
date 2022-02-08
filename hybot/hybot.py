@@ -1,18 +1,16 @@
 """Hydra Bot Application.
 """
-import asyncio
+from __future__ import annotations
 import os
 from argparse import ArgumentParser
-from asyncio import AbstractEventLoop
-from typing import List, Optional, Coroutine
+from typing import Optional, Coroutine
 
-from aiogram import Bot
 from attrdict import AttrDict
 
 from hydra.app import HydraApp
 from hydra.test import Test
 
-from hydb.api.client import HyDbClient, schemas
+from hydb.api.client import HyDbClient
 from hydra.util.asyncc import AsyncMethods
 
 from .bot.hydra import HydraBot
@@ -26,6 +24,7 @@ os.environ["HYPY_NO_RPC_ARGS"] = "1"
 @Config.defaults
 @HydraApp.register(name="hybot", desc="Halospace Hydra Bot", version=VERSION)
 class Hybot(HydraApp):
+    _: Hybot
     asyncc: AsyncMethods
     db: HyDbClient
     bot: Optional[HydraBot]
@@ -36,10 +35,15 @@ class Hybot(HydraApp):
     }
 
     @staticmethod
+    def app():
+        return Hybot._
+
+    @staticmethod
     def parser(parser: ArgumentParser):
         parser.add_argument("-s", "--shell", action="store_true", help="Drop to an interactive shell with DB and RPC access.")
 
     def __init__(self, *args, **kwds):
+        Hybot._ = self
         self.asyncc = AsyncMethods(self)
         self.bot = None
 
