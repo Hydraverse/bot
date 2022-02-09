@@ -72,7 +72,7 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
                 reply_markup=refresh_reply_markup
             )
 
-            await asyncio.sleep(60)
+            await asyncio.sleep(5)
 
             return await msg.edit_reply_markup(
                 reply_markup=reply_markup
