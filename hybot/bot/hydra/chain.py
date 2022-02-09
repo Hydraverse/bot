@@ -71,15 +71,14 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
                 text=message,
                 reply_markup=refresh_reply_markup
             )
-
-            await asyncio.sleep(5)
-
-            return await msg.edit_reply_markup(
-                reply_markup=reply_markup
-            )
-
         except aiogram.exceptions.TelegramBadRequest:
-            return
+            pass
+
+        await asyncio.sleep(5)
+
+        return await msg.edit_reply_markup(
+            reply_markup=reply_markup
+        )
 
     return await msg.answer(
         text=message,
