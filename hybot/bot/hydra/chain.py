@@ -1,4 +1,5 @@
 import asyncio
+from decimal import Decimal
 
 import aiogram.exceptions
 from aiogram import types
@@ -33,10 +34,20 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
     message = []
 
     append = lambda r: message.append("\n".join(li.strip() for li in r.splitlines(keepends=True)))
+    hydra_val = lambda v: round(schemas.Addr.decimal(v), 2)
 
     current = AttrDict(stats.current.dict())
 
-    current.time = current.time.time().isoformat().rsplit(".", 1)[0]
+    current.apr = round(Decimal(current.apr), 2)
+    current.time = current.time.strftime("%a %H:%M")
+
+    current.block_value = schemas.Addr.decimal(current.block_value)
+    current.money_supply = round(Decimal(current.money_supply), 2)
+    current.net_weight = hydra_val(current.net_weight)
+    
+    current.net_diff_pos = round(Decimal(current.net_diff_pos), 2)
+    del current.net_hash_rate
+    del current.net_diff_pow
 
     Hybot.app().render(
         result=current,
@@ -44,14 +55,34 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
         print_fn=append
     )
 
+    quant_stat_1d = AttrDict(stats.quant_stat_1d.dict())
+
+    quant_stat_1d.apr = round(Decimal(quant_stat_1d.apr), 2)
+    quant_stat_1d.time = str(quant_stat_1d.time).rsplit(".", 1)[0]
+
+    quant_stat_1d.block_value = schemas.Addr.decimal(quant_stat_1d.block_value)
+    quant_stat_1d.money_supply = round(Decimal(quant_stat_1d.money_supply), 2)
+    quant_stat_1d.net_weight = hydra_val(quant_stat_1d.net_weight)
+
+    quant_stat_1d.net_diff_pos = round(Decimal(quant_stat_1d.net_diff_pos), 2)
+    del quant_stat_1d.net_hash_rate
+    del quant_stat_1d.net_diff_pow
+
     Hybot.app().render(
-        result=stats.quant_stat_1d.dict(),
+        result=quant_stat_1d,
         name="quant_stat_1d",
         print_fn=append
     )
 
+    quant_net_weight = AttrDict(stats.quant_net_weight.dict())
+    
+    quant_net_weight.median_1h = hydra_val(quant_net_weight.median_1h)
+    quant_net_weight.median_1d = hydra_val(quant_net_weight.median_1d)
+    quant_net_weight.median_1w = hydra_val(quant_net_weight.median_1w)
+    quant_net_weight.median_1m = hydra_val(quant_net_weight.median_1m)
+
     Hybot.app().render(
-        result=stats.quant_net_weight.dict(),
+        result=quant_net_weight,
         name="quant_net_weight",
         print_fn=append
     )
