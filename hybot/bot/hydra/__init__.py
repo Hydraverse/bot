@@ -204,7 +204,10 @@ class HydraBot(Bot):
                 ]]
             )
 
-            await msg.edit_reply_markup(reply_markup=refresh_reply_markup)
+            try:
+                await msg.edit_reply_markup(reply_markup=refresh_reply_markup)
+            except aiogram.exceptions.TelegramBadRequest:
+                pass
         else:
             if reply_markup is not None:
                 await msg.delete_reply_markup()
