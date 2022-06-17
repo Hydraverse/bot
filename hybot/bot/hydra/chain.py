@@ -55,24 +55,25 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
         print_fn=append
     )
 
-    quant_stat_1d = AttrDict(stats.quant_stat_1d.dict())
+    if stats.quant_stat_1d is not None:
+        quant_stat_1d = AttrDict(stats.quant_stat_1d.dict())
 
-    quant_stat_1d.apr = round(Decimal(quant_stat_1d.apr), 2)
-    quant_stat_1d.time = str(quant_stat_1d.time).rsplit(".", 1)[0]
+        quant_stat_1d.apr = round(Decimal(quant_stat_1d.apr), 2)
+        quant_stat_1d.time = str(quant_stat_1d.time).rsplit(".", 1)[0]
 
-    quant_stat_1d.block_value = schemas.Addr.decimal(quant_stat_1d.block_value)
-    quant_stat_1d.money_supply = round(Decimal(quant_stat_1d.money_supply), 2)
-    quant_stat_1d.net_weight = hydra_val(quant_stat_1d.net_weight)
+        quant_stat_1d.block_value = schemas.Addr.decimal(quant_stat_1d.block_value)
+        quant_stat_1d.money_supply = round(Decimal(quant_stat_1d.money_supply), 2)
+        quant_stat_1d.net_weight = hydra_val(quant_stat_1d.net_weight)
 
-    quant_stat_1d.net_diff_pos = round(Decimal(quant_stat_1d.net_diff_pos), 2)
-    del quant_stat_1d.net_hash_rate
-    del quant_stat_1d.net_diff_pow
+        quant_stat_1d.net_diff_pos = round(Decimal(quant_stat_1d.net_diff_pos), 2)
+        del quant_stat_1d.net_hash_rate
+        del quant_stat_1d.net_diff_pow
 
-    Hybot.app().render(
-        result=quant_stat_1d,
-        name="quant_stat_1d",
-        print_fn=append
-    )
+        Hybot.app().render(
+            result=quant_stat_1d,
+            name="quant_stat_1d",
+            print_fn=append
+        )
 
     quant_net_weight = AttrDict(stats.quant_net_weight.dict())
     
