@@ -1,7 +1,9 @@
 import asyncio
+import datetime
 from decimal import Decimal
 
 import aiogram.exceptions
+import pytz
 from aiogram import types
 from attrdict import AttrDict
 from hydb.api import schemas
@@ -114,7 +116,7 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
         "<pre>",
         "\n\n".join(message),
         "</pre>",
-        "<pre>{user_now.ctime()} {user_now.tzname()}</pre>",
+        f"<pre>{utc_time()}</pre>",
     ]
 
     message = "\n".join(message)
@@ -138,3 +140,8 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
         text=message,
         reply_markup=reply_markup
     )
+
+
+def utc_time():
+    tz_utc = pytz.timezone("UTC")
+    return pytz.utc.localize(datetime.datetime.utcnow(), is_dst=None).astimezone(tz_utc)
