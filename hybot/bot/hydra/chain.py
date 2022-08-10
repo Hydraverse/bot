@@ -93,6 +93,7 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
         "<pre>",
         "\n\n".join(message),
         "</pre>",
+        "<pre>{user_now.ctime()} {user_now.tzname()}</pre>",
     ]
 
     message = "\n".join(message)
