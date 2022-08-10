@@ -446,7 +446,12 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
             message.append("")
 
         stats: schemas.Stats = await bot.db.stats_cache()
-        net_weight = stats.quant_net_weight.median_1d
+
+        if stats.quant_net_weight.median_1d is not None:
+            net_weight = stats.quant_net_weight.median_1d
+        else:
+            net_weight = stats.current.net_weight
+
         block_sec = Decimal(128)
 
         eta_sec = int(round(net_weight * block_sec / balance_mature))
