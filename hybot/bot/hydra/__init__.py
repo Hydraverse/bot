@@ -89,7 +89,10 @@ class HydraBot(Bot):
             "GOMT": PriceClientGOMT(pc_usdt),
         }
 
-        for symbol, pc in self.price_client_map.items()[:-1]:
+        for symbol, pc in self.price_client_map.items():
+            if symbol == "GOMT":
+                continue
+
             pc._cache.expiry = timedelta(minutes=1 if symbol == "HYDRA" else 3)
 
         token = self.conf.token
