@@ -8,7 +8,7 @@ import asyncio
 import aiogram.exceptions
 from decimal import Decimal
 from math import floor
-from typing import Coroutine, Optional, Union
+from typing import Coroutine, Optional, Union, Dict
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.dispatcher.filters import BaseFilter
@@ -23,6 +23,8 @@ from hydb.api.client import HyDbClient, schemas
 from hydra.kc.prices import PriceClient
 
 from hybot.util.conf import Config
+from hybot.util.gomt import PriceClientGOMT
+from hybot.util.misc import fiat_value_decimal_from_price
 
 
 @Config.defaults
@@ -36,9 +38,7 @@ class HydraBot(Bot):
     rpcx: ExplorerRPC
     evm: object  # type: EventManager
 
-    prices: PriceClient
-    prices_loc: PriceClient
-    coin: AttrDict
+    price_client_map: Dict[str, PriceClient]
 
     CONF = {
         "token": "(bot token from @BotFather)",
@@ -69,23 +69,28 @@ class HydraBot(Bot):
         self.db = db
         self.conf = Config.get(HydraBot, defaults=True)
 
-        self.prices = PriceClient(
-            api_key=self.conf.kc_key,
-            api_secret=self.conf.kc_sec,
-            passphrase=self.conf.kc_psp
-        )
+        # noinspection PyPep8Naming
+        PriceClientKeyed = lambda sym: PriceClient(
+                coin=sym,
+                api_key=self.conf.kc_key,
+                api_secret=self.conf.kc_sec,
+                passphrase=self.conf.kc_psp
+            )
 
-        self.prices_loc = PriceClient(
-            coin="LOC",
-            api_key=self.conf.kc_key,
-            api_secret=self.conf.kc_sec,
-            passphrase=self.conf.kc_psp
-        )
+        pc_hydra = PriceClientKeyed("HYDRA")
+        pc_usdt = PriceClientKeyed("USDT")
 
-        self.prices._cache.expiry = timedelta(minutes=1)
-        self.prices_loc._cache.expiry = timedelta(minutes=3)
+        self.price_client_map = {
+            "HYDRA": pc_hydra,
+            "WHYDRA": pc_hydra,
+            "LOC": PriceClientKeyed("LOC"),
+            "USDT": pc_usdt,
+            "DAI": PriceClientKeyed("DAI"),
+            "GOMT": PriceClientGOMT(pc_usdt),
+        }
 
-        self.coin = AttrDict(self.prices.kuku.get_currency(self.prices.coin))
+        for symbol, pc in self.price_client_map.items()[:-1]:
+            pc._cache.expiry = timedelta(minutes=1 if symbol == "HYDRA" else 3)
 
         token = self.conf.token
 
@@ -168,25 +173,50 @@ class HydraBot(Bot):
     def main(db: HyDbClient):
         return HydraBot(db).run()
 
-    async def hydra_fiat_value(self, currency: str, value: Union[Decimal, int, str], *, with_name=True) -> str:
-        return await HydraBot.fiat_value(self.prices, currency, value, with_name=with_name)
+    async def fiat_value_of(self, symbol: str, currency: str, value: Union[Decimal, int, str], *, with_name=True) -> str:
+        return await HydraBot.fiat_value(self.price_client_map[symbol], currency, value, with_name=with_name)
 
-    async def locktrip_fiat_value(self, currency: str, value: Union[Decimal, int, str], *, with_name=True) -> str:
-        return await HydraBot.fiat_value(self.prices_loc, currency, value, with_name=with_name)
+    async def fiat_value_dec_of(self, symbol: str, currency: str, value: Union[Decimal, int, str]) -> Decimal:
+        return await HydraBot.fiat_value_decimal(self.price_client_map[symbol], currency, value)
+
+    async def hydra_fiat_value(self, currency: str, value: Union[Decimal, int, str], *, with_name=True) -> str:
+        return await HydraBot.fiat_value(self.price_client_map["HYDRA"], currency, value, with_name=with_name)
 
     async def hydra_fiat_value_dec(self, currency: str, value: Union[Decimal, int, str]) -> Decimal:
-        return await HydraBot.fiat_value_decimal(self.prices, currency, value)
-
-    async def locktrip_fiat_value_dec(self, currency: str, value: Union[Decimal, int, str]) -> Decimal:
-        return await HydraBot.fiat_value_decimal(self.prices_loc, currency, value)
+        return await HydraBot.fiat_value_decimal(self.price_client_map["HYDRA"], currency, value)
 
     def fiat_value_format(self, currency: str, fiat_value: Decimal, *, with_name=True) -> str:
         # noinspection StrFormat
-        return self.prices.format(
+        return self.price_client_map["HYDRA"].format(
             currency,
             '{:,}'.format(fiat_value),
             with_name=with_name
         )
+
+    @staticmethod
+    async def fiat_value(pc: PriceClient, currency: str, value: Union[Decimal, int, str], *, with_name=True) -> str:
+
+        fiat_value = await HydraBot.fiat_value_decimal(pc, currency, value)
+
+        # noinspection StrFormat
+        return pc.format(
+            currency,
+            '{:,}'.format(fiat_value),
+            with_name=with_name
+        )
+
+    @staticmethod
+    async def fiat_value_decimal(pc: PriceClient, currency: str, value: Union[Decimal, int, str]) -> Decimal:
+        price = await asyncio.get_event_loop().run_in_executor(
+            executor=None,
+            func=lambda: pc.price(currency, raw=True)
+        )
+
+        # The resulting types of floor() and round() are actually Decimal.
+        # noinspection PyTypeChecker
+        fiat_value: Decimal = fiat_value_decimal_from_price(price, value)
+
+        return fiat_value
 
     async def show_addr(self, msg: Message, user_pk: int, user_addr_pk: int, chat_id: int, refreshing: bool = True):
 
@@ -246,38 +276,6 @@ class HydraBot(Bot):
             await msg.edit_reply_markup(reply_markup=reply_markup)
 
         return
-
-    @staticmethod
-    async def fiat_value(pc: PriceClient, currency: str, value: Union[Decimal, int, str], *, with_name=True) -> str:
-
-        fiat_value = await HydraBot.fiat_value_decimal(pc, currency, value)
-
-        # noinspection StrFormat
-        return pc.format(
-            currency,
-            '{:,}'.format(fiat_value),
-            with_name=with_name
-        )
-
-    @staticmethod
-    async def fiat_value_decimal(pc: PriceClient, currency: str, value: Union[Decimal, int, str]) -> Decimal:
-        price = await asyncio.get_event_loop().run_in_executor(
-            executor=None,
-            func=lambda: pc.price(currency, raw=True)
-        )
-
-        # The resulting types of floor() and round() are actually Decimal.
-        # noinspection PyTypeChecker
-        fiat_value: Decimal = round(
-            floor(
-                Decimal(price)
-                * (schemas.Addr.decimal(value) if not isinstance(value, Decimal) else value)
-                * Decimal(100)
-            ) / Decimal(100),
-            2
-        )
-
-        return fiat_value
 
     def run(self):
         return self.dp.run_polling(self)

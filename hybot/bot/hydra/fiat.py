@@ -16,7 +16,8 @@ async def fiat(bot: HydraBot, msg: types.Message):
     if str(msg.text).startswith("/price"):
         return await msg.answer(
             f"Current $HYDRA price: {await bot.hydra_fiat_value(fiat_cur, 1 * 10**8)}\n"
-            f"Current $LOC price: {await bot.locktrip_fiat_value(fiat_cur, 1 * 10**8)}\n"
+            f"Current $LOC price: {await bot.fiat_value_of('LOC', fiat_cur, 1 * 10**8)}\n"
+            f"Current $GOMT price: {await bot.fiat_value_of('GOMT', fiat_cur, 1 * 10 ** 8)}\n"
         )
 
     if u is None:

@@ -591,14 +591,15 @@ class EventManager:
                         value_str = f"<b>{self.tx_link(txid, action)}:</b> {addr_link_str(self.bot, token_addr, token_in_tx.symbol)} ID #{token_in_tx.value_or_id}"
                         # TODO: Maybe also get URI data from addr_hist.info_new.qrc721Balances[].uris[]
 
-                    if token_in_tx.symbol == "LOC" and token_in_tx.value_or_id:
-                        loc_fiat_value = await self.bot.locktrip_fiat_value(
+                    if token_in_tx.symbol in self.bot.price_client_map.keys() and token_in_tx.value_or_id:
+                        token_fiat_value = await self.bot.fiat_value_of(
+                            token_in_tx.symbol,
                             currency,
                             token_in_tx.value_or_id,
                             with_name=total_recv == 0
                         )
 
-                        value_str += f" ~ {loc_fiat_value}"
+                        value_str += f" ~ {token_fiat_value}"
 
                     if first_token:
                         first_token = False

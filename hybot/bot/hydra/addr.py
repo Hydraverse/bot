@@ -338,8 +338,9 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
 
             tb.fiat_value = Decimal(0)
 
-            if tb.symbol == "LOC":
-                tb.fiat_value = await bot.locktrip_fiat_value_dec(
+            if tb.symbol in bot.price_client_map.keys():
+                tb.fiat_value = await bot.fiat_value_dec_of(
+                    tb.symbol,
                     currency,
                     schemas.Addr.decimal(tb.balance, decimals=tb.decimals)
                 )
@@ -357,8 +358,8 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
                 tb.fiat_value = bot.fiat_value_format(currency, tb.fiat_value, with_name=total_fiat_value == 0)
                 tb.fiat_value = f" ~ {tb.fiat_value}"
 
-                if tb.symbol == "LOC":
-                    fiat_price = await bot.locktrip_fiat_value(currency, 1 * 10**8, with_name=False)
+                if tb.symbol in bot.price_client_map.keys():
+                    fiat_price = await bot.fiat_value_of(tb.symbol, currency, 1 * 10**tb.decimals, with_name=False)
                     tb.fiat_value += f" @ <b>{fiat_price}</b>"
             else:
                 tb.fiat_value = ""
