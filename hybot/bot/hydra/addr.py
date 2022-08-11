@@ -359,7 +359,7 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
                 tb.fiat_value = f" ~ {tb.fiat_value}"
 
                 if tb.symbol in bot.price_client_map.keys():
-                    fiat_price = await bot.fiat_value_of(tb.symbol, currency, 1 * 10**tb.decimals, with_name=False)
+                    fiat_price = await bot.fiat_value_of(tb.symbol, currency, schemas.Addr.decimal(1 * 10**tb.decimals, decimals=tb.decimals), with_name=False)
                     tb.fiat_value += f" @ <b>{fiat_price}</b>"
             else:
                 tb.fiat_value = ""
