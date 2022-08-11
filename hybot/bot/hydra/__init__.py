@@ -14,7 +14,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.dispatcher.filters import BaseFilter
 from aiogram.types import Message
 from attrdict import AttrDict
-from datetime import timedelta, datetime
+from datetime import timedelta
 
 from hydra.rpc.explorer import ExplorerRPC
 from hydra import log
@@ -24,7 +24,7 @@ from hydra.kc.prices import PriceClient
 
 from hybot.util.conf import Config
 from hybot.util.gomt import PriceClientGOMT
-from hybot.util.misc import fiat_value_decimal_from_price
+from hybot.util.misc import fiat_value_decimal_from_price_simple
 
 
 @Config.defaults
@@ -217,7 +217,7 @@ class HydraBot(Bot):
 
         # The resulting types of floor() and round() are actually Decimal.
         # noinspection PyTypeChecker
-        fiat_value: Decimal = fiat_value_decimal_from_price(price, value)
+        fiat_value: Decimal = fiat_value_decimal_from_price_simple(price, value)
 
         return fiat_value
 

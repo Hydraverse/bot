@@ -25,7 +25,7 @@ def fiat_value_decimal_from_price(price: Union[Decimal, str], value: Union[Decim
                 raw_mul
                 * Decimal(10**exp)
             ) / Decimal(10**exp),
-            2
+            exp
         )
 
         if fiat_value != int(raw_mul):
@@ -34,3 +34,16 @@ def fiat_value_decimal_from_price(price: Union[Decimal, str], value: Union[Decim
         # Not enough decimals to represent: continue
 
     return fiat_value
+
+
+def fiat_value_decimal_from_price_simple(price: Union[Decimal, str], value: Union[Decimal, int, str]) -> Decimal:
+    # The resulting types of floor() and round() are actually Decimal.
+    # noinspection PyTypeChecker
+    return round(
+        floor(
+            (Decimal(price) if not isinstance(price, Decimal) else price) * \
+            (schemas.Addr.decimal(value) if not isinstance(value, Decimal) else value)
+            * Decimal(100)
+        ) / Decimal(100),
+        2
+    )
