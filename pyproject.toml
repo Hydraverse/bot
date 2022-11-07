@@ -1,0 +1,34 @@
+[tool.poetry]
+name = "hydra-chain-bot"
+version = "2.0.0"
+description = "The Hydraverse Bot."
+authors = [
+    "Phillip Sitbon <phillip.sitbon@gmail.com>",
+    "Halospace Foundation <contact@halospace.org>",
+]
+readme = "README.md"
+repository = "https://github.com/hydraverse/bot"
+homepage = "https://pypi.org/project/hydra-chain-bot/"
+documentation = "https://hydraverse.github.io/bot/"
+
+packages = [
+    { include = "hybot" },
+]
+
+[tool.poetry.scripts]
+hybot = "hybot.app:HydraBotApp.main"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+hydra-chain-py = "^2.7.6"
+pyyaml = "^6.0"
+fuzzywuzzy = "^0.18.0"
+python-levenshtein = "^0.20.8"
+num2words = "^0.5.12"
+aiocache = "^0.11.1"
+aiogram = {git = "https://github.com/aiogram/aiogram", rev = "dev-3.x"}
+hydra-chain-db = {path = "../db", develop = true}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

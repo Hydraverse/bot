@@ -43,7 +43,6 @@ class EventManager:
 
             await asyncio.sleep(1)
 
-    # noinspection PyMethodMayBeStatic
     async def __sse_block_event(self, block_sse_result: BlockSSEResult):
         users_notified = 0
         users_notified_tx = 0
@@ -672,8 +671,13 @@ async def try_send_notify(coro) -> int:
     except aiogram.exceptions.TelegramForbiddenError as exc:
         log.warning(f"Unable to send notification: {exc}")
 
+    except aiogram.exceptions.TelegramAPIError as exc:
+        log.error(f"Unable to send notification: <API Error> {exc}")
+
     except aiogram.exceptions.AiogramError as exc:
         log.warning(f"Unable to send notification: exc='{exc}'", exc_info=exc)
-        # Recently seen: TelegramForbiddenError: Blocked by user
+
+    except BaseException as exc:
+        log.warning(f"Unable to send notification: <BaseException/{type(exc)}> exc='{exc}'", exc_info=exc)
 
     return 0

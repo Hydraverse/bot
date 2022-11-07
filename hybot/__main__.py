@@ -1,3 +1,3 @@
-from .hybot import Hybot
+from .app import HydraBotApp
 
-Hybot.main()
+HydraBotApp.main()

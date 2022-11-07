@@ -5,16 +5,17 @@ from __future__ import annotations
 
 import asyncio
 
-import aiogram.exceptions
 from decimal import Decimal
-from math import floor
 from typing import Coroutine, Optional, Union, Dict
 
-from aiogram import Bot, Dispatcher, types
-from aiogram.dispatcher.filters import BaseFilter
-from aiogram.types import Message
 from attrdict import AttrDict
 from datetime import timedelta
+
+from aiogram import F
+import aiogram.exceptions
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import BaseFilter
+from aiogram.types import Message
 
 from hydra.rpc.explorer import ExplorerRPC
 from hydra import log
@@ -71,11 +72,11 @@ class HydraBot(Bot):
 
         # noinspection PyPep8Naming
         PriceClientKeyed = lambda sym: PriceClient(
-                coin=sym,
-                api_key=self.conf.kc_key,
-                api_secret=self.conf.kc_sec,
-                passphrase=self.conf.kc_psp
-            )
+            coin=sym,
+            api_key=self.conf.kc_key,
+            api_secret=self.conf.kc_sec,
+            passphrase=self.conf.kc_psp
+        )
 
         pc_hydra = PriceClientKeyed("HYDRA")
         pc_usdt = PriceClientKeyed("USDT")
@@ -112,46 +113,45 @@ class HydraBot(Bot):
                 await shell
 
         from . import \
-            hello as cmd_hello,\
-            tz as cmd_tz,\
-            addr as cmd_addr,\
+            hello as cmd_hello, \
+            tz as cmd_tz, \
+            addr as cmd_addr, \
             delete as cmd_delete, \
             fiat as cmd_fiat, \
             conf as cmd_conf, \
             chain as cmd_chain
 
-        class ChatMessageFilter(BaseFilter):
-            async def __call__(self, message: Message) -> bool:
-                return message.text is not None and len(str(message.text))
+        async def chat_message_filter(message: Message) -> bool:
+            return message.text is not None and len(str(message.text))
 
-        self.dp.message.bind_filter(ChatMessageFilter)
+        self.dp.message.filter(chat_message_filter)
 
-        @HydraBot.dp.message(commands={"hello", "start", "hi", "help"})
+        @HydraBot.dp.message(F.text.lower().in_({"/hello", "/start", "/hi", "/help"}))
         async def hello(msg: types.Message):
             return await self.command(msg, cmd_hello.hello)
 
-        @self.dp.message(commands={"tz"})
+        @self.dp.message(F.text.startswith("/tz"))
         async def tz(msg: types.Message):
             return await self.command(msg, cmd_tz.tz)
 
-        @self.dp.message(commands={"DELETE"})
+        @self.dp.message(F.text.in_({"/DELETE"}))
         async def delete(msg: types.Message):
             return await self.command(msg, cmd_delete.delete)
 
-        @self.dp.message(commands={"fiat", "price"})
+        @self.dp.message(F.text.in_({"/fiat", "/price"}))
         async def fiat(msg: types.Message):
             return await self.command(msg, cmd_fiat.fiat)
 
-        @self.dp.message(commands={"conf"})
+        @self.dp.message(F.text.startswith("/conf"))
         async def conf(msg: types.Message):
             return await self.command(msg, cmd_conf.conf)
 
-        @self.dp.message(commands={"chain"})
+        @self.dp.message(F.text.in_({"/chain"}))
         async def chain(msg: types.Message):
             return await self.command(msg, cmd_chain.chain)
 
         @self.dp.message()
-        @HydraBot.dp.message(commands={"addr", "a"})
+        @self.dp.message(F.text.startswith("/addr").or_(F.text.startswith("/a")))
         async def addr_(msg: types.Message):
             return await self.command(msg, cmd_addr.addr)
 
@@ -283,16 +283,29 @@ class HydraBot(Bot):
     def run(self):
         return self.dp.run_polling(self)
 
+    async def send_message(self, *args, **kwds) -> Message:
+        while 1:
+            try:
+                return await super().send_message(*args, **kwds)
+            except aiogram.exceptions.TelegramRetryAfter as ex:
+                log.warning("Throttled: %s", ex)
+                await asyncio.sleep(ex.retry_after)
+
     async def command(self, msg, fn, *args, **kwds):
         # noinspection PyBroadException
         try:
             return await fn(self, msg, *args, **kwds)
         except BaseException as error:
-            await msg.answer(
-                f"Sorry, something went wrong.\n\n<pre>\n{error}\n</pre>",
-            )
+            try:
+                await msg.answer(
+                    f"Sorry, something went wrong.\n\n<pre>\n{error}\n</pre>",
+                )
+            except BaseException as inner_error:
+                print("Error while sending error message (ignored):", inner_error)
 
-            if log.level() <= log.INFO:
+            print(f"Error while processing message '{msg}':", error)
+
+            if log.level() <= log.DEBUG:
                 raise
 
 

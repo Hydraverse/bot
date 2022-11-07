@@ -9,7 +9,7 @@ from attrdict import AttrDict
 from hydb.api import schemas
 
 from . import HydraBot
-from hybot.hybot import Hybot
+from hybot.app import HydraBotApp
 
 
 async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
@@ -51,7 +51,7 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
     del current.net_hash_rate
     del current.net_diff_pow
 
-    Hybot.app().render(
+    HydraBotApp.app().render(
         result=current,
         name="current",
         print_fn=append
@@ -71,45 +71,46 @@ async def chain(bot: HydraBot, msg: types.Message, refresh: bool = False):
         del quant_stat_1d.net_hash_rate
         del quant_stat_1d.net_diff_pow
 
-        Hybot.app().render(
+        HydraBotApp.app().render(
             result=quant_stat_1d,
             name="quant_stat_1d",
             print_fn=append
         )
 
-    quant_net_weight = AttrDict(stats.quant_net_weight.dict())
-    quant_net_weight_count = 0
+    if stats.quant_net_weight is not None:
+        quant_net_weight = AttrDict(stats.quant_net_weight.dict())
+        quant_net_weight_count = 0
 
-    if quant_net_weight.median_1h is not None:
-        quant_net_weight.median_1h = hydra_val(quant_net_weight.median_1h)
-        quant_net_weight_count += 1
-    else:
-        del quant_net_weight.median_1h
+        if quant_net_weight.median_1h is not None:
+            quant_net_weight.median_1h = hydra_val(quant_net_weight.median_1h)
+            quant_net_weight_count += 1
+        else:
+            del quant_net_weight.median_1h
 
-    if quant_net_weight.median_1d is not None:
-        quant_net_weight.median_1d = hydra_val(quant_net_weight.median_1d)
-        quant_net_weight_count += 1
-    else:
-        del quant_net_weight.median_1d
+        if quant_net_weight.median_1d is not None:
+            quant_net_weight.median_1d = hydra_val(quant_net_weight.median_1d)
+            quant_net_weight_count += 1
+        else:
+            del quant_net_weight.median_1d
 
-    if quant_net_weight.median_1w is not None:
-        quant_net_weight.median_1w = hydra_val(quant_net_weight.median_1w)
-        quant_net_weight_count += 1
-    else:
-        del quant_net_weight.median_1w
+        if quant_net_weight.median_1w is not None:
+            quant_net_weight.median_1w = hydra_val(quant_net_weight.median_1w)
+            quant_net_weight_count += 1
+        else:
+            del quant_net_weight.median_1w
 
-    if quant_net_weight.median_1m is not None:
-        quant_net_weight.median_1m = hydra_val(quant_net_weight.median_1m)
-        quant_net_weight_count += 1
-    else:
-        del quant_net_weight.median_1m
+        if quant_net_weight.median_1m is not None:
+            quant_net_weight.median_1m = hydra_val(quant_net_weight.median_1m)
+            quant_net_weight_count += 1
+        else:
+            del quant_net_weight.median_1m
 
-    if quant_net_weight_count > 0:
-        Hybot.app().render(
-            result=quant_net_weight,
-            name="quant_net_weight",
-            print_fn=append
-        )
+        if quant_net_weight_count > 0:
+            HydraBotApp.app().render(
+                result=quant_net_weight,
+                name="quant_net_weight",
+                print_fn=append
+            )
 
     message = [
         "<b>Raw Blockchain Stats</b>",

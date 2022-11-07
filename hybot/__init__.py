@@ -2,4 +2,6 @@
 
 For tracking blocks & transactions on the Hydra Chain https://hydrachain.org/.
 """
-VERSION = "1.1.1"
+import importlib.metadata
+
+__version__ = importlib.metadata.version("hydra-chain-bot")

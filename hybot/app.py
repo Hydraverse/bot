@@ -22,9 +22,9 @@ os.environ["HYPY_NO_RPC_ARGS"] = "1"
 
 
 @Config.defaults
-@HydraApp.register(name="hybot", desc="Halospace Hydra Bot", version=VERSION)
-class Hybot(HydraApp):
-    _: Hybot
+@HydraApp.register(name="bot", desc="Halospace Hydra Bot", version=VERSION)
+class HydraBotApp(HydraApp):
+    _: HydraBotApp
     asyncc: AsyncMethods
     db: HyDbClient
     bot: Optional[HydraBot]
@@ -36,27 +36,27 @@ class Hybot(HydraApp):
 
     @staticmethod
     def app():
-        return Hybot._
+        return HydraBotApp._
 
     @staticmethod
     def parser(parser: ArgumentParser):
         parser.add_argument("-s", "--shell", action="store_true", help="Drop to an interactive shell with DB and RPC access.")
 
     def __init__(self, *args, **kwds):
-        Hybot._ = self
+        super().__init__(*args, **kwds)
+
+        HydraBotApp._ = self
         self.asyncc = AsyncMethods(self)
         self.bot = None
 
         if not Config.exists():
-            self.render_item("error", f"Default config created and needs editing at: {Config.APP_CONF}")
+            self.render("error", f"Default config created and needs editing at: {Config.APP_CONF}")
             Config.read(create=True)
             exit(-1)
 
-        self.conf = Config.get(Hybot)
+        self.conf = Config.get(HydraBotApp)
 
         self.db = HyDbClient()
-
-        super().__init__(*args, **kwds)
 
     def run(self):
         # TO DO: make bot a list and fork for each.
@@ -116,5 +116,5 @@ class Hybot(HydraApp):
 class HybotTest(Test):
 
     def test_0_hybot_runnable(self):
-        self.assertHydraAppIsRunnable(Hybot, "-h")
+        self.assertHydraAppIsRunnable(HydraBotApp, "-h")
 

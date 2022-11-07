@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/bot.iml" filepath="$PROJECT_DIR$/.idea/bot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../db/.idea/hydb.iml" filepath="$PROJECT_DIR$/../db/.idea/hydb.iml" />
     </modules>
   </component>
 </project>
