@@ -6,7 +6,7 @@ After=hydb-api.service
 Type=simple
 WorkingDirectory=/home/hyve/app/db/
 ExecStartPre=/bin/sleep 5
-ExecStart=/home/hyve/.local/bin/poetry run hydb-blk
+ExecStart=/home/hyve/.local/bin/poetry run hydb-blk -vv
 Restart=on-failure
 StandardError=syslog
 
