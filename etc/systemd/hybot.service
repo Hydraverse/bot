@@ -5,7 +5,7 @@ After=hydb-api.service
 [Service]
 Type=simple
 WorkingDirectory=/home/hyve/app/bot/
-ExecStart=/home/hyve/app/bot/env/bot/bin/python -O -m hybot -vv
+ExecStart=/home/hyve/.local/bin/poetry run hybot -vv
 Restart=on-failure
 StandardError=syslog
 
