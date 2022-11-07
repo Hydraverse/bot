@@ -44,7 +44,7 @@ redis = ["redis (>=4.3.4,<5.0.0)"]
 [package.source]
 type = "git"
 url = "https://github.com/aiogram/aiogram"
-reference = "dev-3.x"
+reference = "34a91bf"
 resolved_reference = "34a91bfb692df144a80472d79676b78a1177cd23"
 
 [[package]]
@@ -211,7 +211,7 @@ speedup = ["python-levenshtein (>=0.12)"]
 
 [[package]]
 name = "hydra-chain-db"
-version = "1.4.2"
+version = "2.0.0"
 description = "A database for tracking blockchain data from the Hydra Chain."
 category = "main"
 optional = false
@@ -543,7 +543,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "2182bc236bbdc14167e1e2a7e9267240375a76d4cc059ff007206ab786f8fc61"
+content-hash = "5dbb85bed6d0c73721b150d6d313227145f59e2eb8cfdb0119430e8b1195e8eb"
 
 [metadata.files]
 aiocache = [

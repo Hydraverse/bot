@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hydra-chain-bot"
-version = "2.0.1"
+version = "2.0.2"
 description = "The Hydraverse Bot."
 authors = [
     "Phillip Sitbon <phillip.sitbon@gmail.com>",
@@ -26,7 +26,7 @@ fuzzywuzzy = "^0.18.0"
 python-levenshtein = "^0.20.8"
 num2words = "^0.5.12"
 aiocache = "^0.11.1"
-aiogram = {git = "https://github.com/aiogram/aiogram", rev = "dev-3.x"}
+aiogram = {git = "https://github.com/aiogram/aiogram", rev = "34a91bf"}
 hydra-chain-db = {path = "../db", develop = true}
 
 [build-system]
