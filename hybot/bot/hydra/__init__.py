@@ -152,7 +152,7 @@ class HydraBot(Bot):
         async def chain(msg: types.Message):
             return await self.command(msg, cmd_chain.chain)
 
-        @self.dp.message()
+        # @self.dp.message()
         @self.dp.message(F.text.startswith("/addr").or_(F.text.startswith("/a")))
         async def addr_(msg: types.Message):
             return await self.command(msg, cmd_addr.addr)
