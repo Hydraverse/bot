@@ -134,11 +134,11 @@ class HydraBot(Bot):
         async def tz(msg: types.Message):
             return await self.command(msg, cmd_tz.tz)
 
-        @self.dp.message(F.text.in_({"/DELETE"}))
+        @self.dp.message(F.text.startswith("/DELETE"))
         async def delete(msg: types.Message):
             return await self.command(msg, cmd_delete.delete)
 
-        @self.dp.message(F.text.in_({"/fiat", "/price"}))
+        @self.dp.message(F.text.startswith("/fiat").or_(F.text.startswith("/price")))
         async def fiat(msg: types.Message):
             return await self.command(msg, cmd_fiat.fiat)
 
@@ -146,7 +146,7 @@ class HydraBot(Bot):
         async def conf(msg: types.Message):
             return await self.command(msg, cmd_conf.conf)
 
-        @self.dp.message(F.text.in_({"/chain"}))
+        @self.dp.message(F.text.startswith("/chain"))
         async def chain(msg: types.Message):
             return await self.command(msg, cmd_chain.chain)
 
