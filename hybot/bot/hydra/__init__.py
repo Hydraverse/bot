@@ -140,7 +140,6 @@ class HydraBot(Bot):
 
         @self.dp.message(F.text.startswith("/fiat"))
         async def fiat(msg: types.Message):
-            log.warning(f"fiat command: {msg}")
             return await self.command(msg, cmd_fiat.fiat)
 
         @self.dp.message(F.text.startswith("/price"))
