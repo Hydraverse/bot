@@ -138,7 +138,11 @@ class HydraBot(Bot):
         async def delete(msg: types.Message):
             return await self.command(msg, cmd_delete.delete)
 
-        @self.dp.message(F.text.startswith("/fiat").or_(F.text.startswith("/price")))
+        @self.dp.message(F.text.startswith("/fiat"))
+        async def fiat(msg: types.Message):
+            return await self.command(msg, cmd_fiat.fiat)
+
+        @self.dp.message(F.text.startswith("/price"))
         async def fiat(msg: types.Message):
             return await self.command(msg, cmd_fiat.fiat)
 
