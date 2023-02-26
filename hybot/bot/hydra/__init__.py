@@ -39,6 +39,7 @@ class HydraBot(Bot):
     rpcx: ExplorerRPC
     evm: object  # type: EventManager
 
+    prices: PriceClient  # For compat with the fiat cmd processing.
     price_client_map: Dict[str, PriceClient]
 
     CONF = {
@@ -78,7 +79,7 @@ class HydraBot(Bot):
             passphrase=self.conf.kc_psp
         )
 
-        pc_hydra = PriceClientKeyed("HYDRA")
+        self.prices = pc_hydra = PriceClientKeyed("HYDRA")
         pc_usdt = PriceClientKeyed("USDT")
 
         self.price_client_map = {
