@@ -120,7 +120,8 @@ class HydraBot(Bot):
             delete as cmd_delete, \
             fiat as cmd_fiat, \
             conf as cmd_conf, \
-            chain as cmd_chain
+            chain as cmd_chain, \
+            info as cmd_info
 
         async def chat_message_filter(message: Message) -> bool:
             return message.text is not None and len(str(message.text))
@@ -155,6 +156,10 @@ class HydraBot(Bot):
         async def chain(msg: types.Message):
             return await self.command(msg, cmd_chain.chain)
 
+        @self.dp.message(F.text.startswith("/info"))
+        async def info(msg: types.Message):
+            return await self.command(msg, cmd_info.info)
+
         @self.dp.message()
         @self.dp.message(F.text.startswith("/addr").or_(F.text.startswith("/a")))
         async def addr_(msg: types.Message):
@@ -174,6 +179,9 @@ class HydraBot(Bot):
 
             elif callback_query.data == "chain:refresh":
                 return await cmd_chain.chain(self, callback_query.message, refresh=True)
+
+            elif callback_query.data == "info:refresh":
+                return await cmd_info.info(self, callback_query.message, refresh=True)
 
         super().__init__(token, parse_mode="HTML")
 
