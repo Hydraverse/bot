@@ -26,7 +26,7 @@ fuzzywuzzy = "^0.18.0"
 python-levenshtein = "^0.21"
 num2words = "^0.5.12"
 aiocache = "^0.12"
-aiogram = {git = "https://github.com/aiogram/aiogram", rev = "34a91bf"}
+aiogram = {git = "https://github.com/aiogram/aiogram"}
 hydra-chain-db = {path = "../db", develop = true}
 
 [build-system]
