@@ -34,6 +34,7 @@ async def info(bot: HydraBot, msg: types.Message, refresh: bool = False):
     chain_info: schemas.ChainInfo = await bot.db.info_cache()
 
     results = chain_info.dict()
+    results["time"] = " ".join(results["time"].ctime().rsplit(" ", 1)[0].split()[1:])
 
     message = []
 
@@ -73,8 +74,3 @@ async def info(bot: HydraBot, msg: types.Message, refresh: bool = False):
         text=message,
         reply_markup=reply_markup
     )
-
-
-def utc_time():
-    tz_utc = pytz.timezone("UTC")
-    return pytz.utc.localize(datetime.datetime.utcnow(), is_dst=None).astimezone(tz_utc)
