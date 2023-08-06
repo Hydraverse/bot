@@ -172,7 +172,9 @@ class HydraBot(Bot):
                 action = parts[0]
                 user_pk, user_addr_pk, chat_id = map(int, parts[1:])
 
-                return await self.show_addr(callback_query.message, user_pk, user_addr_pk, chat_id, refreshing=action == "refresh")
+                return await self.show_addr(
+                    callback_query.message, user_pk, user_addr_pk, chat_id, refreshing=action == "refresh"
+                )
 
             elif callback_query.data == "remove":
                 return await callback_query.message.delete_reply_markup()
