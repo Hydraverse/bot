@@ -479,7 +479,7 @@ speedup = ["python-levenshtein (>=0.12)"]
 
 [[package]]
 name = "hydra-chain-db"
-version = "2.2.5"
+version = "2.2.6"
 description = "A database for tracking blockchain data from the Hydra Chain."
 optional = false
 python-versions = "^3.11"
@@ -501,7 +501,7 @@ ujson = "^5.5.0"
 type = "git"
 url = "https://github.com/hydraverse/db"
 reference = "HEAD"
-resolved_reference = "e4937ffe6df4aecb673259fab68536bbe6617feb"
+resolved_reference = "c6fe01dcb50329b0dc2e0643b44f9c54ad11b016"
 
 [[package]]
 name = "hydra-chain-py"
