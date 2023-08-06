@@ -41,7 +41,7 @@ def fiat_value_decimal_from_price_simple(price: Union[Decimal, str], value: Unio
     # noinspection PyTypeChecker
     return round(
         floor(
-            (Decimal(price) if not isinstance(price, Decimal) else price) * \
+            (Decimal(price) if not isinstance(price, Decimal) else price) *
             (schemas.Addr.decimal(value) if not isinstance(value, Decimal) else value)
             * Decimal(100)
         ) / Decimal(100),

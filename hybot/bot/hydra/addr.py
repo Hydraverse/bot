@@ -339,13 +339,17 @@ async def addr_show(bot: HydraBot, chat_id: int, u: Union[schemas.User, schemas.
             tb.fiat_value = Decimal(0)
 
             if tb.symbol in bot.price_client_map.keys():
-                tb.fiat_value = await bot.fiat_value_dec_of(
-                    tb.symbol,
-                    currency,
-                    schemas.Addr.decimal(tb.balance, decimals=tb.decimals)
-                )
+                try:
+                    tb.fiat_value = await bot.fiat_value_dec_of(
+                        tb.symbol,
+                        currency,
+                        schemas.Addr.decimal(tb.balance, decimals=tb.decimals)
+                    )
 
-                total_fiat_value += tb.fiat_value
+                    total_fiat_value += tb.fiat_value
+
+                except Exception as e:
+                    raise ValueError(f"Error retrieving price for {tb.symbol}/{currency}\n{type(e).__name__}: {e}") from e
 
             if int(balance) == balance:
                 balance = int(balance)
