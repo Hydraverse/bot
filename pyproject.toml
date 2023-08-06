@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hydra-chain-bot"
-version = "2.1.0"
+version = "2.1.1"
 description = "The Hydraverse Bot."
 authors = [
     "Phillip Sitbon <phillip.sitbon@gmail.com>",
@@ -20,7 +20,7 @@ hybot = "hybot.app:HydraBotApp.main"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-hydra-chain-py = "*"
+hydra-chain-py = {git = "https://github.com/hydraverse/hypy"}
 pyyaml = "^6.0"
 fuzzywuzzy = "^0.18.0"
 python-levenshtein = "^0.21"
