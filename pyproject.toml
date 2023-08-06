@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hydra-chain-bot"
-version = "2.2.4"
+version = "2.2.5"
 description = "The Hydraverse Bot."
 authors = [
     "Phillip Sitbon <phillip.sitbon@gmail.com>",
