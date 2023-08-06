@@ -479,25 +479,29 @@ speedup = ["python-levenshtein (>=0.12)"]
 
 [[package]]
 name = "hydra-chain-db"
-version = "2.1.1"
+version = "2.2.0"
 description = "A database for tracking blockchain data from the Hydra Chain."
 optional = false
 python-versions = "^3.11"
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
 aiocache = "^0.12"
+attrdict3 = "^2.0.2"
 deepdiff = "^6.2.1"
 hydra-chain-py = {git = "https://github.com/hydraverse/hypy"}
 msgpack = "^1.0.4"
+pydantic = "^2.1.1"
 pyyaml = "^6.0"
 sseclient-py = "^1.7.2"
 ujson = "^5.5.0"
 
 [package.source]
-type = "directory"
-url = "../db"
+type = "git"
+url = "https://github.com/hydraverse/db"
+reference = "HEAD"
+resolved_reference = "cd1c08f8ee27ebef458e76da67214295e74d6160"
 
 [[package]]
 name = "hydra-chain-py"
@@ -1579,4 +1583,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "8bb23bbd29c7ca962770485ddb5a54423b0e75c3f5e7ff2b84c6d7136053150f"
+content-hash = "b0596f2835e2070724f32385aaea461759a41a8c1a152ca68dd501528b2e219b"
